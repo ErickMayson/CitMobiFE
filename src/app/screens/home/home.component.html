@@ -1,11 +1,7 @@
 <div class="home-container">
   <!-- Sidebar -->
-  <div
-    class="sidebar"
-    [class.sidebar-closed]="!sidebarOpen"
-    [class.sidebar-animating]="isAnimating"
-  >
-    <div class="sidebar-content">
+  <div class="sidebar" [class.sidebar-closed]="!sidebarOpen">
+    <div class="sidebar-content" [class.content-visible]="showSidebarContent">
       <!-- Logo Section -->
       <div class="sidebar-header">
         <div class="logo-container">
@@ -78,6 +74,7 @@
   <button
     class="toggle-btn"
     [class.toggle-btn-closed]="!sidebarOpen"
+    [class.content-visible]="showSidebarContent"
     (click)="toggleSidebar()"
   >
     <svg
@@ -103,23 +100,74 @@
   </button>
 
   <!-- Main Content -->
-  <div class="main-content" [class.content-visible]="showContent">
+  <div class="main-content" [class.content-visible]="showMainContent">
     <div class="content-wrapper">
-      <!-- Header Card -->
-      <div class="welcome-card">
-        <h1 class="welcome-title">Bem-vindo ao Sistema</h1>
-        <p class="welcome-subtitle">
-          Use o menu lateral para navegar entre as páginas.
-        </p>
+      <!-- Header -->
+      <div class="dashboard-header">
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Visão geral do sistema</p>
       </div>
 
-      <!-- Dashboard Cards -->
-      <div class="dashboard-grid">
-        <div class="dashboard-card">
-          <div class="card-header">
-            <div class="card-icon-wrapper">
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <!-- Motoristas Ativos -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-icon-wrapper blue">
               <svg
-                class="card-icon"
+                class="kpi-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <span class="kpi-label">Motoristas Ativos</span>
+          </div>
+          <div class="kpi-value">{{ stats.motoristasAtivos }}</div>
+          <!-- CONECTAR: stats.motoristasAtivos com dados reais da API -->
+          <div class="kpi-footer">
+            <span class="kpi-change positive">+12%</span>
+            <span class="kpi-period">vs mês anterior</span>
+          </div>
+        </div>
+
+        <!-- Veículos Ativos -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-icon-wrapper green">
+              <svg
+                class="kpi-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
+                />
+              </svg>
+            </div>
+            <span class="kpi-label">Veículos Ativos</span>
+          </div>
+          <div class="kpi-value">{{ stats.veiculosAtivos }}</div>
+          <!-- CONECTAR: stats.veiculosAtivos com dados reais da API -->
+          <div class="kpi-footer">
+            <span class="kpi-change positive">+5%</span>
+            <span class="kpi-period">vs mês anterior</span>
+          </div>
+        </div>
+
+        <!-- Rotas em Operação -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-icon-wrapper orange">
+              <svg
+                class="kpi-icon"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -131,49 +179,216 @@
                 />
               </svg>
             </div>
-            <h3 class="card-title">Rotas</h3>
+            <span class="kpi-label">Rotas em Operação</span>
           </div>
-          <p class="card-description">Gerencie suas rotas de entrega</p>
+          <div class="kpi-value">{{ stats.rotasEmOperacao }}</div>
+          <!-- CONECTAR: stats.rotasEmOperacao com dados reais da API -->
+          <div class="kpi-footer">
+            <span class="kpi-change positive">+8%</span>
+            <span class="kpi-period">vs mês anterior</span>
+          </div>
         </div>
 
-        <div class="dashboard-card">
-          <div class="card-header">
-            <div class="card-icon-wrapper">
+        <!-- Distância Total (km) -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-icon-wrapper purple">
               <svg
-                class="card-icon"
+                class="kpi-icon"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
               >
                 <path
-                  d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
+                  d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"
+                  stroke-linejoin="round"
                 />
               </svg>
             </div>
-            <h3 class="card-title">Veículos</h3>
+            <span class="kpi-label">Distância Total (km)</span>
           </div>
-          <p class="card-description">Controle sua frota de veículos</p>
+          <div class="kpi-value">{{ stats.distanciaTotal }}</div>
+          <!-- CONECTAR: stats.distanciaTotal com dados reais da API -->
+          <div class="kpi-footer">
+            <span class="kpi-change negative">-3%</span>
+            <span class="kpi-period">vs mês anterior</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div class="charts-grid">
+        <!-- Rotas por Dia (Últimos 7 dias) -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Rotas por Dia</h3>
+            <span class="chart-period">Últimos 7 dias</span>
+          </div>
+          <div class="chart-container">
+            <div class="bar-chart">
+              <!-- CONECTAR: routesByDay com dados reais da API -->
+              <div
+                class="bar-wrapper"
+                *ngFor="let day of routesByDay; let i = index"
+              >
+                <div
+                  class="bar"
+                  [style.height.%]="(day.value / maxRoutesValue) * 100"
+                ></div>
+                <span class="bar-label">{{ day.label }}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="dashboard-card">
-          <div class="card-header">
-            <div class="card-icon-wrapper">
-              <svg
-                class="card-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </div>
-            <h3 class="card-title">Motoristas</h3>
+        <!-- Status dos Veículos -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Status dos Veículos</h3>
+            <span class="chart-period">Tempo real</span>
           </div>
-          <p class="card-description">Administre seus motoristas</p>
+          <div class="chart-container">
+            <div class="status-chart">
+              <!-- CONECTAR: vehicleStatus com dados reais da API -->
+              <div class="status-item" *ngFor="let status of vehicleStatus">
+                <div class="status-info">
+                  <div
+                    class="status-dot"
+                    [style.background-color]="status.color"
+                  ></div>
+                  <span class="status-label">{{ status.label }}</span>
+                </div>
+                <div class="status-bar-container">
+                  <div
+                    class="status-bar"
+                    [style.width.%]="status.percentage"
+                    [style.background-color]="status.color"
+                  ></div>
+                </div>
+                <span class="status-value">{{ status.value }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Motoristas por Turno -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Motoristas por Turno</h3>
+            <span class="chart-period">Hoje</span>
+          </div>
+          <div class="chart-container">
+            <div class="donut-chart">
+              <!-- CONECTAR: driversByShift com dados reais da API -->
+              <svg viewBox="0 0 200 200" class="donut-svg">
+                <circle
+                  cx="100"
+                  cy="100"
+                  r="80"
+                  fill="none"
+                  stroke="#E0F2FE"
+                  stroke-width="40"
+                />
+                <circle
+                  cx="100"
+                  cy="100"
+                  r="80"
+                  fill="none"
+                  stroke="#00b4d8"
+                  stroke-width="40"
+                  stroke-dasharray="251.2 251.2"
+                  stroke-dashoffset="62.8"
+                  transform="rotate(-90 100 100)"
+                />
+                <circle
+                  cx="100"
+                  cy="100"
+                  r="80"
+                  fill="none"
+                  stroke="#0891b2"
+                  stroke-width="40"
+                  stroke-dasharray="125.6 376.8"
+                  stroke-dashoffset="-188.4"
+                  transform="rotate(-90 100 100)"
+                />
+                <circle
+                  cx="100"
+                  cy="100"
+                  r="80"
+                  fill="none"
+                  stroke="#0e7490"
+                  stroke-width="40"
+                  stroke-dasharray="62.8 439.6"
+                  stroke-dashoffset="-314"
+                  transform="rotate(-90 100 100)"
+                />
+              </svg>
+              <div class="donut-legend">
+                <div class="legend-item" *ngFor="let shift of driversByShift">
+                  <div
+                    class="legend-dot"
+                    [style.background-color]="shift.color"
+                  ></div>
+                  <span class="legend-label">{{ shift.label }}</span>
+                  <span class="legend-value">{{ shift.value }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Atividade Recente -->
+        <div class="chart-card activity-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Atividade Recente</h3>
+            <span class="chart-period">Últimas 24h</span>
+          </div>
+          <div class="chart-container">
+            <div class="activity-list">
+              <!-- CONECTAR: recentActivity com dados reais da API -->
+              <div
+                class="activity-item"
+                *ngFor="let activity of recentActivity"
+              >
+                <div class="activity-icon" [ngClass]="activity.type">
+                  <svg
+                    *ngIf="activity.type === 'route'"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="12" cy="10" r="3" />
+                    <path d="M12 2v4" />
+                  </svg>
+                  <svg
+                    *ngIf="activity.type === 'vehicle'"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M1 3h15v13H1z" />
+                  </svg>
+                  <svg
+                    *ngIf="activity.type === 'driver'"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                  </svg>
+                </div>
+                <div class="activity-content">
+                  <p class="activity-text">{{ activity.text }}</p>
+                  <span class="activity-time">{{ activity.time }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

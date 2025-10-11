@@ -5,11 +5,7 @@
       <!-- Logo Section -->
       <div class="sidebar-header">
         <div class="logo-container">
-          <img
-            src="assets/CitMobiLogo.svg"
-            alt="CitMobi Logo"
-            class="logo-icon"
-          />
+          <span class="logo-text">CitMobi</span>
         </div>
         <h2 class="greeting">Olá, {{ username }}</h2>
       </div>
@@ -129,10 +125,9 @@
             <span class="kpi-label">Motoristas Ativos</span>
           </div>
           <div class="kpi-value">{{ stats.motoristasAtivos }}</div>
-          <!-- CONECTAR: stats.motoristasAtivos com dados reais da API -->
           <div class="kpi-footer">
             <span class="kpi-change positive">+12%</span>
-            <span class="kpi-period">vs mês anterior</span>
+            <span class="kpi-period">vs hora anterior</span>
           </div>
         </div>
 
@@ -155,10 +150,9 @@
             <span class="kpi-label">Veículos Ativos</span>
           </div>
           <div class="kpi-value">{{ stats.veiculosAtivos }}</div>
-          <!-- CONECTAR: stats.veiculosAtivos com dados reais da API -->
           <div class="kpi-footer">
             <span class="kpi-change positive">+5%</span>
-            <span class="kpi-period">vs mês anterior</span>
+            <span class="kpi-period">vs hora anterior</span>
           </div>
         </div>
 
@@ -182,14 +176,13 @@
             <span class="kpi-label">Rotas em Operação</span>
           </div>
           <div class="kpi-value">{{ stats.rotasEmOperacao }}</div>
-          <!-- CONECTAR: stats.rotasEmOperacao com dados reais da API -->
           <div class="kpi-footer">
             <span class="kpi-change positive">+8%</span>
-            <span class="kpi-period">vs mês anterior</span>
+            <span class="kpi-period">vs hora anterior</span>
           </div>
         </div>
 
-        <!-- Distância Total (km) -->
+        <!-- Cobertura Total -->
         <div class="kpi-card">
           <div class="kpi-header">
             <div class="kpi-icon-wrapper purple">
@@ -200,78 +193,170 @@
                 stroke="currentColor"
                 stroke-width="2"
               >
+                <circle cx="12" cy="12" r="10" />
                 <path
-                  d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"
-                  stroke-linejoin="round"
+                  d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
                 />
+                <path d="M2 12h20" />
               </svg>
             </div>
-            <span class="kpi-label">Distância Total (km)</span>
+            <span class="kpi-label">Cobertura Total</span>
           </div>
-          <div class="kpi-value">{{ stats.distanciaTotal }}</div>
-          <!-- CONECTAR: stats.distanciaTotal com dados reais da API -->
+          <div class="kpi-value">{{ stats.coberturaTotal }}</div>
           <div class="kpi-footer">
             <span class="kpi-change negative">-3%</span>
-            <span class="kpi-period">vs mês anterior</span>
+            <span class="kpi-period">vs hora anterior</span>
           </div>
         </div>
       </div>
 
-      <!-- Charts Grid -->
+      <!-- Charts Grid 1 - PRIORIDADE ALTA -->
       <div class="charts-grid">
-        <!-- Rotas por Dia (Últimos 7 dias) -->
-        <div class="chart-card">
+        <!-- Atividade Recente -->
+        <div class="chart-card activity-card">
           <div class="chart-header">
-            <h3 class="chart-title">Rotas por Dia</h3>
-            <span class="chart-period">Últimos 7 dias</span>
+            <h3 class="chart-title">Atividade Recente</h3>
+            <span class="chart-period">Últimas 24h</span>
           </div>
           <div class="chart-container">
-            <div class="bar-chart">
-              <!-- CONECTAR: routesByDay com dados reais da API -->
+            <div class="activity-list">
               <div
-                class="bar-wrapper"
-                *ngFor="let day of routesByDay; let i = index"
+                class="activity-item"
+                *ngFor="let activity of recentActivity"
               >
-                <div
-                  class="bar"
-                  [style.height.%]="(day.value / maxRoutesValue) * 100"
-                ></div>
-                <span class="bar-label">{{ day.label }}</span>
+                <div class="activity-icon" [ngClass]="activity.type">
+                  <svg
+                    *ngIf="activity.type === 'route'"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="12" cy="10" r="3" />
+                    <path d="M12 2v4" />
+                  </svg>
+                  <svg
+                    *ngIf="activity.type === 'vehicle'"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M1 3h15v13H1z" />
+                  </svg>
+                  <svg
+                    *ngIf="activity.type === 'driver'"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                  </svg>
+                </div>
+                <div class="activity-content">
+                  <p class="activity-text">{{ activity.text }}</p>
+                  <span class="activity-time">{{ activity.time }}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Status dos Veículos -->
-        <div class="chart-card">
+        <!-- Rotas em Operação por Hora -->
+        <div class="chart-card wide-card">
           <div class="chart-header">
-            <h3 class="chart-title">Status dos Veículos</h3>
-            <span class="chart-period">Tempo real</span>
+            <h3 class="chart-title">Rotas em Operação por Hora</h3>
+            <span class="chart-period">Últimas 24h</span>
           </div>
           <div class="chart-container">
-            <div class="status-chart">
-              <!-- CONECTAR: vehicleStatus com dados reais da API -->
-              <div class="status-item" *ngFor="let status of vehicleStatus">
-                <div class="status-info">
-                  <div
-                    class="status-dot"
-                    [style.background-color]="status.color"
-                  ></div>
-                  <span class="status-label">{{ status.label }}</span>
+            <div class="line-chart-with-axis">
+              <!-- Y Axis Labels -->
+              <div class="y-axis-labels">
+                <span class="y-label">50</span>
+                <span class="y-label">40</span>
+                <span class="y-label">30</span>
+                <span class="y-label">20</span>
+                <span class="y-label">10</span>
+                <span class="y-label">0</span>
+              </div>
+              <!-- Chart -->
+              <div class="line-chart">
+                <svg viewBox="0 0 800 200" class="line-svg">
+                  <line
+                    x1="0"
+                    y1="50"
+                    x2="800"
+                    y2="50"
+                    stroke="#f3f4f6"
+                    stroke-width="1"
+                  />
+                  <line
+                    x1="0"
+                    y1="100"
+                    x2="800"
+                    y2="100"
+                    stroke="#f3f4f6"
+                    stroke-width="1"
+                  />
+                  <line
+                    x1="0"
+                    y1="150"
+                    x2="800"
+                    y2="150"
+                    stroke="#f3f4f6"
+                    stroke-width="1"
+                  />
+                  <polyline
+                    points="0,160 33,180 67,190 100,188 133,185 167,165 200,95 233,70 267,62 300,80 333,88 367,75 400,68 433,80 467,85 500,78 533,73 567,65 600,58 633,88 667,105 700,120 733,135 767,160"
+                    fill="none"
+                    stroke="#00b4d8"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <polygon
+                    points="0,160 33,180 67,190 100,188 133,185 167,165 200,95 233,70 267,62 300,80 333,88 367,75 400,68 433,80 467,85 500,78 533,73 567,65 600,58 633,88 667,105 700,120 733,135 767,160 767,200 0,200"
+                    fill="url(#gradient)"
+                    opacity="0.2"
+                  />
+                  <defs>
+                    <linearGradient
+                      id="gradient"
+                      x1="0%"
+                      y1="0%"
+                      x2="0%"
+                      y2="100%"
+                    >
+                      <stop
+                        offset="0%"
+                        style="stop-color: #00b4d8; stop-opacity: 1"
+                      />
+                      <stop
+                        offset="100%"
+                        style="stop-color: #00b4d8; stop-opacity: 0"
+                      />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div class="line-labels">
+                  <span
+                    *ngFor="let hour of routesByHour; let i = index"
+                    [style.display]="i % 4 === 0 ? 'block' : 'none'"
+                    class="line-label"
+                  >
+                    {{ hour.label }}
+                  </span>
                 </div>
-                <div class="status-bar-container">
-                  <div
-                    class="status-bar"
-                    [style.width.%]="status.percentage"
-                    [style.background-color]="status.color"
-                  ></div>
-                </div>
-                <span class="status-value">{{ status.value }}</span>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
+      <!-- Charts Grid 2 - PRIORIDADE ALTA -->
+      <div class="charts-grid" style="margin-top: 1.5rem">
         <!-- Motoristas por Turno -->
         <div class="chart-card">
           <div class="chart-header">
@@ -280,7 +365,6 @@
           </div>
           <div class="chart-container">
             <div class="donut-chart">
-              <!-- CONECTAR: driversByShift com dados reais da API -->
               <svg viewBox="0 0 200 200" class="donut-svg">
                 <circle
                   cx="100"
@@ -338,59 +422,356 @@
           </div>
         </div>
 
-        <!-- Atividade Recente -->
-        <div class="chart-card activity-card">
+        <!-- Veículos em Reserva por Hora -->
+        <div class="chart-card">
           <div class="chart-header">
-            <h3 class="chart-title">Atividade Recente</h3>
-            <span class="chart-period">Últimas 24h</span>
+            <h3 class="chart-title">Veículos em Reserva/Hora</h3>
+            <span class="chart-period">Últimas 12h</span>
           </div>
           <div class="chart-container">
-            <div class="activity-list">
-              <!-- CONECTAR: recentActivity com dados reais da API -->
-              <div
-                class="activity-item"
-                *ngFor="let activity of recentActivity"
-              >
-                <div class="activity-icon" [ngClass]="activity.type">
-                  <svg
-                    *ngIf="activity.type === 'route'"
-                    viewBox="0 0 24 24"
+            <div class="area-chart-with-axis">
+              <!-- Y Axis Labels -->
+              <div class="y-axis-labels-small">
+                <span class="y-label-small">20</span>
+                <span class="y-label-small">15</span>
+                <span class="y-label-small">10</span>
+                <span class="y-label-small">5</span>
+                <span class="y-label-small">0</span>
+              </div>
+              <!-- Chart -->
+              <div class="area-chart">
+                <svg viewBox="0 0 400 200" class="area-svg">
+                  <defs>
+                    <linearGradient
+                      id="reserveGradient"
+                      x1="0%"
+                      y1="0%"
+                      x2="0%"
+                      y2="100%"
+                    >
+                      <stop
+                        offset="0%"
+                        style="stop-color: #10b981; stop-opacity: 0.6"
+                      />
+                      <stop
+                        offset="100%"
+                        style="stop-color: #10b981; stop-opacity: 0.1"
+                      />
+                    </linearGradient>
+                  </defs>
+                  <polygon
+                    points="0,80 36,88 72,92 108,100 144,120 180,140 216,145 252,120 288,100 324,92 360,88 396,85 396,200 0,200"
+                    fill="url(#reserveGradient)"
+                  />
+                  <polyline
+                    points="0,80 36,88 72,92 108,100 144,120 180,140 216,145 252,120 288,100 324,92 360,88 396,85"
                     fill="none"
-                    stroke="currentColor"
+                    stroke="#10b981"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <circle
+                    cx="0"
+                    cy="80"
+                    r="4"
+                    fill="#10b981"
+                    stroke="#fff"
                     stroke-width="2"
-                  >
-                    <circle cx="12" cy="10" r="3" />
-                    <path d="M12 2v4" />
-                  </svg>
-                  <svg
-                    *ngIf="activity.type === 'vehicle'"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
+                  />
+                  <circle
+                    cx="36"
+                    cy="88"
+                    r="4"
+                    fill="#10b981"
+                    stroke="#fff"
                     stroke-width="2"
-                  >
-                    <path d="M1 3h15v13H1z" />
-                  </svg>
-                  <svg
-                    *ngIf="activity.type === 'driver'"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
+                  />
+                  <circle
+                    cx="72"
+                    cy="92"
+                    r="4"
+                    fill="#10b981"
+                    stroke="#fff"
                     stroke-width="2"
+                  />
+                  <circle
+                    cx="108"
+                    cy="100"
+                    r="4"
+                    fill="#10b981"
+                    stroke="#fff"
+                    stroke-width="2"
+                  />
+                  <circle
+                    cx="144"
+                    cy="120"
+                    r="4"
+                    fill="#10b981"
+                    stroke="#fff"
+                    stroke-width="2"
+                  />
+                  <circle
+                    cx="180"
+                    cy="140"
+                    r="4"
+                    fill="#10b981"
+                    stroke="#fff"
+                    stroke-width="2"
+                  />
+                  <circle
+                    cx="216"
+                    cy="145"
+                    r="4"
+                    fill="#10b981"
+                    stroke="#fff"
+                    stroke-width="2"
+                  />
+                  <circle
+                    cx="252"
+                    cy="120"
+                    r="4"
+                    fill="#10b981"
+                    stroke="#fff"
+                    stroke-width="2"
+                  />
+                  <circle
+                    cx="288"
+                    cy="100"
+                    r="4"
+                    fill="#10b981"
+                    stroke="#fff"
+                    stroke-width="2"
+                  />
+                  <circle
+                    cx="324"
+                    cy="92"
+                    r="4"
+                    fill="#10b981"
+                    stroke="#fff"
+                    stroke-width="2"
+                  />
+                  <circle
+                    cx="360"
+                    cy="88"
+                    r="4"
+                    fill="#10b981"
+                    stroke="#fff"
+                    stroke-width="2"
+                  />
+                  <circle
+                    cx="396"
+                    cy="85"
+                    r="4"
+                    fill="#10b981"
+                    stroke="#fff"
+                    stroke-width="2"
+                  />
+                </svg>
+                <div class="line-labels">
+                  <span
+                    *ngFor="let hour of reserveVehiclesByHour"
+                    class="line-label-small"
                   >
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                  </svg>
+                    {{ hour.label }}
+                  </span>
                 </div>
-                <div class="activity-content">
-                  <p class="activity-text">{{ activity.text }}</p>
-                  <span class="activity-time">{{ activity.time }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Veículos em Operação por Rota -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Veículos por Rota</h3>
+            <span class="chart-period">Tempo real</span>
+          </div>
+          <div class="chart-container">
+            <div class="horizontal-bar-chart">
+              <div class="h-bar-item" *ngFor="let route of vehiclesByRoute">
+                <div class="h-bar-info">
+                  <span class="h-bar-label">{{ route.route }}</span>
+                  <span class="h-bar-value">{{ route.vehicles }} veículos</span>
+                </div>
+                <div class="h-bar-container">
+                  <div
+                    class="h-bar"
+                    [style.width.%]="
+                      (route.vehicles / maxVehiclesByRoute) * 100
+                    "
+                    [style.background-color]="route.color"
+                  ></div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- Charts Grid 3 - SECUNDÁRIO -->
+      <div class="charts-grid" style="margin-top: 1.5rem">
+        <!-- Veículos em Ocorrência -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Veículos em Ocorrência</h3>
+            <span class="chart-period">Agora</span>
+          </div>
+          <div class="chart-container">
+            <div class="incident-chart">
+              <div class="incident-summary">
+                <div class="incident-total">
+                  <span class="incident-number">{{ getIncidentTotal() }}</span>
+                  <span class="incident-label">Total de Ocorrências</span>
+                </div>
+              </div>
+              <div class="incident-list">
+                <div
+                  class="incident-item"
+                  *ngFor="let incident of vehicleIncidents"
+                >
+                  <div
+                    class="incident-icon-wrapper"
+                    [style.background-color]="incident.color + '20'"
+                  >
+                    <svg
+                      *ngIf="incident.icon === 'wrench'"
+                      class="incident-icon"
+                      [style.color]="incident.color"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
+                      />
+                    </svg>
+                    <svg
+                      *ngIf="incident.icon === 'alert'"
+                      class="incident-icon"
+                      [style.color]="incident.color"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                      />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <svg
+                      *ngIf="incident.icon === 'circle'"
+                      class="incident-icon"
+                      [style.color]="incident.color"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 16v-4M12 8h.01" />
+                    </svg>
+                    <svg
+                      *ngIf="incident.icon === 'zap'"
+                      class="incident-icon"
+                      [style.color]="incident.color"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polygon
+                        points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
+                      />
+                    </svg>
+                    <svg
+                      *ngIf="incident.icon === 'more'"
+                      class="incident-icon"
+                      [style.color]="incident.color"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="12" cy="12" r="1" />
+                      <circle cx="19" cy="12" r="1" />
+                      <circle cx="5" cy="12" r="1" />
+                    </svg>
+                  </div>
+                  <div class="incident-details">
+                    <div class="incident-type">{{ incident.type }}</div>
+                    <div class="incident-count-bar">
+                      <div
+                        class="incident-progress"
+                        [style.width.%]="incident.percentage"
+                        [style.background-color]="incident.color"
+                      ></div>
+                    </div>
+                  </div>
+                  <div class="incident-count">{{ incident.count }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rotas por Dia -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Rotas por Dia</h3>
+            <span class="chart-period">Últimos 7 dias</span>
+          </div>
+          <div class="chart-container">
+            <div class="bar-chart">
+              <div
+                class="bar-wrapper"
+                *ngFor="let day of routesByDay; let i = index"
+              >
+                <div
+                  class="bar"
+                  [style.height.%]="(day.value / maxRoutesValue) * 100"
+                ></div>
+                <span class="bar-label">{{ day.label }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status dos Veículos -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Status dos Veículos</h3>
+            <span class="chart-period">Tempo real</span>
+          </div>
+          <div class="chart-container">
+            <div class="status-chart">
+              <div class="status-item" *ngFor="let status of vehicleStatus">
+                <div class="status-info">
+                  <div
+                    class="status-dot"
+                    [style.background-color]="status.color"
+                  ></div>
+                  <span class="status-label">{{ status.label }}</span>
+                </div>
+                <div class="status-bar-container">
+                  <div
+                    class="status-bar"
+                    [style.width.%]="status.percentage"
+                    [style.background-color]="status.color"
+                  ></div>
+                </div>
+                <span class="status-value">{{ status.value }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Grid 4 - SECUNDÁRIO -->
+      <div class="charts-grid" style="margin-top: 1.5rem"></div>
     </div>
   </div>
 </div>

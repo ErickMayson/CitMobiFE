@@ -669,6 +669,10 @@ $white: #ffffff;
   .charts-grid {
     grid-template-columns: 1fr;
   }
+
+  .wide-card {
+    grid-column: span 1 !important;
+  }
 }
 
 @media (max-width: 768px) {
@@ -701,6 +705,265 @@ $white: #ffffff;
   .dashboard-header {
     .page-title {
       font-size: 1.5rem;
+    }
+  }
+}
+
+// NOVOS ESTILOS PARA OS GRÁFICOS ADICIONADOS:
+
+// Wide card for larger charts
+.wide-card {
+  grid-column: span 2;
+}
+
+// Line Chart
+.line-chart {
+  position: relative;
+
+  .line-svg {
+    width: 100%;
+    height: 200px;
+  }
+
+  .line-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    padding: 0 0.5rem;
+
+    .line-label {
+      font-size: 0.75rem;
+      color: $text-gray;
+      font-weight: 500;
+    }
+  }
+}
+
+// Line Chart with Y Axis
+.line-chart-with-axis {
+  display: flex;
+  gap: 0.5rem;
+
+  .y-axis-labels {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-right: 0.5rem;
+    height: 200px;
+
+    .y-label {
+      font-size: 0.75rem;
+      color: $text-gray;
+      font-weight: 500;
+      text-align: right;
+    }
+  }
+
+  .line-chart {
+    flex: 1;
+  }
+}
+
+// Area Chart
+.area-chart {
+  position: relative;
+
+  .area-svg {
+    width: 100%;
+    height: 200px;
+  }
+
+  .line-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+
+    .line-label-small {
+      font-size: 0.7rem;
+      color: $text-gray;
+      font-weight: 500;
+    }
+  }
+}
+
+// Area Chart with Y Axis
+.area-chart-with-axis {
+  display: flex;
+  gap: 0.5rem;
+
+  .y-axis-labels-small {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-right: 0.5rem;
+    height: 200px;
+
+    .y-label-small {
+      font-size: 0.75rem;
+      color: $text-gray;
+      font-weight: 500;
+      text-align: right;
+    }
+  }
+
+  .area-chart {
+    flex: 1;
+  }
+}
+
+// Gradient Bar
+.gradient-bar {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0.5rem;
+
+  .bar-value {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: $white;
+  }
+}
+
+// Horizontal Bar Chart
+.horizontal-bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+
+  .h-bar-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    .h-bar-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .h-bar-label {
+        font-size: 0.875rem;
+        color: $text-dark;
+        font-weight: 500;
+      }
+
+      .h-bar-value {
+        font-size: 0.75rem;
+        color: $text-gray;
+        font-weight: 600;
+      }
+    }
+
+    .h-bar-container {
+      background: #f3f4f6;
+      height: 0.75rem;
+      border-radius: 1rem;
+      overflow: hidden;
+
+      .h-bar {
+        height: 100%;
+        border-radius: 1rem;
+        transition: width 0.8s ease;
+        background: linear-gradient(90deg, currentColor 0%, currentColor 100%);
+      }
+    }
+  }
+}
+
+// Incident Chart
+.incident-chart {
+  .incident-summary {
+    text-align: center;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    border-radius: 0.75rem;
+    margin-bottom: 1.5rem;
+
+    .incident-total {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+
+      .incident-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #ef4444;
+      }
+
+      .incident-label {
+        font-size: 0.875rem;
+        color: $text-gray;
+        font-weight: 500;
+      }
+    }
+  }
+
+  .incident-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+
+    .incident-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      transition: background 0.2s;
+
+      &:hover {
+        background: #f9fafb;
+      }
+
+      .incident-icon-wrapper {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+
+        .incident-icon {
+          width: 1.25rem;
+          height: 1.25rem;
+        }
+      }
+
+      .incident-details {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+
+        .incident-type {
+          font-size: 0.875rem;
+          color: $text-dark;
+          font-weight: 500;
+        }
+
+        .incident-count-bar {
+          background: #f3f4f6;
+          height: 0.375rem;
+          border-radius: 1rem;
+          overflow: hidden;
+
+          .incident-progress {
+            height: 100%;
+            border-radius: 1rem;
+            transition: width 0.5s ease;
+          }
+        }
+      }
+
+      .incident-count {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: $text-dark;
+        min-width: 2rem;
+        text-align: right;
+      }
     }
   }
 }

@@ -11,6 +11,9 @@ import { CommonModule } from '@angular/common';
 export class HomeComponent implements OnInit {
   sidebarOpen: boolean = true;
   username: string = 'João';
+  companyId: string = '33';
+  companyName: string = 'Viação Gato Preto LTDA';
+  companyLogo: string = 'assets/viacaoGatoPreto.png';
   showSidebarContent: boolean = false;
   showMainContent: boolean = false;
 

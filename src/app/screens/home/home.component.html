@@ -8,6 +8,14 @@
           <span class="logo-text">CitMobi</span>
         </div>
         <h2 class="greeting">Olá, {{ username }}</h2>
+
+        <!-- Company Info -->
+        <div class="company-info">
+          <img [src]="companyLogo" [alt]="companyName" class="company-logo" />
+          <div class="company-details">
+            <span class="company-name">{{ companyName }}</span>
+          </div>
+        </div>
       </div>
 
       <!-- Navigation Menu -->

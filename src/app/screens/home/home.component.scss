@@ -32,36 +32,87 @@ $white: #ffffff;
     color: $white;
   }
 
-  .sidebar-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    .sidebar-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 
-.logo-container {
-    width: auto;
-    padding: 0.75rem 1.5rem;
-    border-radius: 0.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 1rem;
+      .logo-container {
+        width: 5rem;
+        height: 5rem;
+        background: $white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 
-    .logo-text {
-      font-weight: 700;
-      font-size: 2.5rem;
-      color: #ffffff;
+        .logo-icon {
+          width: 3rem;
+          height: 3rem;
+        }
+
+        .logo-text {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #00b4d8;
+        }
+      }
+
+      .greeting {
+        font-size: 1.25rem;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 1rem;
+      }
+
+      .company-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 0.5rem;
+        width: 100%;
+
+        .company-logo {
+          width: 2.5rem;
+          height: 2.5rem;
+          border-radius: 0.375rem;
+          object-fit: cover;
+          background: $white;
+          padding: 0.25rem;
+        }
+
+        .company-details {
+          display: flex;
+          flex-direction: column;
+          gap: 0.125rem;
+          flex: 1;
+          min-width: 0;
+
+          .company-id {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 0.025em;
+          }
+
+          .company-name {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: $white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
+      }
     }
-  }
-
-    .greeting {
-      font-size: 1.25rem;
-      font-weight: 700;
-      text-align: center;
-    }
-  }
 
   .nav-menu {
     flex: 1;
@@ -708,8 +759,6 @@ $white: #ffffff;
     }
   }
 }
-
-// NOVOS ESTILOS PARA OS GRÁFICOS ADICIONADOS:
 
 // Wide card for larger charts
 .wide-card {

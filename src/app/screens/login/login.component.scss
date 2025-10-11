@@ -305,3 +305,47 @@ $white: #ffffff;
     }
   }
 }
+
+// Animação de transição para Home
+.login-container.transitioning {
+  .left-panel {
+    animation: shrinkToSidebar 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .right-panel {
+    animation: fadeOut 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+}
+
+@keyframes shrinkToSidebar {
+  0% {
+    width: 50%;
+  }
+
+  100% {
+    width: 320px;
+  }
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+// Ajuste para mobile na transição
+@media (max-width: 1024px) {
+  @keyframes shrinkToSidebar {
+    0% {
+      width: 100%;
+    }
+
+    100% {
+      width: 280px;
+    }
+  }
+}

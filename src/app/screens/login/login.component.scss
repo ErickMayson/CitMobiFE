@@ -1,0 +1,307 @@
+// Variables
+$primary-blue: #00b4d8;
+$primary-blue-hover: #0096c7;
+$text-dark: #1f2937;
+$text-gray: #6b7280;
+$border-gray: #e5e7eb;
+$white: #ffffff;
+
+.login-container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+
+  // Left Panel
+  .left-panel {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #00b4d8 0%, #0096c7 100%);
+    position: relative;
+
+    .logo-container {
+      margin-bottom: 3rem;
+
+      .logo {
+        width: 8rem;
+        height: 8rem;
+        background: $white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+
+        .logo-icon {
+          width: 4rem;
+          height: 4rem;
+          color: #06b6d4;
+        }
+      }
+    }
+
+    .tagline {
+      color: $white;
+      font-size: 3rem;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.2;
+    }
+  }
+
+  // Right Panel
+  .right-panel {
+    width: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f9fafb;
+    padding: 2rem;
+
+    .form-container {
+      width: 100%;
+      max-width: 28rem;
+
+      .welcome-title {
+        font-size: 2.25rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: $text-dark;
+      }
+
+      .welcome-subtitle {
+        font-size: 1.125rem;
+        margin-bottom: 2rem;
+        color: $text-gray;
+      }
+
+      .login-form {
+        .input-group {
+          margin-bottom: 1rem;
+
+          .input-field {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid $border-gray;
+            font-size: 16px;
+            transition: all 0.2s;
+
+            &:focus {
+              outline: none;
+              ring: 2px;
+              ring-color: #06b6d4;
+              border-color: transparent;
+            }
+
+            &::placeholder {
+              color: $text-gray;
+            }
+          }
+
+          .password-wrapper {
+            position: relative;
+
+            .toggle-password {
+              position: absolute;
+              right: 1rem;
+              top: 50%;
+              transform: translateY(-50%);
+              background: none;
+              border: none;
+              cursor: pointer;
+              color: #9ca3af;
+              transition: color 0.2s;
+
+              &:hover {
+                color: #4b5563;
+              }
+
+              &:focus {
+                outline: none;
+              }
+
+              .eye-icon {
+                width: 1.25rem;
+                height: 1.25rem;
+              }
+            }
+          }
+        }
+
+        .forgot-password-container {
+          display: flex;
+          justify-content: flex-end;
+          margin-bottom: 1.5rem;
+
+          .forgot-password {
+            color: #06b6d4;
+            font-size: 14px;
+            text-decoration: none;
+            transition: color 0.2s;
+
+            &:hover {
+              color: #0891b2;
+            }
+          }
+        }
+
+        .login-button {
+          width: 100%;
+          padding: 0.75rem;
+          border-radius: 0.5rem;
+          font-weight: 600;
+          color: $white;
+          background-color: $primary-blue;
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s;
+          margin-bottom: 1.5rem;
+
+          &:hover {
+            background-color: $primary-blue-hover;
+          }
+
+          &:active {
+            transform: scale(0.98);
+          }
+        }
+
+        .divider {
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 1.5rem 0;
+
+          &::before,
+          &::after {
+            content: '';
+            flex: 1;
+            border-top: 1px solid $border-gray;
+          }
+
+          .divider-text {
+            padding: 0 1rem;
+            color: $text-gray;
+            font-size: 14px;
+          }
+        }
+
+        .oauth-buttons {
+          display: flex;
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+
+          .oauth-button {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid $border-gray;
+            background: $white;
+            cursor: pointer;
+            transition: all 0.2s;
+
+            &:hover {
+              background: #f9fafb;
+            }
+
+            &:active {
+              transform: scale(0.98);
+            }
+
+            .oauth-icon {
+              width: 1.25rem;
+              height: 1.25rem;
+            }
+
+            .oauth-text {
+              font-weight: 500;
+              color: $text-dark;
+            }
+          }
+        }
+
+        .signup-container {
+          text-align: center;
+
+          .signup-text {
+            color: $text-gray;
+            margin-right: 0.25rem;
+          }
+
+          .signup-link {
+            color: #06b6d4;
+            font-weight: 500;
+            text-decoration: none;
+            transition: color 0.2s;
+
+            &:hover {
+              color: #0891b2;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Responsive Design
+@media (max-width: 1024px) {
+  .login-container {
+    flex-direction: column;
+
+    .left-panel,
+    .right-panel {
+      width: 100%;
+    }
+
+    .left-panel {
+      padding: 3rem 0;
+
+      .tagline {
+        font-size: 2rem;
+      }
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  .login-container {
+    .right-panel {
+      padding: 1.5rem;
+
+      .form-container {
+        .welcome-title {
+          font-size: 1.875rem;
+        }
+
+        .welcome-subtitle {
+          font-size: 1rem;
+        }
+      }
+    }
+
+    .left-panel {
+      .logo-container .logo {
+        width: 6rem;
+        height: 6rem;
+
+        .logo-icon {
+          width: 3rem;
+          height: 3rem;
+        }
+      }
+
+      .tagline {
+        font-size: 1.5rem;
+      }
+    }
+  }
+}

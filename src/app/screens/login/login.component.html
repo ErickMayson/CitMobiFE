@@ -23,10 +23,10 @@
         <!-- Email Input -->
         <div class="input-group">
           <input
-            type="email"
-            [(ngModel)]="email"
+            type="text"
+            [(ngModel)]="login"
             name="email"
-            placeholder="Email"
+            placeholder="Login"
             class="input-field"
             required
           />
@@ -37,7 +37,7 @@
           <div class="password-wrapper">
             <input
               [type]="showPassword ? 'text' : 'password'"
-              [(ngModel)]="password"
+              [(ngModel)]="senha"
               name="password"
               placeholder="Password"
               class="input-field"

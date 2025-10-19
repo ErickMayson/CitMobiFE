@@ -1,42 +1,17 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-
-interface Motorista {
-  name: string;
-  startTime: string;
-  endTime: string;
-  days: string[]; // ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB', 'DOM']
-}
-
-interface Rota {
-  routeName: string;
-  startTime: string;
-  endTime: string;
-  days: string[];
-}
-
-interface Veiculo {
-  id: string;
-  plate: string;
-  model: string;
-  type: string;
-  capacity: number;
-  status: 'EM ATENDIMENTO' | 'GARAGEM' | 'RESERVA' | 'INATIVO';
-  routes: Rota[];
-  drivers: Motorista[];
-}
-
-interface TimeSlot {
-  hour: number;
-  drivers: string[];
-  routes: string[];
-}
+import {
+  Motorista,
+  Rota,
+  Veiculo,
+  ScheduleBlock,
+} from '../../models/veiculo.model';
 
 @Component({
   selector: 'app-veiculos',
   standalone: true,
-  imports: [CommonModule, FormsModule], // ← Adicione isso
+  imports: [CommonModule, FormsModule],
   templateUrl: './veiculos.component.html',
   styleUrls: ['./veiculos.component.scss'],
 })
@@ -49,6 +24,7 @@ export class VeiculosComponent implements OnInit {
       type: 'Padrão',
       capacity: 80,
       status: 'EM ATENDIMENTO',
+      garage: 'Garagem Central',
       routes: [
         {
           routeName: 'Linha 100 - Centro/Bairro',
@@ -73,6 +49,7 @@ export class VeiculosComponent implements OnInit {
       type: 'BRT',
       capacity: 160,
       status: 'EM ATENDIMENTO',
+      garage: 'Garagem Norte',
       routes: [
         {
           routeName: 'Linha 200 - Expresso',
@@ -97,6 +74,7 @@ export class VeiculosComponent implements OnInit {
       type: 'Articulado',
       capacity: 120,
       status: 'GARAGEM',
+      garage: 'Garagem Sul',
       routes: [],
       drivers: [],
     },
@@ -106,17 +84,21 @@ export class VeiculosComponent implements OnInit {
   showEditModal = false;
   showAddDriverModal = false;
   showAddRouteModal = false;
+  showEditDriverModal = false;
+  showEditRouteModal = false;
   selectedVeiculo: Veiculo | null = null;
   selectedDay: string = 'SEG';
+  editingDriverIndex: number = -1;
+  editingRouteIndex: number = -1;
 
   newVeiculo = {
     plate: '',
     id: '',
     model: '',
     type: '',
+    garage: '',
   };
 
-  // Driver form
   driverForm = {
     name: '',
     startTime: '06:00',
@@ -124,7 +106,6 @@ export class VeiculosComponent implements OnInit {
     days: [] as string[],
   };
 
-  // Route form
   routeForm = {
     routeName: '',
     startTime: '06:00',
@@ -135,6 +116,13 @@ export class VeiculosComponent implements OnInit {
   statusOrder = ['EM ATENDIMENTO', 'GARAGEM', 'RESERVA', 'INATIVO'];
   models = ['Caio Millennium III', 'Apache VIP V'];
   types = ['Básico', 'Padrão', 'Articulado', 'Bi-articulado', 'BRT'];
+  garages = [
+    'Garagem Central',
+    'Garagem Norte',
+    'Garagem Sul',
+    'Garagem Leste',
+    'Garagem Oeste',
+  ];
   mockDrivers = [
     'João Silva',
     'Maria Santos',
@@ -195,7 +183,7 @@ export class VeiculosComponent implements OnInit {
 
   closeAddModal(): void {
     this.showAddModal = false;
-    this.newVeiculo = { plate: '', id: '', model: '', type: '' };
+    this.newVeiculo = { plate: '', id: '', model: '', type: '', garage: '' };
   }
 
   handleAddVeiculo(): void {
@@ -203,7 +191,8 @@ export class VeiculosComponent implements OnInit {
       this.newVeiculo.plate &&
       this.newVeiculo.id &&
       this.newVeiculo.model &&
-      this.newVeiculo.type
+      this.newVeiculo.type &&
+      this.newVeiculo.garage
     ) {
       const capacityMap: { [key: string]: number } = {
         Básico: 60,
@@ -214,7 +203,11 @@ export class VeiculosComponent implements OnInit {
       };
 
       const veiculo: Veiculo = {
-        ...this.newVeiculo,
+        id: this.newVeiculo.id,
+        plate: this.newVeiculo.plate,
+        model: this.newVeiculo.model,
+        type: this.newVeiculo.type,
+        garage: this.newVeiculo.garage,
         capacity: capacityMap[this.newVeiculo.type],
         status: 'GARAGEM',
         routes: [],
@@ -249,7 +242,7 @@ export class VeiculosComponent implements OnInit {
     this.closeEditModal();
   }
 
-  // Driver Modal
+  // Driver CRUD
   openAddDriverModal(): void {
     this.driverForm = {
       name: '',
@@ -262,6 +255,25 @@ export class VeiculosComponent implements OnInit {
 
   closeAddDriverModal(): void {
     this.showAddDriverModal = false;
+  }
+
+  openEditDriverModal(index: number): void {
+    const driver = this.selectedVeiculo?.drivers[index];
+    if (driver) {
+      this.driverForm = {
+        name: driver.name,
+        startTime: driver.startTime,
+        endTime: driver.endTime,
+        days: [...driver.days],
+      };
+      this.editingDriverIndex = index;
+      this.showEditDriverModal = true;
+    }
+  }
+
+  closeEditDriverModal(): void {
+    this.showEditDriverModal = false;
+    this.editingDriverIndex = -1;
   }
 
   toggleDriverDay(day: string): void {
@@ -296,13 +308,32 @@ export class VeiculosComponent implements OnInit {
     }
   }
 
+  handleEditDriver(): void {
+    if (
+      this.selectedVeiculo &&
+      this.editingDriverIndex >= 0 &&
+      this.driverForm.name &&
+      this.driverForm.startTime &&
+      this.driverForm.endTime &&
+      this.driverForm.days.length > 0
+    ) {
+      this.selectedVeiculo.drivers[this.editingDriverIndex] = {
+        name: this.driverForm.name,
+        startTime: this.driverForm.startTime,
+        endTime: this.driverForm.endTime,
+        days: [...this.driverForm.days],
+      };
+      this.closeEditDriverModal();
+    }
+  }
+
   removeDriver(index: number): void {
     if (this.selectedVeiculo) {
       this.selectedVeiculo.drivers.splice(index, 1);
     }
   }
 
-  // Route Modal
+  // Route CRUD
   openAddRouteModal(): void {
     this.routeForm = {
       routeName: '',
@@ -315,6 +346,25 @@ export class VeiculosComponent implements OnInit {
 
   closeAddRouteModal(): void {
     this.showAddRouteModal = false;
+  }
+
+  openEditRouteModal(index: number): void {
+    const route = this.selectedVeiculo?.routes[index];
+    if (route) {
+      this.routeForm = {
+        routeName: route.routeName,
+        startTime: route.startTime,
+        endTime: route.endTime,
+        days: [...route.days],
+      };
+      this.editingRouteIndex = index;
+      this.showEditRouteModal = true;
+    }
+  }
+
+  closeEditRouteModal(): void {
+    this.showEditRouteModal = false;
+    this.editingRouteIndex = -1;
   }
 
   toggleRouteDay(day: string): void {
@@ -349,6 +399,25 @@ export class VeiculosComponent implements OnInit {
     }
   }
 
+  handleEditRoute(): void {
+    if (
+      this.selectedVeiculo &&
+      this.editingRouteIndex >= 0 &&
+      this.routeForm.routeName &&
+      this.routeForm.startTime &&
+      this.routeForm.endTime &&
+      this.routeForm.days.length > 0
+    ) {
+      this.selectedVeiculo.routes[this.editingRouteIndex] = {
+        routeName: this.routeForm.routeName,
+        startTime: this.routeForm.startTime,
+        endTime: this.routeForm.endTime,
+        days: [...this.routeForm.days],
+      };
+      this.closeEditRouteModal();
+    }
+  }
+
   removeRoute(index: number): void {
     if (this.selectedVeiculo) {
       this.selectedVeiculo.routes.splice(index, 1);
@@ -360,38 +429,50 @@ export class VeiculosComponent implements OnInit {
     this.selectedDay = day;
   }
 
-  getScheduleForDay(): TimeSlot[] {
+  getScheduleBlocks(): ScheduleBlock[] {
     if (!this.selectedVeiculo) return [];
 
-    const slots: TimeSlot[] = this.hours.map((hour) => ({
-      hour,
-      drivers: [],
-      routes: [],
-    }));
+    const blocks: ScheduleBlock[] = [];
 
-    // Add drivers to slots
+    // Add driver blocks
     this.selectedVeiculo.drivers
       .filter((d) => d.days.includes(this.selectedDay))
       .forEach((driver) => {
         const start = parseInt(driver.startTime.split(':')[0]);
         const end = parseInt(driver.endTime.split(':')[0]);
-        for (let i = start; i < end; i++) {
-          slots[i].drivers.push(driver.name);
-        }
+        blocks.push({
+          type: 'driver',
+          name: driver.name,
+          start,
+          end,
+          duration: end - start,
+        });
       });
 
-    // Add routes to slots
+    // Add route blocks
     this.selectedVeiculo.routes
       .filter((r) => r.days.includes(this.selectedDay))
       .forEach((route) => {
         const start = parseInt(route.startTime.split(':')[0]);
         const end = parseInt(route.endTime.split(':')[0]);
-        for (let i = start; i < end; i++) {
-          slots[i].routes.push(route.routeName);
-        }
+        blocks.push({
+          type: 'route',
+          name: route.routeName,
+          start,
+          end,
+          duration: end - start,
+        });
       });
 
-    return slots;
+    return blocks;
+  }
+
+  getBlockPosition(start: number): string {
+    return `${(start / 24) * 100}%`;
+  }
+
+  getBlockWidth(duration: number): string {
+    return `${(duration / 24) * 100}%`;
   }
 
   private sortVeiculos(): void {

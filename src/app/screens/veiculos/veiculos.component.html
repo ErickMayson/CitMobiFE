@@ -1,0 +1,427 @@
+<div class="vehicle-management">
+  <div class="container">
+    <div class="header">
+      <h1>Gerenciamento de Veículos</h1>
+      <button class="btn-primary" (click)="openAddModal()">
+        <span class="icon">+</span>
+        Adicionar Veículo
+      </button>
+    </div>
+
+    <div class="vehicle-grid">
+      <div
+        class="vehicle-card"
+        *ngFor="let veiculo of sortedVeiculos"
+        (click)="openEditModal(veiculo)"
+      >
+        <div class="card-header">
+          <div>
+            <h3>{{ veiculo.plate }}</h3>
+            <p class="vehicle-id">ID: {{ veiculo.id }}</p>
+          </div>
+          <span class="status-badge" [ngClass]="getStatusColor(veiculo.status)">
+            {{ veiculo.status }}
+          </span>
+        </div>
+
+        <div class="card-body">
+          <p><strong>Modelo:</strong> {{ veiculo.model }}</p>
+          <p><strong>Tipo:</strong> {{ veiculo.type }}</p>
+          <p><strong>Capacidade:</strong> {{ veiculo.capacity }} passageiros</p>
+
+          <p *ngIf="veiculo.routes.length > 0">
+            <strong>Rotas:</strong> {{ veiculo.routes.length }}
+          </p>
+
+          <p *ngIf="veiculo.drivers.length > 0">
+            <strong>Motoristas:</strong> {{ veiculo.drivers.length }}
+          </p>
+        </div>
+
+        <div class="card-footer">
+          <span class="edit-link">✏️ Editar informações</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Adicionar Veículo -->
+  <div class="modal-overlay" *ngIf="showAddModal" (click)="closeAddModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Adicionar Veículo</h2>
+        <button class="btn-close" (click)="closeAddModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Placa</label>
+          <input
+            type="text"
+            placeholder="ABC-1234"
+            [(ngModel)]="newVeiculo.plate"
+            class="form-control"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>ID do Veículo</label>
+          <input
+            type="text"
+            placeholder="V001"
+            [(ngModel)]="newVeiculo.id"
+            class="form-control"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Modelo</label>
+          <select [(ngModel)]="newVeiculo.model" class="form-control">
+            <option value="">Selecione o modelo</option>
+            <option *ngFor="let model of models" [value]="model">
+              {{ model }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Tipo</label>
+          <select [(ngModel)]="newVeiculo.type" class="form-control">
+            <option value="">Selecione o tipo</option>
+            <option *ngFor="let type of types" [value]="type">
+              {{ type }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeAddModal()">
+          Cancelar
+        </button>
+        <button class="btn-primary" (click)="handleAddVeiculo()">
+          Adicionar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editar Veículo -->
+  <div
+    class="modal-overlay"
+    *ngIf="showEditModal && selectedVeiculo"
+    (click)="closeEditModal()"
+  >
+    <div class="modal modal-large" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Editar Veículo - {{ selectedVeiculo.plate }}</h2>
+        <button class="btn-close" (click)="closeEditModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="edit-layout">
+          <!-- Left side - Vehicle info -->
+          <div class="vehicle-info-section">
+            <div class="vehicle-photo">
+              <div class="photo-placeholder">Foto do Veículo</div>
+            </div>
+
+            <div class="info-box">
+              <h3>Informações do Veículo</h3>
+              <p><strong>Placa:</strong> {{ selectedVeiculo.plate }}</p>
+              <p><strong>ID:</strong> {{ selectedVeiculo.id }}</p>
+              <p><strong>Modelo:</strong> {{ selectedVeiculo.model }}</p>
+              <p><strong>Tipo:</strong> {{ selectedVeiculo.type }}</p>
+              <p>
+                <strong>Capacidade:</strong>
+                {{ selectedVeiculo.capacity }} passageiros
+              </p>
+              <div class="status-display">
+                <span
+                  class="status-badge"
+                  [ngClass]="getStatusColor(selectedVeiculo.status)"
+                >
+                  {{ selectedVeiculo.status }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right side - Schedule visualization -->
+          <div class="schedule-section">
+            <h3>Distribuição de Disponibilidade</h3>
+
+            <!-- Day selector -->
+            <div class="day-selector">
+              <button
+                *ngFor="let day of daysOfWeek"
+                [class.active]="selectedDay === day.code"
+                (click)="selectDay(day.code)"
+                class="day-btn"
+              >
+                {{ day.label }}
+              </button>
+            </div>
+
+            <!-- Schedule graph -->
+            <div class="schedule-graph">
+              <div
+                class="schedule-row"
+                *ngFor="let slot of getScheduleForDay()"
+              >
+                <div class="time-label">{{ slot.hour }}:00</div>
+                <div class="slot-content">
+                  <div class="driver-info" *ngIf="slot.drivers.length > 0">
+                    <span class="label">👤</span>
+                    <span class="text">{{ slot.drivers.join(", ") }}</span>
+                  </div>
+                  <div class="route-info" *ngIf="slot.routes.length > 0">
+                    <span class="label">🚌</span>
+                    <span class="text">{{ slot.routes.join(", ") }}</span>
+                  </div>
+                  <div
+                    class="empty-slot"
+                    *ngIf="
+                      slot.drivers.length === 0 && slot.routes.length === 0
+                    "
+                  >
+                    Disponível
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drivers and Routes Lists -->
+        <div class="lists-section">
+          <div class="list-container">
+            <div class="list-header">
+              <h3>Motoristas ({{ selectedVeiculo.drivers.length }})</h3>
+              <button class="btn-add-small" (click)="openAddDriverModal()">
+                + Adicionar
+              </button>
+            </div>
+            <div class="items-list">
+              <div
+                class="item"
+                *ngFor="let driver of selectedVeiculo.drivers; let i = index"
+              >
+                <div class="item-content">
+                  <span class="item-name">{{ driver.name }}</span>
+                  <span class="item-time"
+                    >{{ driver.startTime }} - {{ driver.endTime }}</span
+                  >
+                  <span class="item-days">{{ driver.days.join(", ") }}</span>
+                </div>
+                <button class="btn-delete" (click)="removeDriver(i)">🗑️</button>
+              </div>
+              <p
+                class="empty-message"
+                *ngIf="selectedVeiculo.drivers.length === 0"
+              >
+                Nenhum motorista cadastrado
+              </p>
+            </div>
+          </div>
+
+          <div class="list-container">
+            <div class="list-header">
+              <h3>Rotas ({{ selectedVeiculo.routes.length }})</h3>
+              <button class="btn-add-small" (click)="openAddRouteModal()">
+                + Adicionar
+              </button>
+            </div>
+            <div class="items-list">
+              <div
+                class="item"
+                *ngFor="let route of selectedVeiculo.routes; let i = index"
+              >
+                <div class="item-content">
+                  <span class="item-name">{{ route.routeName }}</span>
+                  <span class="item-time"
+                    >{{ route.startTime }} - {{ route.endTime }}</span
+                  >
+                  <span class="item-days">{{ route.days.join(", ") }}</span>
+                </div>
+                <button class="btn-delete" (click)="removeRoute(i)">🗑️</button>
+              </div>
+              <p
+                class="empty-message"
+                *ngIf="selectedVeiculo.routes.length === 0"
+              >
+                Nenhuma rota cadastrada
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeEditModal()">
+          Cancelar
+        </button>
+        <button class="btn-primary" (click)="handleSaveEdit()">
+          Salvar Alterações
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Adicionar Motorista -->
+  <div
+    class="modal-overlay"
+    *ngIf="showAddDriverModal"
+    (click)="closeAddDriverModal()"
+  >
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Adicionar Motorista</h2>
+        <button class="btn-close" (click)="closeAddDriverModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nome do Motorista</label>
+          <input
+            type="text"
+            placeholder="Digite ou selecione..."
+            [(ngModel)]="driverForm.name"
+            list="drivers-list"
+            class="form-control"
+          />
+          <datalist id="drivers-list">
+            <option
+              *ngFor="let driver of mockDrivers"
+              [value]="driver"
+            ></option>
+          </datalist>
+        </div>
+
+        <div class="form-group">
+          <label>Horário de Trabalho</label>
+          <div class="time-selector">
+            <div class="time-input-group">
+              <label>Início</label>
+              <input
+                type="time"
+                [(ngModel)]="driverForm.startTime"
+                class="form-control-time"
+              />
+            </div>
+            <span class="time-separator">até</span>
+            <div class="time-input-group">
+              <label>Fim</label>
+              <input
+                type="time"
+                [(ngModel)]="driverForm.endTime"
+                class="form-control-time"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Dias da Semana</label>
+          <div class="days-selector">
+            <button
+              *ngFor="let day of daysOfWeek"
+              [class.selected]="isDriverDaySelected(day.code)"
+              (click)="toggleDriverDay(day.code)"
+              class="day-toggle-btn"
+              type="button"
+            >
+              {{ day.label }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeAddDriverModal()">
+          Cancelar
+        </button>
+        <button class="btn-primary" (click)="handleAddDriver()">
+          Adicionar Motorista
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Adicionar Rota -->
+  <div
+    class="modal-overlay"
+    *ngIf="showAddRouteModal"
+    (click)="closeAddRouteModal()"
+  >
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Adicionar Rota</h2>
+        <button class="btn-close" (click)="closeAddRouteModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nome da Rota</label>
+          <input
+            type="text"
+            placeholder="Digite ou selecione..."
+            [(ngModel)]="routeForm.routeName"
+            list="routes-list"
+            class="form-control"
+          />
+          <datalist id="routes-list">
+            <option *ngFor="let route of mockRoutes" [value]="route"></option>
+          </datalist>
+        </div>
+
+        <div class="form-group">
+          <label>Horário de Atendimento</label>
+          <div class="time-selector">
+            <div class="time-input-group">
+              <label>Início</label>
+              <input
+                type="time"
+                [(ngModel)]="routeForm.startTime"
+                class="form-control-time"
+              />
+            </div>
+            <span class="time-separator">até</span>
+            <div class="time-input-group">
+              <label>Fim</label>
+              <input
+                type="time"
+                [(ngModel)]="routeForm.endTime"
+                class="form-control-time"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Dias da Semana</label>
+          <div class="days-selector">
+            <button
+              *ngFor="let day of daysOfWeek"
+              [class.selected]="isRouteDaySelected(day.code)"
+              (click)="toggleRouteDay(day.code)"
+              class="day-toggle-btn"
+              type="button"
+            >
+              {{ day.label }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeAddRouteModal()">
+          Cancelar
+        </button>
+        <button class="btn-primary" (click)="handleAddRoute()">
+          Adicionar Rota
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

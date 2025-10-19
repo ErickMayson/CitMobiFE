@@ -16,4 +16,16 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./screens/rotas/rotas.component').then((m) => m.RotasComponent),
   },
+  {
+    path: 'veiculos',
+    loadComponent: () =>
+      import('./screens/veiculos/veiculos.component').then(
+        (m) => m.VeiculosComponent
+      ),
+  },
+  {
+    path: 'motoristas',
+    loadComponent: () =>
+      import('./screens/rotas/rotas.component').then((m) => m.RotasComponent),
+  },
 ];

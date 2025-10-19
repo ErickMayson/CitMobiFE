@@ -1,1 +1,326 @@
-<p>rotas works!</p>
+<div class="app-wrapper">
+  <!-- Sidebar -->
+  <app-sidebar
+    [isOpen]="sidebarOpen"
+    [showContent]="showSidebarContent"
+    [username]="currentUser?.nome || currentUser?.login || 'JOAO'"
+    [companyName]="currentUser?.operador?.razaoSocial || 'VIACAO GATO PRETO'"
+    [companyLogo]="companyLogo"
+    (toggleSidebar)="toggleSidebar()"
+  ></app-sidebar>
+  <div class="rotas-container">
+    <!-- List View -->
+    <div class="rotas-list-view" *ngIf="!showEditView">
+      <!-- Header -->
+      <div class="page-header">
+        <div class="header-content">
+          <h1 class="page-title">Rotas</h1>
+          <p class="page-subtitle">Gerencie as rotas do sistema</p>
+        </div>
+        <button class="btn-create" (click)="createNewRota()">
+          <svg
+            class="btn-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Nova Rota
+        </button>
+      </div>
+
+      <!-- Rotas Ativas -->
+      <div class="rotas-section">
+        <h2 class="section-title">Rotas Ativas</h2>
+        <div class="rotas-grid">
+          <div
+            class="rota-card active"
+            *ngFor="let rota of rotasAtivas"
+            (click)="viewRota(rota)"
+          >
+            <div class="rota-header">
+              <div class="rota-info">
+                <span class="rota-codigo">{{ rota.codigo }}</span>
+                <h3 class="rota-nome">{{ rota.nome }}</h3>
+              </div>
+              <span class="rota-status active">Ativa</span>
+            </div>
+            <p class="rota-descricao">{{ rota.descricao }}</p>
+            <div class="rota-stats">
+              <div class="stat-item">
+                <svg
+                  class="stat-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"
+                  />
+                </svg>
+                <span>{{ rota.distancia }}</span>
+              </div>
+              <div class="stat-item">
+                <svg
+                  class="stat-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>{{ rota.duracao }}</span>
+              </div>
+              <div class="stat-item">
+                <svg
+                  class="stat-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
+                  />
+                </svg>
+                <span>{{ rota.veiculos }} veículos</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rotas Inativas -->
+      <div class="rotas-section">
+        <h2 class="section-title">Rotas Inativas</h2>
+        <div class="rotas-grid">
+          <div
+            class="rota-card inactive"
+            *ngFor="let rota of rotasInativas"
+            (click)="viewRota(rota)"
+          >
+            <div class="rota-header">
+              <div class="rota-info">
+                <span class="rota-codigo">{{ rota.codigo }}</span>
+                <h3 class="rota-nome">{{ rota.nome }}</h3>
+              </div>
+              <span class="rota-status inactive">Inativa</span>
+            </div>
+            <p class="rota-descricao">{{ rota.descricao }}</p>
+            <div class="rota-stats">
+              <div class="stat-item">
+                <svg
+                  class="stat-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"
+                  />
+                </svg>
+                <span>{{ rota.distancia }}</span>
+              </div>
+              <div class="stat-item">
+                <svg
+                  class="stat-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>{{ rota.duracao }}</span>
+              </div>
+              <div class="stat-item">
+                <svg
+                  class="stat-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
+                  />
+                </svg>
+                <span>{{ rota.veiculos }} veículos</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit/Create View -->
+    <div class="rotas-edit-view" *ngIf="showEditView">
+      <!-- Header -->
+      <div class="edit-header">
+        <button class="btn-back" (click)="closeEditView()">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Voltar
+        </button>
+        <h1 class="edit-title">
+          {{ isCreateMode ? "Nova Rota" : selectedRota?.nome }}
+        </h1>
+        <div class="edit-actions">
+          <button
+            class="btn-edit"
+            *ngIf="!isEditMode && !isCreateMode"
+            (click)="enableEditMode()"
+          >
+            Editar
+          </button>
+          <button
+            class="btn-save"
+            *ngIf="isEditMode || isCreateMode"
+            (click)="saveRota()"
+          >
+            Salvar
+          </button>
+        </div>
+      </div>
+
+      <!-- Edit Content -->
+      <div class="edit-content">
+        <!-- Left Side - Addresses -->
+        <div class="addresses-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Paradas</h2>
+            <button
+              class="btn-add"
+              (click)="addEndereco()"
+              *ngIf="isEditMode || isCreateMode"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Adicionar
+            </button>
+          </div>
+
+          <!-- Search Bar -->
+          <div class="search-box" *ngIf="isEditMode || isCreateMode">
+            <svg
+              class="search-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            <input
+              type="text"
+              placeholder="Buscar endereço..."
+              [(ngModel)]="searchQuery"
+              (keyup.enter)="searchAddress()"
+              class="search-input"
+            />
+          </div>
+
+          <!-- Address List -->
+          <div class="addresses-list">
+            <div
+              class="address-card"
+              *ngFor="let endereco of enderecos; let i = index"
+              draggable="{{ isEditMode || isCreateMode }}"
+              (dragstart)="onDragStart(i)"
+              (dragover)="onDragOver($event)"
+              (drop)="onDrop($event, i)"
+            >
+              <div class="address-order">{{ i + 1 }}</div>
+              <div class="address-content">
+                <div class="address-name">{{ endereco.nome }}</div>
+                <div class="address-text">{{ endereco.endereco }}</div>
+              </div>
+              <button
+                class="btn-remove"
+                *ngIf="isEditMode || isCreateMode"
+                (click)="removeEndereco(i)"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Empty State -->
+            <div class="empty-state" *ngIf="enderecos.length === 0">
+              <svg
+                class="empty-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"
+                />
+              </svg>
+              <p>Nenhuma parada adicionada</p>
+              <p class="empty-hint">
+                Clique em "Adicionar" para começar a criar sua rota
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side - Map -->
+        <div class="map-panel">
+          <div class="map-container">
+            <div class="map-placeholder">
+              <svg
+                class="map-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polygon
+                  points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"
+                ></polygon>
+                <line x1="9" y1="3" x2="9" y2="18"></line>
+                <line x1="15" y1="6" x2="15" y2="21"></line>
+              </svg>
+              <p>Mapa será exibido aqui</p>
+              <p class="map-hint">
+                Google Maps API será integrado para mostrar a rota
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

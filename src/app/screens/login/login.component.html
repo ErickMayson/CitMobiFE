@@ -25,7 +25,7 @@
           <input
             type="text"
             [(ngModel)]="login"
-            name="email"
+            name="login"
             placeholder="Login"
             class="input-field"
             required
@@ -38,7 +38,7 @@
             <input
               [type]="showPassword ? 'text' : 'password'"
               [(ngModel)]="senha"
-              name="password"
+              name="senha"
               placeholder="Password"
               class="input-field"
               required
@@ -99,9 +99,9 @@
         </div>
 
         <!-- Recuperacao de senha-->
-        <div class="forgot-password-container">
+        <!-- <div class="forgot-password-container">
           <a href="#" class="forgot-password">Esqueceu sua senha?</a>
-        </div>
+        </div> -->
 
         <!-- Login Button -->
         <button type="submit" class="login-button">Entrar</button>

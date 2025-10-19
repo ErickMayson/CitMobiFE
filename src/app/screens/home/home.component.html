@@ -1,107 +1,13 @@
 <div class="home-container">
-  <!-- Sidebar -->
-  <div class="sidebar" [class.sidebar-closed]="!sidebarOpen">
-    <div class="sidebar-content" [class.content-visible]="showSidebarContent">
-      <!-- Logo Section -->
-      <div class="sidebar-header">
-        <div class="logo-container">
-          <span class="logo-text">CitMobi</span>
-        </div>
-        <h2 class="greeting">Olá, {{ username }}</h2>
-
-        <!-- Company Info -->
-        <div class="company-info">
-          <img [src]="companyLogo" [alt]="companyName" class="company-logo" />
-          <div class="company-details">
-            <span class="company-name">{{ companyName }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Navigation Menu -->
-      <nav class="nav-menu">
-        <button class="nav-item">
-          <svg
-            class="nav-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="12" cy="10" r="3" />
-            <path
-              d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"
-            />
-          </svg>
-          <span class="nav-text">Rotas</span>
-        </button>
-
-        <button class="nav-item">
-          <svg
-            class="nav-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
-            />
-          </svg>
-          <span class="nav-text">Veículos</span>
-        </button>
-
-        <button class="nav-item">
-          <svg
-            class="nav-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-          <span class="nav-text">Motoristas</span>
-        </button>
-      </nav>
-
-      <!-- Footer -->
-      <div class="sidebar-footer">
-        <p class="tagline">Simplifique seu workflow.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toggle Button -->
-  <button
-    class="toggle-btn"
-    [class.toggle-btn-closed]="!sidebarOpen"
-    [class.content-visible]="showSidebarContent"
-    (click)="toggleSidebar()"
-  >
-    <svg
-      *ngIf="sidebarOpen"
-      class="toggle-icon"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-    >
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-    <svg
-      *ngIf="!sidebarOpen"
-      class="toggle-icon"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-    >
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  </button>
+  <!-- Sidebar Component -->
+  <app-sidebar
+    [isOpen]="sidebarOpen"
+    [showContent]="showSidebarContent"
+    [username]="username"
+    [companyName]="companyName"
+    [companyLogo]="companyLogo"
+    (toggleSidebar)="toggleSidebar()"
+  ></app-sidebar>
 
   <!-- Main Content -->
   <div class="main-content" [class.content-visible]="showMainContent">

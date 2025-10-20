@@ -16,6 +16,7 @@ export class SidebarComponent {
   @Input() companyName: string = '';
   @Input() companyLogo: string = '';
   @Output() toggleSidebar = new EventEmitter<void>();
+  @Output() logout = new EventEmitter<void>();
 
   constructor(private router: Router) {}
 
@@ -25,5 +26,9 @@ export class SidebarComponent {
 
   navigateTo(route: string): void {
     this.router.navigate([route]);
+  }
+
+  onLogout(): void {
+    this.logout.emit();
   }
 }

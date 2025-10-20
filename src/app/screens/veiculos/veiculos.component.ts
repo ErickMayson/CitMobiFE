@@ -7,15 +7,21 @@ import {
   Veiculo,
   ScheduleBlock,
 } from '../../models/veiculo.model';
-
+import { User } from '../../models/userLiteResponse.model';
+import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 @Component({
   selector: 'app-veiculos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SidebarComponent],
   templateUrl: './veiculos.component.html',
   styleUrls: ['./veiculos.component.scss'],
 })
 export class VeiculosComponent implements OnInit {
+  sidebarOpen: boolean = true;
+  showSidebarContent: boolean = true;
+  currentUser: User | null = null;
+  companyLogo: string = 'assets/viacaoGatoPreto.png';
+
   veiculos: Veiculo[] = [
     {
       id: 'V001',
@@ -151,6 +157,8 @@ export class VeiculosComponent implements OnInit {
 
   ngOnInit(): void {
     this.sortVeiculos();
+    // Animar abertura da sidebar
+    setTimeout(() => (this.showSidebarContent = true), 100);
   }
 
   get sortedVeiculos(): Veiculo[] {
@@ -481,5 +489,9 @@ export class VeiculosComponent implements OnInit {
         this.statusOrder.indexOf(a.status) - this.statusOrder.indexOf(b.status)
       );
     });
+  }
+
+  toggleSidebar(): void {
+    this.sidebarOpen = !this.sidebarOpen;
   }
 }

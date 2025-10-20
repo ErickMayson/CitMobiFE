@@ -1,44 +1,62 @@
-<div class="vehicle-management">
-  <div class="container">
-    <div class="header">
-      <h1>Gerenciamento de Veículos</h1>
-      <button class="btn-primary" (click)="openAddModal()">
-        <span class="icon">+</span>
-        Adicionar Veículo
-      </button>
-    </div>
+<div class="app-wrapper">
+  <!-- Sidebar -->
+  <app-sidebar
+    [isOpen]="sidebarOpen"
+    [showContent]="showSidebarContent"
+    [username]="currentUser?.nome || currentUser?.login || 'JOAO'"
+    [companyName]="currentUser?.operador?.razaoSocial || 'VIACAO GATO PRETO'"
+    [companyLogo]="companyLogo"
+    (toggleSidebar)="toggleSidebar()"
+  ></app-sidebar>
 
-    <div class="vehicle-grid">
-      <div
-        class="vehicle-card"
-        *ngFor="let veiculo of sortedVeiculos"
-        (click)="openEditModal(veiculo)"
-      >
-        <div class="card-header">
-          <div>
-            <h3>{{ veiculo.plate }}</h3>
-            <p class="vehicle-id">ID: {{ veiculo.id }}</p>
+  <!-- Main Content -->
+  <div class="vehicle-management">
+    <div class="container">
+      <div class="header">
+        <h1>Gerenciamento de Veículos</h1>
+        <button class="btn-primary" (click)="openAddModal()">
+          <span class="icon">+</span>
+          Adicionar Veículo
+        </button>
+      </div>
+
+      <div class="vehicle-grid">
+        <div
+          class="vehicle-card"
+          *ngFor="let veiculo of sortedVeiculos"
+          (click)="openEditModal(veiculo)"
+        >
+          <div class="card-header">
+            <div>
+              <h3>{{ veiculo.plate }}</h3>
+              <p class="vehicle-id">ID: {{ veiculo.id }}</p>
+            </div>
+            <span
+              class="status-badge"
+              [ngClass]="getStatusColor(veiculo.status)"
+            >
+              {{ veiculo.status }}
+            </span>
           </div>
-          <span class="status-badge" [ngClass]="getStatusColor(veiculo.status)">
-            {{ veiculo.status }}
-          </span>
-        </div>
 
-        <div class="card-body">
-          <p><strong>Modelo:</strong> {{ veiculo.model }}</p>
-          <p><strong>Tipo:</strong> {{ veiculo.type }}</p>
-          <p><strong>Capacidade:</strong> {{ veiculo.capacity }} passageiros</p>
-          <p><strong>Garagem:</strong> {{ veiculo.garage }}</p>
-          <p *ngIf="veiculo.routes.length > 0">
-            <strong>Rotas:</strong> {{ veiculo.routes.length }}
-          </p>
-          <p *ngIf="veiculo.drivers.length > 0">
-            <strong>Motoristas:</strong> {{ veiculo.drivers.length }}
-          </p>
-        </div>
+          <div class="card-body">
+            <p><strong>Modelo:</strong> {{ veiculo.model }}</p>
+            <p><strong>Tipo:</strong> {{ veiculo.type }}</p>
+            <p>
+              <strong>Capacidade:</strong> {{ veiculo.capacity }} passageiros
+            </p>
+            <p><strong>Garagem:</strong> {{ veiculo.garage }}</p>
+            <p *ngIf="veiculo.routes.length > 0">
+              <strong>Rotas:</strong> {{ veiculo.routes.length }}
+            </p>
+            <p *ngIf="veiculo.drivers.length > 0">
+              <strong>Motoristas:</strong> {{ veiculo.drivers.length }}
+            </p>
+          </div>
 
-        <div class="card-footer">
-          <span class="edit-link">✏️ Editar informações</span>
+          <div class="card-footer">
+            <span class="edit-link">✏️ Editar informações</span>
+          </div>
         </div>
       </div>
     </div>

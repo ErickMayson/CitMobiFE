@@ -26,6 +26,8 @@ export const routes: Routes = [
   {
     path: 'motoristas',
     loadComponent: () =>
-      import('./screens/rotas/rotas.component').then((m) => m.RotasComponent),
+      import('./screens/motorista/motorista.component').then(
+        (m) => m.MotoristaComponent
+      ),
   },
 ];

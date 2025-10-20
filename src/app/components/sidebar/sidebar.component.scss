@@ -3,10 +3,12 @@ $primary-blue-hover: #0096c7;
 $text-dark: #1f2937;
 $text-gray: #6b7280;
 $white: #ffffff;
+$logout-red: #ef4444;
+$logout-red-hover: #dc2626;
 
 .sidebar {
   width: 320px;
-  height: 100vh; // ADD THIS
+  height: 100vh;
   background: linear-gradient(135deg, #00b4d8 0%, #0096c7 100%);
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
@@ -106,6 +108,11 @@ $white: #ffffff;
     flex-direction: column;
     gap: 0.75rem;
 
+    .nav-spacer {
+      flex: 1;
+      min-height: 1rem;
+    }
+
     .nav-item {
       width: 100%;
       display: flex;
@@ -126,6 +133,17 @@ $white: #ffffff;
 
         .nav-icon {
           transform: scale(1.1);
+        }
+      }
+
+      &.nav-item-logout {
+        background: rgba(239, 68, 68, 0.15);
+        margin-top: 0.5rem;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+
+        &:hover {
+          background: rgba(239, 68, 68, 0.25);
+          border-color: rgba(239, 68, 68, 0.5);
         }
       }
 

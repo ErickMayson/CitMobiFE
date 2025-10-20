@@ -1,0 +1,478 @@
+<div class="app-wrapper">
+  <!-- Sidebar -->
+  <app-sidebar
+    [isOpen]="sidebarOpen"
+    [showContent]="showSidebarContent"
+    [username]="currentUser?.nome || currentUser?.login || 'JOAO'"
+    [companyName]="currentUser?.operador?.razaoSocial || 'VIACAO GATO PRETO'"
+    [companyLogo]="companyLogo"
+    (toggleSidebar)="toggleSidebar()"
+  ></app-sidebar>
+
+  <!-- Main Content -->
+  <div class="motorista-management">
+    <div class="container">
+      <div class="header">
+        <h1>Gerenciamento de Motoristas</h1>
+        <button class="btn-primary" (click)="openAddModal()">
+          <span class="icon">+</span>
+          Adicionar Motorista
+        </button>
+      </div>
+
+      <div class="motorista-grid">
+        <div
+          class="motorista-card"
+          *ngFor="let motorista of sortedMotoristas"
+          (click)="openEditModal(motorista)"
+        >
+          <div class="card-header">
+            <div>
+              <h3>{{ motorista.nome }}</h3>
+              <p class="motorista-id">ID: {{ motorista.id }}</p>
+            </div>
+            <span
+              class="status-badge"
+              [ngClass]="getStatusColor(motorista.status)"
+            >
+              {{ motorista.status }}
+            </span>
+          </div>
+
+          <div class="card-body">
+            <p><strong>CPF:</strong> {{ motorista.cpf }}</p>
+            <p><strong>Telefone:</strong> {{ motorista.telefone }}</p>
+
+            <div
+              *ngIf="getCurrentHorario(motorista) as horario"
+              class="route-info"
+            >
+              <div class="route-badge">
+                <svg
+                  class="route-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="10" r="3" />
+                  <path
+                    d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"
+                  />
+                </svg>
+                <span>{{ horario.rotaNome }}</span>
+              </div>
+              <div class="vehicle-badge">
+                <svg
+                  class="vehicle-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
+                  />
+                </svg>
+                <div class="vehicle-details">
+                  <span class="vehicle-plate">{{ horario.veiculoPlaca }}</span>
+                  <span class="vehicle-model">{{ horario.veiculoModelo }}</span>
+                </div>
+              </div>
+            </div>
+
+            <p *ngIf="motorista.horarios.length === 0" class="no-schedule">
+              Nenhum horário cadastrado
+            </p>
+          </div>
+
+          <div class="card-footer">
+            <span class="edit-link">✏️ Editar informações</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Adicionar Motorista -->
+  <div class="modal-overlay" *ngIf="showAddModal" (click)="closeAddModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Adicionar Motorista</h2>
+        <button class="btn-close" (click)="closeAddModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nome Completo</label>
+          <input
+            type="text"
+            placeholder="Digite o nome do motorista"
+            [(ngModel)]="newMotorista.nome"
+            class="form-control"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>CPF</label>
+          <input
+            type="text"
+            placeholder="000.000.000-00"
+            [(ngModel)]="newMotorista.cpf"
+            class="form-control"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Telefone</label>
+          <input
+            type="text"
+            placeholder="(00) 00000-0000"
+            [(ngModel)]="newMotorista.telefone"
+            class="form-control"
+          />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeAddModal()">
+          Cancelar
+        </button>
+        <button class="btn-primary" (click)="handleAddMotorista()">
+          Adicionar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editar Motorista -->
+  <div
+    class="modal-overlay"
+    *ngIf="showEditModal && selectedMotorista"
+    (click)="closeEditModal()"
+  >
+    <div class="modal modal-large" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Editar Motorista - {{ selectedMotorista.nome }}</h2>
+        <button class="btn-close" (click)="closeEditModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="edit-layout">
+          <div class="motorista-info-section">
+            <div class="motorista-photo">
+              <div class="photo-placeholder">Foto do Motorista</div>
+            </div>
+
+            <div class="info-box">
+              <h3>Informações do Motorista</h3>
+              <p><strong>Nome:</strong> {{ selectedMotorista.nome }}</p>
+              <p><strong>ID:</strong> {{ selectedMotorista.id }}</p>
+              <p><strong>CPF:</strong> {{ selectedMotorista.cpf }}</p>
+
+              <div class="form-group" style="margin-top: 16px">
+                <label>Telefone</label>
+                <input
+                  type="text"
+                  [(ngModel)]="selectedMotorista.telefone"
+                  class="form-control"
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+
+              <div class="status-display">
+                <span
+                  class="status-badge"
+                  [ngClass]="getStatusColor(selectedMotorista.status)"
+                >
+                  {{ selectedMotorista.status }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="schedule-section">
+            <h3>Distribuição de Disponibilidade</h3>
+
+            <div class="day-selector">
+              <button
+                *ngFor="let day of daysOfWeek"
+                [class.active]="selectedDay === day.code"
+                (click)="selectDay(day.code)"
+                class="day-btn"
+              >
+                {{ day.label }}
+              </button>
+            </div>
+
+            <div class="schedule-graph-continuous">
+              <div class="time-ruler">
+                <div class="hour-mark" *ngFor="let hour of hours">
+                  <span class="hour-label">{{ hour }}</span>
+                </div>
+              </div>
+
+              <div class="schedule-track">
+                <div class="track-label">🚌 Veículos e Rotas</div>
+                <div class="track-timeline">
+                  <div
+                    *ngFor="let block of getScheduleBlocks()"
+                    class="time-block schedule-block"
+                    [style.left]="getBlockPosition(block.start)"
+                    [style.width]="getBlockWidth(block.duration)"
+                    [title]="
+                      block.veiculoPlaca +
+                      ' - ' +
+                      block.rotaNome +
+                      ' (' +
+                      block.start +
+                      ':00 - ' +
+                      block.end +
+                      ':00)'
+                    "
+                  >
+                    <span class="block-content">
+                      <strong>{{ block.veiculoPlaca }}</strong>
+                      <span class="block-route">{{ block.rotaNome }}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lists-section">
+          <div class="list-container full-width">
+            <div class="list-header">
+              <h3>
+                Horários de Trabalho ({{ selectedMotorista.horarios.length }})
+              </h3>
+              <button class="btn-add-small" (click)="openAddHorarioModal()">
+                + Adicionar Horário
+              </button>
+            </div>
+            <div class="items-list">
+              <div
+                class="item"
+                *ngFor="
+                  let horario of selectedMotorista.horarios;
+                  let i = index
+                "
+              >
+                <div class="item-content">
+                  <div class="horario-main-info">
+                    <span class="item-name">
+                      🚌 {{ horario.veiculoPlaca }} -
+                      {{ horario.veiculoModelo }}
+                    </span>
+                    <span class="item-route"> 📍 {{ horario.rotaNome }} </span>
+                  </div>
+                  <span class="item-time">
+                    {{ horario.startTime }} - {{ horario.endTime }}
+                  </span>
+                  <span class="item-days">{{ horario.days.join(", ") }}</span>
+                </div>
+                <div class="item-actions">
+                  <button class="btn-edit" (click)="openEditHorarioModal(i)">
+                    ✏️
+                  </button>
+                  <button class="btn-delete" (click)="removeHorario(i)">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+              <p
+                class="empty-message"
+                *ngIf="selectedMotorista.horarios.length === 0"
+              >
+                Nenhum horário cadastrado
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeEditModal()">
+          Cancelar
+        </button>
+        <button class="btn-primary" (click)="handleSaveEdit()">
+          Salvar Alterações
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Adicionar Horário -->
+  <div
+    class="modal-overlay"
+    *ngIf="showAddHorarioModal"
+    (click)="closeAddHorarioModal()"
+  >
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Adicionar Horário</h2>
+        <button class="btn-close" (click)="closeAddHorarioModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Veículo</label>
+          <select [(ngModel)]="horarioForm.veiculoId" class="form-control">
+            <option value="">Selecione o veículo</option>
+            <option
+              *ngFor="let veiculo of veiculosDisponiveis"
+              [value]="veiculo.id"
+            >
+              {{ veiculo.placa }} - {{ veiculo.modelo }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Rota</label>
+          <select [(ngModel)]="horarioForm.rotaId" class="form-control">
+            <option value="">Selecione a rota</option>
+            <option *ngFor="let rota of rotasDisponiveis" [value]="rota.id">
+              {{ rota.nome }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Horário de Trabalho</label>
+          <div class="time-selector">
+            <div class="time-input-group">
+              <label>Início</label>
+              <input
+                type="time"
+                [(ngModel)]="horarioForm.startTime"
+                class="form-control-time"
+              />
+            </div>
+            <span class="time-separator">até</span>
+            <div class="time-input-group">
+              <label>Fim</label>
+              <input
+                type="time"
+                [(ngModel)]="horarioForm.endTime"
+                class="form-control-time"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Dias da Semana</label>
+          <div class="days-selector">
+            <button
+              *ngFor="let day of daysOfWeek"
+              [class.selected]="isHorarioDaySelected(day.code)"
+              (click)="toggleHorarioDay(day.code)"
+              class="day-toggle-btn"
+              type="button"
+            >
+              {{ day.label }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeAddHorarioModal()">
+          Cancelar
+        </button>
+        <button class="btn-primary" (click)="handleAddHorario()">
+          Adicionar Horário
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editar Horário -->
+  <div
+    class="modal-overlay"
+    *ngIf="showEditHorarioModal"
+    (click)="closeEditHorarioModal()"
+  >
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Editar Horário</h2>
+        <button class="btn-close" (click)="closeEditHorarioModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Veículo</label>
+          <select [(ngModel)]="horarioForm.veiculoId" class="form-control">
+            <option value="">Selecione o veículo</option>
+            <option
+              *ngFor="let veiculo of veiculosDisponiveis"
+              [value]="veiculo.id"
+            >
+              {{ veiculo.placa }} - {{ veiculo.modelo }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Rota</label>
+          <select [(ngModel)]="horarioForm.rotaId" class="form-control">
+            <option value="">Selecione a rota</option>
+            <option *ngFor="let rota of rotasDisponiveis" [value]="rota.id">
+              {{ rota.nome }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Horário de Trabalho</label>
+          <div class="time-selector">
+            <div class="time-input-group">
+              <label>Início</label>
+              <input
+                type="time"
+                [(ngModel)]="horarioForm.startTime"
+                class="form-control-time"
+              />
+            </div>
+            <span class="time-separator">até</span>
+            <div class="time-input-group">
+              <label>Fim</label>
+              <input
+                type="time"
+                [(ngModel)]="horarioForm.endTime"
+                class="form-control-time"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Dias da Semana</label>
+          <div class="days-selector">
+            <button
+              *ngFor="let day of daysOfWeek"
+              [class.selected]="isHorarioDaySelected(day.code)"
+              (click)="toggleHorarioDay(day.code)"
+              class="day-toggle-btn"
+              type="button"
+            >
+              {{ day.label }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeEditHorarioModal()">
+          Cancelar
+        </button>
+        <button class="btn-primary" (click)="handleEditHorario()">
+          Salvar Alterações
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

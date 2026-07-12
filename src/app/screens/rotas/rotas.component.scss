@@ -587,3 +587,281 @@ $red: #ef4444;
       opacity: 0.5;
     }
   }
+
+  // Improved Route Metadata Form
+  .route-metadata-form {
+    padding: 1.5rem;
+    background: #fcfcfd;
+    border-bottom: 1px solid #e5e7eb;
+
+    .section-subtitle {
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: $text-gray;
+      margin-top: 0;
+      margin-bottom: 1rem;
+      font-weight: 700;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+
+      .form-field {
+        margin-bottom: 0;
+      }
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+      margin-bottom: 0.75rem;
+      flex: 1;
+
+      label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #374151;
+      }
+
+      .metadata-input,
+      .metadata-select {
+        width: 100%;
+        padding: 0.625rem 0.875rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        outline: none;
+        background-color: white;
+        transition: all 0.2s;
+
+        &:focus {
+          border-color: $primary-blue;
+          box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.15);
+        }
+      }
+    }
+  }
+
+  // Metadata Summary for read-only view
+  .route-metadata-summary {
+    padding: 1.5rem;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+
+    .summary-badges {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+
+      .badge-code {
+        padding: 0.25rem 0.75rem;
+        background: rgba($primary-blue, 0.1);
+        color: $primary-blue;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 700;
+      }
+
+      .badge-status {
+        padding: 0.25rem 0.75rem;
+        background: rgba($text-gray, 0.1);
+        color: $text-gray;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+
+        &.active {
+          background: rgba($green, 0.1);
+          color: $green;
+        }
+      }
+    }
+
+    .summary-desc {
+      font-size: 0.875rem;
+      color: $text-gray;
+      margin: 0.5rem 0 0;
+      line-height: 1.4;
+    }
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 0;
+  }
+
+  // Real-Time Autocomplete Search styles
+  .search-box-container {
+    position: relative;
+    z-index: 100;
+  }
+
+  .search-results-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 1.5rem;
+    right: 1.5rem;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    max-height: 250px;
+    overflow-y: auto;
+    margin-top: -0.5rem;
+
+    .results-header {
+      padding: 0.5rem 0.875rem;
+      background: #f3f4f6;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: $text-gray;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .results-list {
+      display: flex;
+      flex-direction: column;
+
+      .result-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border-bottom: 1px solid #f3f4f6;
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        &:hover {
+          background-color: #f0fdfa;
+          
+          .pin-icon {
+            transform: scale(1.1);
+          }
+        }
+
+        &.custom-add {
+          background-color: #f0f9ff;
+          border-top: 1px solid #e0f2fe;
+          
+          &:hover {
+            background-color: #e0f2fe;
+          }
+        }
+
+        .pin-icon {
+          font-size: 1.125rem;
+          transition: transform 0.2s;
+        }
+
+        .result-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          min-width: 0;
+
+          .result-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: $text-dark;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          .result-sub {
+            font-size: 0.75rem;
+            color: $text-gray;
+          }
+        }
+      }
+
+      .no-results {
+        padding: 1rem;
+        font-size: 0.875rem;
+        color: #9ca3af;
+        text-align: center;
+        line-height: 1.4;
+      }
+    }
+  }
+
+  // Address card editing content
+  .address-card.editing-card {
+    cursor: default;
+    background: white;
+    border-color: #d1d5db;
+    
+    &:hover {
+      border-color: $primary-blue;
+    }
+
+    .address-content-edit {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+      min-width: 0;
+
+      .edit-fields-row {
+        width: 100%;
+
+        .stop-input {
+          width: 100%;
+          padding: 0.5rem 0.75rem;
+          border: 1px solid #e5e7eb;
+          border-radius: 0.375rem;
+          font-size: 0.8125rem;
+          outline: none;
+          background: #fcfcfd;
+          box-sizing: border-box;
+
+          &:focus {
+            border-color: $primary-blue;
+            background: white;
+          }
+
+          &.stop-title {
+            font-weight: 600;
+            color: $text-dark;
+          }
+
+          &.stop-text {
+            color: $text-gray;
+          }
+        }
+
+        &.coords-row {
+          display: flex;
+          gap: 0.5rem;
+
+          .coord-input-group {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            flex: 1;
+
+            .coord-label {
+              font-size: 0.75rem;
+              font-weight: 600;
+              color: $text-gray;
+            }
+
+            .stop-coord {
+              padding: 0.375rem;
+              font-size: 0.75rem;
+            }
+          }
+        }
+      }
+    }
+  }

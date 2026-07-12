@@ -9,6 +9,16 @@ import {
 } from '../../models/veiculo.model';
 import { User } from '../../models/userLiteResponse.model';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
+import { VeiculoService } from '../../services/veiculo.service';
+import { LoginService } from '../../services/login.service';
+import {
+  MOCK_MODELS as MODELS,
+  MOCK_TYPES as TYPES,
+  MOCK_GARAGES as GARAGES,
+  MOCK_DROPDOWN_DRIVERS as MOCK_DRIVERS,
+  MOCK_DROPDOWN_ROUTES as MOCK_ROUTES,
+} from '../../mock-data/mock-data';
+
 @Component({
   selector: 'app-veiculos',
   standalone: true,
@@ -22,69 +32,7 @@ export class VeiculosComponent implements OnInit {
   currentUser: User | null = null;
   companyLogo: string = 'assets/viacaoGatoPreto.png';
 
-  veiculos: Veiculo[] = [
-    {
-      id: 'V001',
-      plate: 'ABC-1234',
-      model: 'Caio Millennium III',
-      type: 'Padrão',
-      capacity: 80,
-      status: 'EM ATENDIMENTO',
-      garage: 'Garagem Central',
-      routes: [
-        {
-          routeName: 'Linha 100 - Centro/Bairro',
-          startTime: '06:00',
-          endTime: '12:00',
-          days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
-        },
-      ],
-      drivers: [
-        {
-          name: 'João Silva',
-          startTime: '06:00',
-          endTime: '14:00',
-          days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
-        },
-      ],
-    },
-    {
-      id: 'V002',
-      plate: 'DEF-5678',
-      model: 'Apache VIP V',
-      type: 'BRT',
-      capacity: 160,
-      status: 'EM ATENDIMENTO',
-      garage: 'Garagem Norte',
-      routes: [
-        {
-          routeName: 'Linha 200 - Expresso',
-          startTime: '05:30',
-          endTime: '13:30',
-          days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'],
-        },
-      ],
-      drivers: [
-        {
-          name: 'Maria Santos',
-          startTime: '05:30',
-          endTime: '13:30',
-          days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'],
-        },
-      ],
-    },
-    {
-      id: 'V003',
-      plate: 'GHI-9012',
-      model: 'Caio Millennium III',
-      type: 'Articulado',
-      capacity: 120,
-      status: 'GARAGEM',
-      garage: 'Garagem Sul',
-      routes: [],
-      drivers: [],
-    },
-  ];
+  veiculos: Veiculo[] = [];
 
   showAddModal = false;
   showEditModal = false;
@@ -120,28 +68,11 @@ export class VeiculosComponent implements OnInit {
   };
 
   statusOrder = ['EM ATENDIMENTO', 'GARAGEM', 'RESERVA', 'INATIVO'];
-  models = ['Caio Millennium III', 'Apache VIP V'];
-  types = ['Básico', 'Padrão', 'Articulado', 'Bi-articulado', 'BRT'];
-  garages = [
-    'Garagem Central',
-    'Garagem Norte',
-    'Garagem Sul',
-    'Garagem Leste',
-    'Garagem Oeste',
-  ];
-  mockDrivers = [
-    'João Silva',
-    'Maria Santos',
-    'Pedro Oliveira',
-    'Ana Costa',
-    'Carlos Souza',
-  ];
-  mockRoutes = [
-    'Linha 100 - Centro/Bairro',
-    'Linha 200 - Expresso',
-    'Linha 300 - Circular',
-    'Linha 400 - Terminal',
-  ];
+  models = MODELS;
+  types = TYPES;
+  garages = GARAGES;
+  mockDrivers = MOCK_DRIVERS;
+  mockRoutes = MOCK_ROUTES;
 
   daysOfWeek = [
     { code: 'SEG', label: 'Seg' },
@@ -155,10 +86,26 @@ export class VeiculosComponent implements OnInit {
 
   hours = Array.from({ length: 24 }, (_, i) => i);
 
+  constructor(
+    private veiculoService: VeiculoService,
+    private loginService: LoginService
+  ) {}
+
   ngOnInit(): void {
-    this.sortVeiculos();
+    this.loginService.currentUser.subscribe((user) => {
+      this.currentUser = user;
+    });
+
+    this.loadVeiculos();
     // Animar abertura da sidebar
     setTimeout(() => (this.showSidebarContent = true), 100);
+  }
+
+  loadVeiculos(): void {
+    this.veiculoService.getVeiculos().subscribe((data) => {
+      this.veiculos = data as Veiculo[];
+      this.sortVeiculos();
+    });
   }
 
   get sortedVeiculos(): Veiculo[] {
@@ -222,8 +169,10 @@ export class VeiculosComponent implements OnInit {
         drivers: [],
       };
 
-      this.veiculos.push(veiculo);
-      this.closeAddModal();
+      this.veiculoService.addVeiculo(veiculo).subscribe(() => {
+        this.loadVeiculos();
+        this.closeAddModal();
+      });
     }
   }
 
@@ -240,14 +189,11 @@ export class VeiculosComponent implements OnInit {
 
   handleSaveEdit(): void {
     if (this.selectedVeiculo) {
-      const index = this.veiculos.findIndex(
-        (v) => v.id === this.selectedVeiculo!.id
-      );
-      if (index !== -1) {
-        this.veiculos[index] = this.selectedVeiculo;
-      }
+      this.veiculoService.updateVeiculo(this.selectedVeiculo).subscribe(() => {
+        this.loadVeiculos();
+        this.closeEditModal();
+      });
     }
-    this.closeEditModal();
   }
 
   // Driver CRUD

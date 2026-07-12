@@ -4,26 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { User } from '../../models/userLiteResponse.model';
 import { LoginService } from '../../services/login.service';
-
-interface Motorista {
-  id: string;
-  nome: string;
-  cpf: string;
-  telefone: string;
-  status: 'EM ATENDIMENTO' | 'AGUARDANDO' | 'PAUSA' | 'FORA DE TURNO';
-  horarios: HorarioMotorista[];
-}
-
-interface HorarioMotorista {
-  veiculoId: string;
-  veiculoPlaca: string;
-  veiculoModelo: string;
-  rotaId: string;
-  rotaNome: string;
-  startTime: string;
-  endTime: string;
-  days: string[];
-}
+import { MotoristaService } from '../../services/motorista.service';
+import {
+  MockMotorista as Motorista,
+  MockHorarioMotorista as HorarioMotorista,
+  MOCK_VEICULOS_DISPONIVEIS as VEICULOS_DISPONIVEIS,
+  MOCK_ROTAS_DISPONIVEIS as ROTAS_DISPONIVEIS,
+} from '../../mock-data/mock-data';
 
 interface Veiculo {
   id: string;
@@ -59,107 +46,9 @@ export class MotoristaComponent implements OnInit {
   currentUser: User | null = null;
   companyLogo: string = 'assets/viacaoGatoPreto.png';
 
-  motoristas: Motorista[] = [
-    {
-      id: 'M001',
-      nome: 'João Silva',
-      cpf: '123.456.789-00',
-      telefone: '(11) 98765-4321',
-      status: 'EM ATENDIMENTO',
-      horarios: [
-        {
-          veiculoId: 'V001',
-          veiculoPlaca: 'ABC-1234',
-          veiculoModelo: 'Caio Millennium III',
-          rotaId: 'R001',
-          rotaNome: 'Linha 100 - Centro/Bairro',
-          startTime: '06:00',
-          endTime: '14:00',
-          days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
-        },
-      ],
-    },
-    {
-      id: 'M002',
-      nome: 'Maria Santos',
-      cpf: '987.654.321-00',
-      telefone: '(11) 91234-5678',
-      status: 'EM ATENDIMENTO',
-      horarios: [
-        {
-          veiculoId: 'V002',
-          veiculoPlaca: 'DEF-5678',
-          veiculoModelo: 'Apache VIP V',
-          rotaId: 'R002',
-          rotaNome: 'Linha 200 - Expresso',
-          startTime: '05:30',
-          endTime: '13:30',
-          days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'],
-        },
-      ],
-    },
-    {
-      id: 'M003',
-      nome: 'Pedro Oliveira',
-      cpf: '456.789.123-00',
-      telefone: '(11) 99876-5432',
-      status: 'AGUARDANDO',
-      horarios: [],
-    },
-    {
-      id: 'M004',
-      nome: 'Ana Costa',
-      cpf: '321.654.987-00',
-      telefone: '(11) 97654-3210',
-      status: 'PAUSA',
-      horarios: [
-        {
-          veiculoId: 'V001',
-          veiculoPlaca: 'ABC-1234',
-          veiculoModelo: 'Caio Millennium III',
-          rotaId: 'R003',
-          rotaNome: 'Linha 300 - Circular',
-          startTime: '14:00',
-          endTime: '22:00',
-          days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
-        },
-      ],
-    },
-    {
-      id: 'M005',
-      nome: 'Carlos Souza',
-      cpf: '789.123.456-00',
-      telefone: '(11) 96543-2109',
-      status: 'FORA DE TURNO',
-      horarios: [
-        {
-          veiculoId: 'V003',
-          veiculoPlaca: 'GHI-9012',
-          veiculoModelo: 'Caio Millennium III',
-          rotaId: 'R004',
-          rotaNome: 'Linha 400 - Terminal',
-          startTime: '22:00',
-          endTime: '06:00',
-          days: ['DOM'],
-        },
-      ],
-    },
-  ];
-
-  // Mock data para dropdowns
-  veiculosDisponiveis: Veiculo[] = [
-    { id: 'V001', placa: 'ABC-1234', modelo: 'Caio Millennium III' },
-    { id: 'V002', placa: 'DEF-5678', modelo: 'Apache VIP V' },
-    { id: 'V003', placa: 'GHI-9012', modelo: 'Caio Millennium III' },
-    { id: 'V004', placa: 'JKL-3456', modelo: 'Apache VIP V' },
-  ];
-
-  rotasDisponiveis: Rota[] = [
-    { id: 'R001', nome: 'Linha 100 - Centro/Bairro' },
-    { id: 'R002', nome: 'Linha 200 - Expresso' },
-    { id: 'R003', nome: 'Linha 300 - Circular' },
-    { id: 'R004', nome: 'Linha 400 - Terminal' },
-  ];
+  motoristas: Motorista[] = [];
+  veiculosDisponiveis: Veiculo[] = VEICULOS_DISPONIVEIS;
+  rotasDisponiveis: Rota[] = ROTAS_DISPONIVEIS;
 
   showAddModal = false;
   showEditModal = false;
@@ -197,14 +86,24 @@ export class MotoristaComponent implements OnInit {
 
   hours = Array.from({ length: 24 }, (_, i) => i);
 
-  constructor(private loginService: LoginService) {}
+  constructor(
+    private loginService: LoginService,
+    private motoristaService: MotoristaService
+  ) {}
 
   ngOnInit(): void {
-    this.sortMotoristas();
     this.loginService.currentUser.subscribe((user) => {
       this.currentUser = user;
     });
+    this.loadMotoristas();
     setTimeout(() => (this.showSidebarContent = true), 100);
+  }
+
+  loadMotoristas(): void {
+    this.motoristaService.getMotoristas().subscribe((data) => {
+      this.motoristas = data as Motorista[];
+      this.sortMotoristas();
+    });
   }
 
   get sortedMotoristas(): Motorista[] {
@@ -260,9 +159,10 @@ export class MotoristaComponent implements OnInit {
         horarios: [],
       };
 
-      this.motoristas.push(motorista);
-      this.sortMotoristas();
-      this.closeAddModal();
+      this.motoristaService.addMotorista(motorista).subscribe(() => {
+        this.loadMotoristas();
+        this.closeAddModal();
+      });
     }
   }
 
@@ -279,16 +179,13 @@ export class MotoristaComponent implements OnInit {
 
   handleSaveEdit(): void {
     if (this.selectedMotorista) {
-      const index = this.motoristas.findIndex(
-        (m) => m.id === this.selectedMotorista!.id
-      );
-      if (index !== -1) {
-        this.motoristas[index] = this.selectedMotorista;
-        this.sortMotoristas();
-      }
+      this.motoristaService.updateMotorista(this.selectedMotorista).subscribe(() => {
+        this.loadMotoristas();
+        this.closeEditModal();
+      });
     }
-    this.closeEditModal();
   }
+
 
   // CRUD Horário
   openAddHorarioModal(): void {

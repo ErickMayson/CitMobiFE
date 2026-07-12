@@ -4,27 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { User } from '../../models/userLiteResponse.model';
 import { LoginService } from '../../services/login.service';
-
-interface Rota {
-  id: number;
-  nome: string;
-  codigo: string;
-  descricao: string;
-  distancia: string;
-  duracao: string;
-  veiculos: number;
-  status: 'ativa' | 'inativa';
-  enderecos: Endereco[];
-}
-
-interface Endereco {
-  id: number;
-  nome: string;
-  endereco: string;
-  lat: number;
-  lng: number;
-  ordem: number;
-}
+import { LinhaService } from '../../services/linha.service';
+import { MockRota as Rota, MockEndereco as Endereco } from '../../mock-data/mock-data';
 
 @Component({
   selector: 'app-rotas',
@@ -45,78 +26,49 @@ export class RotasComponent implements OnInit {
   isCreateMode: boolean = false;
   selectedRota: Rota | null = null;
 
-  constructor(private loginService: LoginService) {}
-
-  // Mock data - replace with API calls
-  rotasAtivas: Rota[] = [
-    {
-      id: 1,
-      nome: 'Linha 001 - Centro/Bairro A',
-      codigo: '001',
-      descricao: 'Rota principal do centro',
-      distancia: '12.5 km',
-      duracao: '45 min',
-      veiculos: 8,
-      status: 'ativa',
-      enderecos: [],
-    },
-    {
-      id: 2,
-      nome: 'Linha 002 - Aeroporto/Centro',
-      codigo: '002',
-      descricao: 'Conexão aeroporto',
-      distancia: '18.2 km',
-      duracao: '35 min',
-      veiculos: 5,
-      status: 'ativa',
-      enderecos: [],
-    },
-    {
-      id: 3,
-      nome: 'Linha 003 - Zona Norte/Sul',
-      codigo: '003',
-      descricao: 'Ligação norte-sul',
-      distancia: '22.8 km',
-      duracao: '55 min',
-      veiculos: 12,
-      status: 'ativa',
-      enderecos: [],
-    },
-  ];
-
-  rotasInativas: Rota[] = [
-    {
-      id: 4,
-      nome: 'Linha 004 - Terminal A/B',
-      codigo: '004',
-      descricao: 'Rota entre terminais',
-      distancia: '8.5 km',
-      duracao: '25 min',
-      veiculos: 0,
-      status: 'inativa',
-      enderecos: [],
-    },
-    {
-      id: 5,
-      nome: 'Linha 005 - Circular',
-      codigo: '005',
-      descricao: 'Rota circular centro',
-      distancia: '15.0 km',
-      duracao: '50 min',
-      veiculos: 0,
-      status: 'inativa',
-      enderecos: [],
-    },
-  ];
+  rotasAtivas: Rota[] = [];
+  rotasInativas: Rota[] = [];
 
   // Edit mode data
   enderecos: Endereco[] = [];
   searchQuery: string = '';
   draggedIndex: number | null = null;
 
+  // Metadata form values
+  editRouteForm = {
+    codigo: '',
+    nome: '',
+    descricao: '',
+    status: 'ativa' as 'ativa' | 'inativa'
+  };
+
+  // Bus stops search database
+  todasAsParadas: any[] = [];
+  filteredParadas: any[] = [];
+
+  constructor(
+    private loginService: LoginService,
+    private linhaService: LinhaService
+  ) {}
+
   ngOnInit(): void {
     this.loginService.currentUser.subscribe((user) => {
       this.currentUser = user;
+    });
+
+    this.loadRotas();
+    this.loadTodasAsParadas();
+  }
+
+  loadRotas(): void {
+    this.linhaService.getRotasAtivas().subscribe((data) => (this.rotasAtivas = data));
+    this.linhaService.getRotasInativas().subscribe((data) => (this.rotasInativas = data));
+  }
+
+  loadTodasAsParadas(): void {
+    this.linhaService.getParadas(3550308).subscribe((paradas) => {
+      this.todasAsParadas = paradas || [];
+      this.filteredParadas = [];
     });
   }
 
@@ -130,6 +82,14 @@ export class RotasComponent implements OnInit {
     this.showEditView = true;
     this.selectedRota = null;
     this.enderecos = [];
+    this.editRouteForm = {
+      codigo: '',
+      nome: '',
+      descricao: '',
+      status: 'ativa'
+    };
+    this.searchQuery = '';
+    this.filteredParadas = [];
   }
 
   viewRota(rota: Rota): void {
@@ -137,11 +97,37 @@ export class RotasComponent implements OnInit {
     this.isEditMode = false;
     this.showEditView = true;
     this.selectedRota = rota;
-    this.enderecos = [...rota.enderecos];
+    this.enderecos = [];
+    this.editRouteForm = {
+      codigo: rota.codigo,
+      nome: rota.nome,
+      descricao: rota.descricao,
+      status: rota.status as 'ativa' | 'inativa'
+    };
+    this.searchQuery = '';
+    this.filteredParadas = [];
+
+    // Fetch stops dynamically from backend itinerary endpoint, falling back to local mocks
+    const atendimento = rota.codigo === '372F' || rota.codigo === '1178' || rota.codigo === '3301' || rota.codigo === '9051' || rota.codigo === '8000' ? '10' : '1';
+    this.linhaService.getItinerarioForLine(rota.codigo, atendimento, 3550308).subscribe((paradas) => {
+      if (paradas && paradas.length > 0) {
+        this.enderecos = paradas;
+      } else {
+        this.enderecos = [...rota.enderecos];
+      }
+    });
   }
 
   enableEditMode(): void {
     this.isEditMode = true;
+    if (this.selectedRota) {
+      this.editRouteForm = {
+        codigo: this.selectedRota.codigo,
+        nome: this.selectedRota.nome,
+        descricao: this.selectedRota.descricao,
+        status: this.selectedRota.status as 'ativa' | 'inativa'
+      };
+    }
   }
 
   closeEditView(): void {
@@ -150,18 +136,46 @@ export class RotasComponent implements OnInit {
     this.isCreateMode = false;
     this.selectedRota = null;
     this.enderecos = [];
+    this.searchQuery = '';
+    this.filteredParadas = [];
   }
 
   addEndereco(): void {
+    this.addCustomEndereco();
+  }
+
+  addCustomEndereco(): void {
+    const name = this.searchQuery.trim() || 'Nova Parada';
     const newEndereco: Endereco = {
       id: Date.now(),
-      nome: 'Novo Endereço',
-      endereco: '',
+      nome: name,
+      endereco: 'Logradouro, número',
       lat: 0,
       lng: 0,
       ordem: this.enderecos.length,
     };
     this.enderecos.push(newEndereco);
+    this.searchQuery = '';
+    this.filteredParadas = [];
+  }
+
+  selectAndAddParada(p: any): void {
+    const name = p.logradouro || 'Parada';
+    const address = `${p.logradouro || ''}, ${p.numero || ''}`;
+    const lat = Array.isArray(p.latLong) && p.latLong.length >= 2 ? p.latLong[0] : 0;
+    const lng = Array.isArray(p.latLong) && p.latLong.length >= 2 ? p.latLong[1] : 0;
+
+    const newEndereco: Endereco = {
+      id: p.paradaId || Date.now(),
+      nome: name,
+      endereco: address,
+      lat: lat,
+      lng: lng,
+      ordem: this.enderecos.length,
+    };
+    this.enderecos.push(newEndereco);
+    this.searchQuery = '';
+    this.filteredParadas = [];
   }
 
   removeEndereco(index: number): void {
@@ -195,13 +209,58 @@ export class RotasComponent implements OnInit {
   }
 
   saveRota(): void {
-    // TODO: Implement save logic
-    console.log('Saving rota...', this.enderecos);
-    this.closeEditView();
+    if (!this.editRouteForm.codigo || !this.editRouteForm.nome) {
+      alert('Código da linha e Nome da linha são obrigatórios.');
+      return;
+    }
+
+    if (this.isCreateMode) {
+      const newId = Date.now();
+      const newRota: Rota = {
+        id: newId,
+        nome: this.editRouteForm.nome,
+        codigo: this.editRouteForm.codigo,
+        descricao: this.editRouteForm.descricao || 'Nova rota criada pelo sistema',
+        distancia: '12.5 km',
+        duracao: '45 min',
+        veiculos: 0,
+        status: this.editRouteForm.status,
+        enderecos: [...this.enderecos],
+      };
+      this.linhaService.saveRota(newRota).subscribe(() => {
+        this.loadRotas();
+        this.closeEditView();
+      });
+    } else if (this.selectedRota) {
+      const updated: Rota = {
+        ...this.selectedRota,
+        nome: this.editRouteForm.nome,
+        codigo: this.editRouteForm.codigo,
+        descricao: this.editRouteForm.descricao,
+        status: this.editRouteForm.status,
+        enderecos: [...this.enderecos],
+      };
+      this.linhaService.saveRota(updated).subscribe(() => {
+        this.loadRotas();
+        this.closeEditView();
+      });
+    }
   }
 
   searchAddress(): void {
-    // TODO: Implement Google Places API search
-    console.log('Searching for:', this.searchQuery);
+    this.filterParadas();
+  }
+
+  filterParadas(): void {
+    const q = (this.searchQuery || '').toLowerCase().trim();
+    if (!q) {
+      this.filteredParadas = [];
+      return;
+    }
+    this.filteredParadas = this.todasAsParadas.filter((p) => {
+      const logradouro = (p.logradouro || '').toLowerCase();
+      const numero = String(p.numero || '').toLowerCase();
+      return logradouro.includes(q) || numero.includes(q);
+    });
   }
 }

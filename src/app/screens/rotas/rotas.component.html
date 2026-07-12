@@ -202,8 +202,67 @@
       <div class="edit-content">
         <!-- Left Side - Addresses -->
         <div class="addresses-panel">
+          <!-- Route Metadata Form -->
+          <div class="route-metadata-form" *ngIf="isEditMode || isCreateMode">
+            <h3 class="section-subtitle">Informações da Linha</h3>
+            
+            <div class="form-row">
+              <div class="form-field code-field">
+                <label>Código da Linha</label>
+                <input
+                  type="text"
+                  placeholder="Ex: 372F-10"
+                  [(ngModel)]="editRouteForm.codigo"
+                  class="metadata-input"
+                />
+              </div>
+              
+              <div class="form-field status-field">
+                <label>Status</label>
+                <select [(ngModel)]="editRouteForm.status" class="metadata-select">
+                  <option value="ativa">Ativa</option>
+                  <option value="inativa">Inativa</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label>Nome da Rota</label>
+              <input
+                type="text"
+                placeholder="Ex: USJT - Metrô Bresser"
+                [(ngModel)]="editRouteForm.nome"
+                class="metadata-input"
+              />
+            </div>
+
+            <div class="form-field">
+              <label>Descrição</label>
+              <input
+                type="text"
+                placeholder="Descrição e observações da linha"
+                [(ngModel)]="editRouteForm.descricao"
+                class="metadata-input"
+              />
+            </div>
+          </div>
+
+          <!-- Metadata Summary View (Read Only) -->
+          <div class="route-metadata-summary" *ngIf="!isEditMode && !isCreateMode">
+            <div class="summary-badges">
+              <span class="badge-code">{{ selectedRota?.codigo }}</span>
+              <span class="badge-status" [class.active]="selectedRota?.status === 'ativa'">
+                {{ selectedRota?.status === 'ativa' ? 'Ativa' : 'Inativa' }}
+              </span>
+            </div>
+            <p class="summary-desc">{{ selectedRota?.descricao || 'Sem descrição cadastrada' }}</p>
+          </div>
+
+          <hr class="divider" />
+
+          <!-- Panel Header -->
           <div class="panel-header">
-            <h2 class="panel-title">Paradas</h2>
+            <h2 class="panel-title">Paradas do Itinerário</h2>
             <button
               class="btn-add"
               (click)="addEndereco()"
@@ -218,29 +277,63 @@
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
-              Adicionar
+              Nova Customizada
             </button>
           </div>
 
-          <!-- Search Bar -->
-          <div class="search-box" *ngIf="isEditMode || isCreateMode">
-            <svg
-              class="search-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <circle cx="11" cy="11" r="8"></circle>
-              <path d="m21 21-4.35-4.35"></path>
-            </svg>
-            <input
-              type="text"
-              placeholder="Buscar endereço..."
-              [(ngModel)]="searchQuery"
-              (keyup.enter)="searchAddress()"
-              class="search-input"
-            />
+          <!-- Real-Time Autocomplete Search Bar -->
+          <div class="search-box-container" *ngIf="isEditMode || isCreateMode">
+            <div class="search-box">
+              <svg
+                class="search-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+              <input
+                type="text"
+                placeholder="Pesquisar paradas no banco de dados..."
+                [(ngModel)]="searchQuery"
+                (input)="filterParadas()"
+                class="search-input"
+              />
+            </div>
+
+            <!-- Autocomplete Results Dropdown -->
+            <div class="search-results-dropdown" *ngIf="searchQuery.trim() !== ''">
+              <div class="results-header">Resultados da busca ("{{ searchQuery }}")</div>
+              <div class="results-list">
+                <!-- Registered Database Stops -->
+                <div 
+                  class="result-item" 
+                  *ngFor="let p of filteredParadas" 
+                  (click)="selectAndAddParada(p)"
+                >
+                  <span class="pin-icon">📍</span>
+                  <div class="result-info">
+                    <div class="result-name">{{ p.logradouro }}, {{ p.numero }}</div>
+                    <div class="result-sub">Cod Parada: {{ p.paradaId }} | Lat: {{ p.latLong[0] | number:'1.4-4' }} Lng: {{ p.latLong[1] | number:'1.4-4' }}</div>
+                  </div>
+                </div>
+
+                <!-- Custom Stop Quick Add Option -->
+                <div class="result-item custom-add" (click)="addCustomEndereco()">
+                  <span class="pin-icon">✨</span>
+                  <div class="result-info">
+                    <div class="result-name">Adicionar parada personalizada: "{{ searchQuery }}"</div>
+                    <div class="result-sub">Cria uma parada customizada do zero</div>
+                  </div>
+                </div>
+                
+                <div class="no-results" *ngIf="filteredParadas.length === 0">
+                  Nenhuma parada existente coincide com a pesquisa. Clique acima para criar uma personalizada.
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Address List -->
@@ -252,16 +345,64 @@
               (dragstart)="onDragStart(i)"
               (dragover)="onDragOver($event)"
               (drop)="onDrop($event, i)"
+              [class.editing-card]="isEditMode || isCreateMode"
             >
               <div class="address-order">{{ i + 1 }}</div>
-              <div class="address-content">
+              
+              <!-- Read-only Mode Stop Details -->
+              <div class="address-content" *ngIf="!isEditMode && !isCreateMode">
                 <div class="address-name">{{ endereco.nome }}</div>
                 <div class="address-text">{{ endereco.endereco }}</div>
               </div>
+
+              <!-- Inline Editable Form Fields for Stop Details -->
+              <div class="address-content-edit" *ngIf="isEditMode || isCreateMode">
+                <div class="edit-fields-row">
+                  <input
+                    type="text"
+                    placeholder="Nome da Parada (ex: Ponto Metrô Bresser)"
+                    [(ngModel)]="endereco.nome"
+                    class="stop-input stop-title"
+                  />
+                </div>
+                <div class="edit-fields-row">
+                  <input
+                    type="text"
+                    placeholder="Endereço / Logradouro (ex: R. Ipanema, 686)"
+                    [(ngModel)]="endereco.endereco"
+                    class="stop-input stop-text"
+                  />
+                </div>
+                <div class="edit-fields-row coords-row">
+                  <div class="coord-input-group">
+                    <span class="coord-label">Lat:</span>
+                    <input
+                      type="number"
+                      placeholder="Latitude"
+                      [(ngModel)]="endereco.lat"
+                      step="any"
+                      class="stop-input stop-coord"
+                    />
+                  </div>
+                  <div class="coord-input-group">
+                    <span class="coord-label">Lng:</span>
+                    <input
+                      type="number"
+                      placeholder="Longitude"
+                      [(ngModel)]="endereco.lng"
+                      step="any"
+                      class="stop-input stop-coord"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Remove Stop Button -->
               <button
                 class="btn-remove"
                 *ngIf="isEditMode || isCreateMode"
                 (click)="removeEndereco(i)"
+                title="Remover parada"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -289,8 +430,8 @@
                 />
               </svg>
               <p>Nenhuma parada adicionada</p>
-              <p class="empty-hint">
-                Clique em "Adicionar" para começar a criar sua rota
+              <p class="empty-hint" *ngIf="isEditMode || isCreateMode">
+                Digite no campo de pesquisa acima para buscar paradas no banco de dados, ou clique em "Nova Customizada".
               </p>
             </div>
           </div>

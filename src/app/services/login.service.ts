@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, throwError, of } from 'rxjs';
 import { switchMap, map, catchError } from 'rxjs/operators';
 import { LoginRequest } from '../models/login.model';
 import { LoginResponse } from '../models/loginResponse.model';
@@ -14,6 +14,8 @@ import { User } from '../models/userLiteResponse.model';
 export class LoginService {
   private apiUrl = environment.apiUrl;
   private tokenKey = 'authToken';
+  private refreshTokenKey = 'refreshToken';
+  private refreshThresholdMs = 60000;
   public currentUserSubject: BehaviorSubject<User | null>;
   public currentUser: Observable<User | null>;
 
@@ -33,6 +35,7 @@ export class LoginService {
       .pipe(
         switchMap((res) => {
           this.setToken(res.token);
+          this.setRefreshToken(res.refreshToken);
           const decoded = this.decodeToken(res.token);
           if (!decoded?.sub) {
             return throwError(() => new Error('Invalid token'));
@@ -74,6 +77,7 @@ export class LoginService {
   logout(): void {
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(this.tokenKey);
+      localStorage.removeItem(this.refreshTokenKey);
       localStorage.removeItem('currentUser');
     }
     this.currentUserSubject.next(null);
@@ -152,5 +156,68 @@ export class LoginService {
   /** Get current user snapshot */
   get currentUserValue(): User | null {
     return this.currentUserSubject.value;
+  }
+
+  /** Refresh access token using refresh token */
+  refreshToken(): Observable<User> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      this.logout();
+      return throwError(() => new Error('No refresh token'));
+    }
+
+    return this.http
+      .post<LoginResponse>(`${this.apiUrl}/v1/auth/refresh`, { refreshToken })
+      .pipe(
+        switchMap((res) => {
+          this.setToken(res.token);
+          this.setRefreshToken(res.refreshToken);
+          const decoded = this.decodeToken(res.token);
+          if (!decoded?.sub) {
+            return throwError(() => new Error('Invalid token'));
+          }
+          return this.getUserData(decoded.sub);
+        }),
+        map((user: User) => {
+          this.setStoredUser(user);
+          this.currentUserSubject.next(user);
+          return user;
+        }),
+        catchError(() => {
+          this.logout();
+          return throwError(() => new Error('Refresh failed'));
+        })
+      );
+  }
+
+  /** Check if token is about to expire and refresh if needed */
+  checkAndRefreshToken(): Observable<User | null> {
+    const decoded = this.getDecodedToken();
+    if (!decoded?.exp) {
+      this.logout();
+      return of(null);
+    }
+
+    const expirationTime = decoded.exp * 1000;
+    const timeUntilExpiry = expirationTime - Date.now();
+
+    if (timeUntilExpiry <= this.refreshThresholdMs) {
+      return this.refreshToken();
+    }
+
+    return of(this.currentUserValue);
+  }
+
+  /** Get refresh token safely */
+  private getRefreshToken(): string | null {
+    if (typeof localStorage === 'undefined') return null;
+    return localStorage.getItem(this.refreshTokenKey);
+  }
+
+  /** Store refresh token safely */
+  private setRefreshToken(token: string): void {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(this.refreshTokenKey, token);
+    }
   }
 }

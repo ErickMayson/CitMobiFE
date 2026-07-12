@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { AuthGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -15,6 +16,7 @@ export const routes: Routes = [
     path: 'home',
     loadComponent: () =>
       import('./screens/home/home.component').then((m) => m.HomeComponent),
+    canActivate: [AuthGuard],
   },
   {
     path: 'rotas',
@@ -25,6 +27,7 @@ export const routes: Routes = [
     path: 'linhas',
     loadComponent: () =>
       import('./screens/rotas/rotas.component').then((m) => m.RotasComponent),
+    canActivate: [AuthGuard],
   },
   {
     path: 'veiculos',
@@ -32,6 +35,7 @@ export const routes: Routes = [
       import('./screens/veiculos/veiculos.component').then(
         (m) => m.VeiculosComponent
       ),
+    canActivate: [AuthGuard],
   },
   {
     path: 'motoristas',
@@ -39,5 +43,6 @@ export const routes: Routes = [
       import('./screens/motorista/motorista.component').then(
         (m) => m.MotoristaComponent
       ),
+    canActivate: [AuthGuard],
   },
 ];

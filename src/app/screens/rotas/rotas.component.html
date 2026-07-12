@@ -8,281 +8,214 @@
     [companyLogo]="companyLogo"
     (toggleSidebar)="toggleSidebar()"
   ></app-sidebar>
+
   <div class="rotas-container">
-    <!-- List View -->
-    <div class="rotas-list-view" *ngIf="!showEditView">
-      <!-- Header -->
+    <!-- List View Step -->
+    <div class="rotas-list-view" *ngIf="activeStep === 'list'">
       <div class="page-header">
         <div class="header-content">
-          <h1 class="page-title">Rotas</h1>
-          <p class="page-subtitle">Gerencie as rotas do sistema</p>
+          <h1 class="page-title">Gerenciamento de Linhas</h1>
+          <p class="page-subtitle">Configure as linhas da operadora e gerencie seus itinerários de ida e volta.</p>
         </div>
-        <button class="btn-create" (click)="createNewRota()">
-          <svg
-            class="btn-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          Nova Rota
+        <button class="btn-create" (click)="openCreateLinha()">
+          <span class="btn-icon">+</span>
+          Nova Linha
         </button>
       </div>
 
-      <!-- Rotas Ativas -->
+      <!-- Active Lines Section -->
       <div class="rotas-section">
-        <h2 class="section-title">Rotas Ativas</h2>
+        <h2 class="section-title">Linhas em Operação</h2>
         <div class="rotas-grid">
           <div
             class="rota-card active"
-            *ngFor="let rota of rotasAtivas"
-            (click)="viewRota(rota)"
+            *ngFor="let linha of linhasAtivas"
+            (click)="selectLinhaCard(linha)"
           >
             <div class="rota-header">
               <div class="rota-info">
-                <span class="rota-codigo">{{ rota.codigo }}</span>
-                <h3 class="rota-nome">{{ rota.nome }}</h3>
+                <span class="rota-codigo">{{ linha.codigo }}-{{ linha.atendimento }}</span>
+                <h3 class="rota-nome">{{ linha.partida }} ➔ {{ linha.chegada }}</h3>
               </div>
               <span class="rota-status active">Ativa</span>
             </div>
-            <p class="rota-descricao">{{ rota.descricao }}</p>
-            <div class="rota-stats">
-              <div class="stat-item">
-                <svg
-                  class="stat-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"
-                  />
-                </svg>
-                <span>{{ rota.distancia }}</span>
-              </div>
-              <div class="stat-item">
-                <svg
-                  class="stat-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <span>{{ rota.duracao }}</span>
-              </div>
-              <div class="stat-item">
-                <svg
-                  class="stat-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
-                  />
-                </svg>
-                <span>{{ rota.veiculos }} veículos</span>
-              </div>
+            
+            <p class="rota-descricao">
+              <strong>Obs:</strong> {{ linha.descricao || 'Sem observações' }}
+            </p>
+
+            <!-- Yellow Route Tags container -->
+            <div class="route-tags-container">
+              <span 
+                class="route-tag" 
+                *ngIf="linha.rotas.ida"
+                (click)="$event.stopPropagation(); editExistingItinerary(linha, 'IDA')"
+                title="Editar itinerário de Ida"
+              >
+                💛 Itinerário de IDA
+              </span>
+              <span 
+                class="route-tag" 
+                *ngIf="linha.rotas.volta"
+                (click)="$event.stopPropagation(); editExistingItinerary(linha, 'VOLTA')"
+                title="Editar itinerário de Volta"
+              >
+                💛 Itinerário de VOLTA
+              </span>
+              <span class="no-tags-message" *ngIf="!linha.rotas.ida && !linha.rotas.volta">
+                Nenhum itinerário cadastrado
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Rotas Inativas -->
+      <!-- Inactive Lines Section -->
       <div class="rotas-section">
-        <h2 class="section-title">Rotas Inativas</h2>
+        <h2 class="section-title">Linhas Inativas</h2>
         <div class="rotas-grid">
           <div
             class="rota-card inactive"
-            *ngFor="let rota of rotasInativas"
-            (click)="viewRota(rota)"
+            *ngFor="let linha of linhasInativas"
+            (click)="selectLinhaCard(linha)"
           >
             <div class="rota-header">
               <div class="rota-info">
-                <span class="rota-codigo">{{ rota.codigo }}</span>
-                <h3 class="rota-nome">{{ rota.nome }}</h3>
+                <span class="rota-codigo">{{ linha.codigo }}-{{ linha.atendimento }}</span>
+                <h3 class="rota-nome">{{ linha.partida }} ➔ {{ linha.chegada }}</h3>
               </div>
               <span class="rota-status inactive">Inativa</span>
             </div>
-            <p class="rota-descricao">{{ rota.descricao }}</p>
-            <div class="rota-stats">
-              <div class="stat-item">
-                <svg
-                  class="stat-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"
-                  />
-                </svg>
-                <span>{{ rota.distancia }}</span>
-              </div>
-              <div class="stat-item">
-                <svg
-                  class="stat-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <span>{{ rota.duracao }}</span>
-              </div>
-              <div class="stat-item">
-                <svg
-                  class="stat-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
-                  />
-                </svg>
-                <span>{{ rota.veiculos }} veículos</span>
-              </div>
+
+            <p class="rota-descricao">
+              <strong>Obs:</strong> {{ linha.descricao || 'Sem observações' }}
+            </p>
+
+            <div class="route-tags-container">
+              <span 
+                class="route-tag" 
+                *ngIf="linha.rotas.ida"
+                (click)="$event.stopPropagation(); editExistingItinerary(linha, 'IDA')"
+              >
+                💛 Rota de IDA
+              </span>
+              <span 
+                class="route-tag" 
+                *ngIf="linha.rotas.volta"
+                (click)="$event.stopPropagation(); editExistingItinerary(linha, 'VOLTA')"
+              >
+                💛 Rota de VOLTA
+              </span>
+              <span class="no-tags-message" *ngIf="!linha.rotas.ida && !linha.rotas.volta">
+                Nenhum itinerário cadastrado
+              </span>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Edit/Create View -->
-    <div class="rotas-edit-view" *ngIf="showEditView">
-      <!-- Header -->
+    <!-- Step 1: Create Linha View -->
+    <div class="rotas-edit-view" *ngIf="activeStep === 'create_linha'">
       <div class="edit-header">
-        <button class="btn-back" (click)="closeEditView()">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
+        <button class="btn-back" (click)="activeStep = 'list'">
           Voltar
         </button>
-        <h1 class="edit-title">
-          {{ isCreateMode ? "Nova Rota" : selectedRota?.nome }}
-        </h1>
+        <h1 class="edit-title">Nova Linha</h1>
+      </div>
+
+      <div class="wizard-step-container">
+        <div class="wizard-card">
+          <h2 class="wizard-card-title">Informações Gerais da Linha</h2>
+          
+          <div class="wizard-form">
+            <div class="form-row">
+              <div class="form-field code">
+                <label>Código da Linha</label>
+                <input
+                  type="text"
+                  placeholder="Ex: 372F"
+                  [(ngModel)]="linhaForm.codigo"
+                  class="wizard-input"
+                />
+              </div>
+              
+              <div class="form-field variant">
+                <label>Atendimento</label>
+                <input
+                  type="text"
+                  placeholder="Ex: 10"
+                  [(ngModel)]="linhaForm.atendimento"
+                  class="wizard-input"
+                />
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label>Local de Partida (Origem)</label>
+              <input
+                type="text"
+                placeholder="Ex: Jd. Das Oliveiras"
+                [(ngModel)]="linhaForm.partida"
+                class="wizard-input"
+              />
+            </div>
+
+            <div class="form-field">
+              <label>Local de Chegada (Destino)</label>
+              <input
+                type="text"
+                placeholder="Ex: Term. Pq. Dom Pedro II"
+                [(ngModel)]="linhaForm.chegada"
+                class="wizard-input"
+              />
+            </div>
+
+            <div class="form-field">
+              <label>Observações / Itinerário Resumido</label>
+              <input
+                type="text"
+                placeholder="Ex: Via Celso Garcia"
+                [(ngModel)]="linhaForm.descricao"
+                class="wizard-input"
+              />
+            </div>
+
+            <button class="btn-wizard-next" (click)="saveLinha()">
+              Criar Linha & Avançar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Itinerary Edit / Stop Sequence View -->
+    <div class="rotas-edit-view" *ngIf="activeStep === 'edit_itinerary'">
+      <div class="edit-header itinerary-hdr">
+        <button class="btn-back" (click)="cancelItineraryEdit()">
+          Cancelar
+        </button>
+        <div class="itinerary-header-info">
+          <div class="itinerary-line-badge">{{ selectedLinha?.codigo }}-{{ selectedLinha?.atendimento }}</div>
+          <div class="itinerary-direction">Sentido: <strong>{{ itineraryForm.sentido }}</strong></div>
+          <h1 class="edit-title itinerary-name">{{ itineraryForm.prefixo }}</h1>
+        </div>
         <div class="edit-actions">
-          <button
-            class="btn-edit"
-            *ngIf="!isEditMode && !isCreateMode"
-            (click)="enableEditMode()"
-          >
-            Editar
-          </button>
-          <button
-            class="btn-save"
-            *ngIf="isEditMode || isCreateMode"
-            (click)="saveRota()"
-          >
-            Salvar
+          <button class="btn-save" (click)="saveItinerary()">
+            Salvar Itinerário
           </button>
         </div>
       </div>
 
-      <!-- Edit Content -->
       <div class="edit-content">
-        <!-- Left Side - Addresses -->
+        <!-- Left Side - Stops Panel -->
         <div class="addresses-panel">
-          <!-- Route Metadata Form -->
-          <div class="route-metadata-form" *ngIf="isEditMode || isCreateMode">
-            <h3 class="section-subtitle">Informações da Linha</h3>
-            
-            <div class="form-row">
-              <div class="form-field code-field">
-                <label>Código da Linha</label>
-                <input
-                  type="text"
-                  placeholder="Ex: 372F-10"
-                  [(ngModel)]="editRouteForm.codigo"
-                  class="metadata-input"
-                />
-              </div>
-              
-              <div class="form-field status-field">
-                <label>Status</label>
-                <select [(ngModel)]="editRouteForm.status" class="metadata-select">
-                  <option value="ativa">Ativa</option>
-                  <option value="inativa">Inativa</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="form-field">
-              <label>Nome da Rota</label>
-              <input
-                type="text"
-                placeholder="Ex: USJT - Metrô Bresser"
-                [(ngModel)]="editRouteForm.nome"
-                class="metadata-input"
-              />
-            </div>
-
-            <div class="form-field">
-              <label>Descrição</label>
-              <input
-                type="text"
-                placeholder="Descrição e observações da linha"
-                [(ngModel)]="editRouteForm.descricao"
-                class="metadata-input"
-              />
-            </div>
-          </div>
-
-          <!-- Metadata Summary View (Read Only) -->
-          <div class="route-metadata-summary" *ngIf="!isEditMode && !isCreateMode">
-            <div class="summary-badges">
-              <span class="badge-code">{{ selectedRota?.codigo }}</span>
-              <span class="badge-status" [class.active]="selectedRota?.status === 'ativa'">
-                {{ selectedRota?.status === 'ativa' ? 'Ativa' : 'Inativa' }}
-              </span>
-            </div>
-            <p class="summary-desc">{{ selectedRota?.descricao || 'Sem descrição cadastrada' }}</p>
-          </div>
-
-          <hr class="divider" />
-
-          <!-- Panel Header -->
           <div class="panel-header">
             <h2 class="panel-title">Paradas do Itinerário</h2>
-            <button
-              class="btn-add"
-              (click)="addEndereco()"
-              *ngIf="isEditMode || isCreateMode"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              Nova Customizada
-            </button>
           </div>
 
           <!-- Real-Time Autocomplete Search Bar -->
-          <div class="search-box-container" *ngIf="isEditMode || isCreateMode">
+          <div class="search-box-container">
             <div class="search-box">
               <svg
                 class="search-icon"
@@ -296,18 +229,18 @@
               </svg>
               <input
                 type="text"
-                placeholder="Pesquisar paradas no banco de dados..."
+                placeholder="Buscar parada..."
                 [(ngModel)]="searchQuery"
+                (focus)="openParadasDropdown()"
+                (blur)="closeParadasDropdown()"
                 (input)="filterParadas()"
                 class="search-input"
               />
             </div>
 
-            <!-- Autocomplete Results Dropdown -->
-            <div class="search-results-dropdown" *ngIf="searchQuery.trim() !== ''">
-              <div class="results-header">Resultados da busca ("{{ searchQuery }}")</div>
+            <!-- Dropdown autocomplete results -->
+            <div class="search-results-dropdown" *ngIf="showParadasDropdown">
               <div class="results-list">
-                <!-- Registered Database Stops -->
                 <div 
                   class="result-item" 
                   *ngFor="let p of filteredParadas" 
@@ -316,100 +249,58 @@
                   <span class="pin-icon">📍</span>
                   <div class="result-info">
                     <div class="result-name">{{ p.logradouro }}, {{ p.numero }}</div>
-                    <div class="result-sub">Cod Parada: {{ p.paradaId }} | Lat: {{ p.latLong[0] | number:'1.4-4' }} Lng: {{ p.latLong[1] | number:'1.4-4' }}</div>
+                    <div class="result-sub">ID: {{ p.paradaId }} | Lat: {{ p.latLong[0] | number:'1.4-4' }} Lng: {{ p.latLong[1] | number:'1.4-4' }}</div>
                   </div>
                 </div>
 
-                <!-- Custom Stop Quick Add Option -->
-                <div class="result-item custom-add" (click)="addCustomEndereco()">
-                  <span class="pin-icon">✨</span>
+                <div class="result-item no-hover" *ngIf="filteredParadas.length === 0 && searchQuery.trim() === ''">
+                  <span class="pin-icon">📋</span>
                   <div class="result-info">
-                    <div class="result-name">Adicionar parada personalizada: "{{ searchQuery }}"</div>
-                    <div class="result-sub">Cria uma parada customizada do zero</div>
+                    <div class="result-name">Digite um endereço para buscar</div>
+                    <div class="result-sub">Use nome da rua e número (ex: Av. Paulista, 1000)</div>
                   </div>
                 </div>
-                
-                <div class="no-results" *ngIf="filteredParadas.length === 0">
-                  Nenhuma parada existente coincide com a pesquisa. Clique acima para criar uma personalizada.
+
+                <div 
+                  class="result-item add-new" 
+                  *ngIf="searchQuery.trim() !== ''"
+                  (click)="addCustomEndereco()"
+                >
+                  <span class="pin-icon">➕</span>
+                  <div class="result-info">
+                    <div class="result-name">Criar nova parada: "{{ searchQuery }}"</div>
+                    <div class="result-sub">As coordenadas serão preenchidas via Maps API</div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Address List -->
+          <!-- Stop list -->
           <div class="addresses-list">
             <div
-              class="address-card"
+              class="address-card editing-card"
               *ngFor="let endereco of enderecos; let i = index"
-              draggable="{{ isEditMode || isCreateMode }}"
-              (dragstart)="onDragStart(i)"
               (dragover)="onDragOver($event)"
               (drop)="onDrop($event, i)"
-              [class.editing-card]="isEditMode || isCreateMode"
             >
+              <div
+                class="address-drag-handle"
+                draggable="true"
+                (dragstart)="onDragStart(i)"
+              >⋮⋮</div>
               <div class="address-order">{{ i + 1 }}</div>
               
-              <!-- Read-only Mode Stop Details -->
-              <div class="address-content" *ngIf="!isEditMode && !isCreateMode">
-                <div class="address-name">{{ endereco.nome }}</div>
-                <div class="address-text">{{ endereco.endereco }}</div>
+              <div class="address-content-edit">
+                <span class="stop-display stop-title">{{ endereco.endereco || endereco.nome }}</span>
               </div>
 
-              <!-- Inline Editable Form Fields for Stop Details -->
-              <div class="address-content-edit" *ngIf="isEditMode || isCreateMode">
-                <div class="edit-fields-row">
-                  <input
-                    type="text"
-                    placeholder="Nome da Parada (ex: Ponto Metrô Bresser)"
-                    [(ngModel)]="endereco.nome"
-                    class="stop-input stop-title"
-                  />
-                </div>
-                <div class="edit-fields-row">
-                  <input
-                    type="text"
-                    placeholder="Endereço / Logradouro (ex: R. Ipanema, 686)"
-                    [(ngModel)]="endereco.endereco"
-                    class="stop-input stop-text"
-                  />
-                </div>
-                <div class="edit-fields-row coords-row">
-                  <div class="coord-input-group">
-                    <span class="coord-label">Lat:</span>
-                    <input
-                      type="number"
-                      placeholder="Latitude"
-                      [(ngModel)]="endereco.lat"
-                      step="any"
-                      class="stop-input stop-coord"
-                    />
-                  </div>
-                  <div class="coord-input-group">
-                    <span class="coord-label">Lng:</span>
-                    <input
-                      type="number"
-                      placeholder="Longitude"
-                      [(ngModel)]="endereco.lng"
-                      step="any"
-                      class="stop-input stop-coord"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <!-- Remove Stop Button -->
               <button
                 class="btn-remove"
-                *ngIf="isEditMode || isCreateMode"
                 (click)="removeEndereco(i)"
                 title="Remover parada"
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
@@ -418,49 +309,133 @@
 
             <!-- Empty State -->
             <div class="empty-state" *ngIf="enderecos.length === 0">
-              <svg
-                class="empty-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"
-                />
-              </svg>
               <p>Nenhuma parada adicionada</p>
-              <p class="empty-hint" *ngIf="isEditMode || isCreateMode">
-                Digite no campo de pesquisa acima para buscar paradas no banco de dados, ou clique em "Nova Customizada".
+              <p class="empty-hint">
+                Pesquise uma parada existente acima ou digite um novo endereço para criar uma nova.
               </p>
             </div>
           </div>
         </div>
 
-        <!-- Right Side - Map -->
+        <!-- Right Side - Maps -->
         <div class="map-panel">
           <div class="map-container">
             <div class="map-placeholder">
-              <svg
-                class="map-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <polygon
-                  points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"
-                ></polygon>
-                <line x1="9" y1="3" x2="9" y2="18"></line>
-                <line x1="15" y1="6" x2="15" y2="21"></line>
-              </svg>
-              <p>Mapa será exibido aqui</p>
-              <p class="map-hint">
-                Google Maps API será integrado para mostrar a rota
-              </p>
+              <p>Visualização do Mapa</p>
+              <p class="map-hint">Coordenadas das paradas serão ligadas para mostrar o trajeto.</p>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 1: Confirmation Modal (Add Rota Now?) -->
+  <div class="modal-backdrop" *ngIf="showConfirmationModal">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <h2>Linha Criada com Sucesso!</h2>
+      </div>
+      <div class="dialog-body">
+        <p>A linha <strong>{{ linhaForm.codigo }}-{{ linhaForm.atendimento }}</strong> foi registrada.</p>
+        <p>Deseja adicionar o itinerário para esta linha agora?</p>
+      </div>
+      <div class="dialog-footer">
+        <button class="btn-dialog primary" (click)="confirmAddRota('IDA')">
+          Sim, Itinerário de IDA
+        </button>
+        <button class="btn-dialog primary" (click)="confirmAddRota('VOLTA')">
+          Sim, Itinerário de VOLTA
+        </button>
+        <button class="btn-dialog secondary" (click)="confirmSkipRota()">
+          Não, criar depois
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Linha Details Modal (IDA / VOLTA selection) -->
+  <div class="modal-backdrop" *ngIf="showLinhaDetailsModal" (click)="closeDetailsModal()">
+    <div class="dialog-card large-dialog" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h2>Linha {{ selectedLinha?.codigo }}-{{ selectedLinha?.atendimento }}</h2>
+        <button class="btn-close-dlg" (click)="closeDetailsModal()">×</button>
+      </div>
+      <div class="dialog-body">
+        <div class="line-summary-info">
+          <p><strong>Descrição:</strong> {{ selectedLinha?.descricao }}</p>
+          <p><strong>Local Partida:</strong> {{ selectedLinha?.partida }}</p>
+          <p><strong>Local Chegada:</strong> {{ selectedLinha?.chegada }}</p>
+          <p>
+            <strong>Status:</strong> 
+            <span class="status-indicator" [class.active]="selectedLinha?.status === 'ativa'">
+              {{ selectedLinha?.status === 'ativa' ? 'Ativa' : 'Inativa' }}
+            </span>
+            <button
+              class="btn-toggle-status"
+              (click)="toggleLinhaStatus(selectedLinha!)"
+            >
+              {{ selectedLinha?.status === 'ativa' ? 'Inativar' : 'Ativar' }}
+            </button>
+          </p>
+        </div>
+
+        <div class="itineraries-management-section">
+          <h3>Itinerários Cadastrados</h3>
+          
+          <div class="itinerary-selector-grid">
+            <!-- IDA Card -->
+            <div class="itinerary-box">
+              <h4>Sentido IDA</h4>
+              <p class="itinerary-path">{{ selectedLinha?.partida }} ➔ {{ selectedLinha?.chegada }}</p>
+              
+              <div class="itinerary-actions-row">
+                <button 
+                  *ngIf="selectedLinha?.rotas?.ida" 
+                  class="btn-itinerary edit"
+                  (click)="editExistingItinerary(selectedLinha!, 'IDA')"
+                >
+                  ✏️ Editar Itinerário ({{ selectedLinha?.rotas?.ida?.enderecos?.length || 0 }} paradas)
+                </button>
+                <button 
+                  *ngIf="!selectedLinha?.rotas?.ida" 
+                  class="btn-itinerary add"
+                  (click)="addNewItinerary(selectedLinha!, 'IDA')"
+                >
+                  ➕ Cadastrar Itinerário de IDA
+                </button>
+              </div>
+            </div>
+
+            <!-- VOLTA Card -->
+            <div class="itinerary-box">
+              <h4>Sentido VOLTA</h4>
+              <p class="itinerary-path">{{ selectedLinha?.chegada }} ➔ {{ selectedLinha?.partida }}</p>
+              
+              <div class="itinerary-actions-row">
+                <button 
+                  *ngIf="selectedLinha?.rotas?.volta" 
+                  class="btn-itinerary edit"
+                  (click)="editExistingItinerary(selectedLinha!, 'VOLTA')"
+                >
+                  ✏️ Editar Itinerário ({{ selectedLinha?.rotas?.volta?.enderecos?.length || 0 }} paradas)
+                </button>
+                <button 
+                  *ngIf="!selectedLinha?.rotas?.volta" 
+                  class="btn-itinerary add"
+                  (click)="addNewItinerary(selectedLinha!, 'VOLTA')"
+                >
+                  ➕ Cadastrar Itinerário de VOLTA
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-footer border-top-none">
+        <button class="btn-dialog secondary" (click)="closeDetailsModal()">
+          Fechar
+        </button>
       </div>
     </div>
   </div>

@@ -9,7 +9,7 @@ import {
   MockMotorista as Motorista,
   MockHorarioMotorista as HorarioMotorista,
   MOCK_VEICULOS_DISPONIVEIS as VEICULOS_DISPONIVEIS,
-  MOCK_ROTAS_DISPONIVEIS as ROTAS_DISPONIVEIS,
+  MOCK_LINHAS_DISPONIVEIS as LINHAS_DISPONIVEIS,
 } from '../../mock-data/mock-data';
 
 interface Veiculo {
@@ -18,7 +18,7 @@ interface Veiculo {
   modelo: string;
 }
 
-interface Rota {
+interface Linha {
   id: string;
   nome: string;
 }
@@ -48,7 +48,7 @@ export class MotoristaComponent implements OnInit {
 
   motoristas: Motorista[] = [];
   veiculosDisponiveis: Veiculo[] = VEICULOS_DISPONIVEIS;
-  rotasDisponiveis: Rota[] = ROTAS_DISPONIVEIS;
+  linhasDisponiveis: Linha[] = LINHAS_DISPONIVEIS;
 
   showAddModal = false;
   showEditModal = false;
@@ -248,17 +248,17 @@ export class MotoristaComponent implements OnInit {
       const veiculo = this.veiculosDisponiveis.find(
         (v) => v.id === this.horarioForm.veiculoId
       );
-      const rota = this.rotasDisponiveis.find(
-        (r) => r.id === this.horarioForm.rotaId
+      const linha = this.linhasDisponiveis.find(
+        (l) => l.id === this.horarioForm.rotaId
       );
 
-      if (veiculo && rota) {
+      if (veiculo && linha) {
         const newHorario: HorarioMotorista = {
           veiculoId: veiculo.id,
           veiculoPlaca: veiculo.placa,
           veiculoModelo: veiculo.modelo,
-          rotaId: rota.id,
-          rotaNome: rota.nome,
+          rotaId: linha.id,
+          rotaNome: linha.nome,
           startTime: this.horarioForm.startTime,
           endTime: this.horarioForm.endTime,
           days: [...this.horarioForm.days],
@@ -282,17 +282,17 @@ export class MotoristaComponent implements OnInit {
       const veiculo = this.veiculosDisponiveis.find(
         (v) => v.id === this.horarioForm.veiculoId
       );
-      const rota = this.rotasDisponiveis.find(
-        (r) => r.id === this.horarioForm.rotaId
+      const linha = this.linhasDisponiveis.find(
+        (l) => l.id === this.horarioForm.rotaId
       );
 
-      if (veiculo && rota) {
+      if (veiculo && linha) {
         this.selectedMotorista.horarios[this.editingHorarioIndex] = {
           veiculoId: veiculo.id,
           veiculoPlaca: veiculo.placa,
           veiculoModelo: veiculo.modelo,
-          rotaId: rota.id,
-          rotaNome: rota.nome,
+          rotaId: linha.id,
+          rotaNome: linha.nome,
           startTime: this.horarioForm.startTime,
           endTime: this.horarioForm.endTime,
           days: [...this.horarioForm.days],

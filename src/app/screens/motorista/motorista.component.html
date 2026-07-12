@@ -213,7 +213,7 @@
               </div>
 
               <div class="schedule-track">
-                <div class="track-label">🚌 Veículos e Rotas</div>
+                <div class="track-label">🚌 Veículos e Linhas</div>
                 <div class="track-timeline">
                   <div
                     *ngFor="let block of getScheduleBlocks()"
@@ -331,11 +331,11 @@
         </div>
 
         <div class="form-group">
-          <label>Rota</label>
+          <label>Linha</label>
           <select [(ngModel)]="horarioForm.rotaId" class="form-control">
-            <option value="">Selecione a rota</option>
-            <option *ngFor="let rota of rotasDisponiveis" [value]="rota.id">
-              {{ rota.nome }}
+            <option value="">Selecione a linha</option>
+            <option *ngFor="let linha of linhasDisponiveis" [value]="linha.id">
+              {{ linha.nome }}
             </option>
           </select>
         </div>
@@ -417,11 +417,11 @@
         </div>
 
         <div class="form-group">
-          <label>Rota</label>
+          <label>Linha</label>
           <select [(ngModel)]="horarioForm.rotaId" class="form-control">
-            <option value="">Selecione a rota</option>
-            <option *ngFor="let rota of rotasDisponiveis" [value]="rota.id">
-              {{ rota.nome }}
+            <option value="">Selecione a linha</option>
+            <option *ngFor="let linha of linhasDisponiveis" [value]="linha.id">
+              {{ linha.nome }}
             </option>
           </select>
         </div>

@@ -18,6 +18,11 @@ export const routes: Routes = [
   },
   {
     path: 'rotas',
+    redirectTo: 'linhas',
+    pathMatch: 'full',
+  },
+  {
+    path: 'linhas',
     loadComponent: () =>
       import('./screens/rotas/rotas.component').then((m) => m.RotasComponent),
   },

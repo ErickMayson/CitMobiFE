@@ -5,7 +5,7 @@ export interface Motorista {
   days: string[];
 }
 
-export interface Rota {
+export interface Linha {
   routeName: string;
   startTime: string;
   endTime: string;
@@ -20,7 +20,7 @@ export interface Veiculo {
   capacity: number;
   status: 'EM ATENDIMENTO' | 'GARAGEM' | 'RESERVA' | 'INATIVO';
   garage: string;
-  routes: Rota[];
+  routes: Linha[];
   drivers: Motorista[];
 }
 

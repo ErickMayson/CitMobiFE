@@ -29,7 +29,7 @@ export class LoginService {
     const loginData: LoginRequest = { login, senha };
 
     return this.http
-      .post<LoginResponse>(`${this.apiUrl}/citmobi/v1/auth/login`, loginData)
+      .post<LoginResponse>(`${this.apiUrl}/v1/auth/login`, loginData)
       .pipe(
         switchMap((res) => {
           this.setToken(res.token);
@@ -53,7 +53,7 @@ export class LoginService {
 
   /** Fetch user data from API */
   private getUserData(login: string): Observable<User> {
-    return this.http.get<User>(`${this.apiUrl}/citmobi/v1/api/usuarios`, {
+    return this.http.get<User>(`${this.apiUrl}/v1/api/usuarios`, {
       headers: this.getAuthHeaders(),
       params: { login },
     });

@@ -47,7 +47,7 @@
             </p>
             <p><strong>Garagem:</strong> {{ veiculo.garage }}</p>
             <p *ngIf="veiculo.routes.length > 0">
-              <strong>Rotas:</strong> {{ veiculo.routes.length }}
+              <strong>Linhas:</strong> {{ veiculo.routes.length }}
             </p>
             <p *ngIf="veiculo.drivers.length > 0">
               <strong>Motoristas:</strong> {{ veiculo.drivers.length }}
@@ -233,7 +233,7 @@
               </div>
 
               <div class="schedule-track route-track">
-                <div class="track-label">🚌 Rotas</div>
+                <div class="track-label">🚌 Linhas</div>
                 <div class="track-timeline">
                   <div
                     *ngFor="let block of getScheduleBlocks()"
@@ -302,7 +302,7 @@
 
           <div class="list-container">
             <div class="list-header">
-              <h3>Rotas ({{ selectedVeiculo.routes.length }})</h3>
+              <h3>Linhas ({{ selectedVeiculo.routes.length }})</h3>
               <button class="btn-add-small" (click)="openAddRouteModal()">
                 + Adicionar
               </button>
@@ -332,7 +332,7 @@
                 class="empty-message"
                 *ngIf="selectedVeiculo.routes.length === 0"
               >
-                Nenhuma rota cadastrada
+                Nenhuma linha cadastrada
               </p>
             </div>
           </div>
@@ -510,7 +510,7 @@
     </div>
   </div>
 
-  <!-- Modal Adicionar Rota -->
+  <!-- Modal Adicionar Linha -->
   <div
     class="modal-overlay"
     *ngIf="showAddRouteModal"
@@ -518,13 +518,13 @@
   >
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>Adicionar Rota</h2>
+        <h2>Adicionar Linha</h2>
         <button class="btn-close" (click)="closeAddRouteModal()">×</button>
       </div>
 
       <div class="modal-body">
         <div class="form-group">
-          <label>Nome da Rota</label>
+          <label>Nome da Linha</label>
           <input
             type="text"
             placeholder="Digite ou selecione..."
@@ -581,13 +581,13 @@
           Cancelar
         </button>
         <button class="btn-primary" (click)="handleAddRoute()">
-          Adicionar Rota
+          Adicionar Linha
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Editar Rota -->
+  <!-- Modal Editar Linha -->
   <div
     class="modal-overlay"
     *ngIf="showEditRouteModal"
@@ -595,13 +595,13 @@
   >
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>Editar Rota</h2>
+        <h2>Editar Linha</h2>
         <button class="btn-close" (click)="closeEditRouteModal()">×</button>
       </div>
 
       <div class="modal-body">
         <div class="form-group">
-          <label>Nome da Rota</label>
+          <label>Nome da Linha</label>
           <input
             type="text"
             placeholder="Digite ou selecione..."

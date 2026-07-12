@@ -23,7 +23,7 @@ export class HomeComponent implements OnInit {
   stats: any = {
     motoristasAtivos: 0,
     veiculosAtivos: 0,
-    rotasEmOperacao: 0,
+    linhasEmOperacao: 0,
     coberturaTotal: '0 km',
   };
 
@@ -59,7 +59,7 @@ export class HomeComponent implements OnInit {
     // Fetch dashboard stats & metrics from service
     this.dashboardService.getStats().subscribe((data) => (this.stats = data));
 
-    this.dashboardService.getRoutesByDay().subscribe((data) => {
+    this.dashboardService.getLinhasByDay().subscribe((data) => {
       this.routesByDay = data;
       this.maxRoutesValue = Math.max(...this.routesByDay.map((d) => d.value), 1);
     });
@@ -68,7 +68,7 @@ export class HomeComponent implements OnInit {
     this.dashboardService.getDriversByShift().subscribe((data) => (this.driversByShift = data));
     this.dashboardService.getRecentActivity().subscribe((data) => (this.recentActivity = data));
 
-    this.dashboardService.getRoutesByHour().subscribe((data) => {
+    this.dashboardService.getLinhasByHour().subscribe((data) => {
       this.routesByHour = data;
       this.maxRoutesHourValue = Math.max(...this.routesByHour.map((d) => d.value), 1);
     });
@@ -78,7 +78,7 @@ export class HomeComponent implements OnInit {
       this.maxPassengerCapacity = Math.max(...this.passengerCapacityByHour.map((d) => d.value), 1);
     });
 
-    this.dashboardService.getVehiclesByRoute().subscribe((data) => {
+    this.dashboardService.getVehiclesByLinha().subscribe((data) => {
       this.vehiclesByRoute = data;
       this.maxVehiclesByRoute = Math.max(...this.vehiclesByRoute.map((r) => r.vehicles), 1);
     });

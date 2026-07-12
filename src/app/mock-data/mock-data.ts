@@ -4,6 +4,7 @@ export interface MockEndereco {
   id: number;
   nome: string;
   endereco: string;
+  cep: string;
   lat: number;
   lng: number;
   ordem: number;
@@ -68,9 +69,9 @@ export interface MockMotorista {
 }
 
 // ---------------------------------------------------------
-// Rotas Mock Data
+// Linhas Mock Data
 // ---------------------------------------------------------
-export const MOCK_ROTAS_ATIVAS: MockRota[] = [
+export const MOCK_LINHAS_ATIVAS: MockRota[] = [
   {
     id: 1,
     nome: 'Linha 001 - Centro/Bairro A',
@@ -106,7 +107,7 @@ export const MOCK_ROTAS_ATIVAS: MockRota[] = [
   },
 ];
 
-export const MOCK_ROTAS_INATIVAS: MockRota[] = [
+export const MOCK_LINHAS_INATIVAS: MockRota[] = [
   {
     id: 4,
     nome: 'Linha 004 - Terminal A/B',
@@ -214,7 +215,7 @@ export const MOCK_DROPDOWN_DRIVERS = [
   'Ana Costa',
   'Carlos Souza',
 ];
-export const MOCK_DROPDOWN_ROUTES = [
+export const MOCK_DROPDOWN_LINHAS = [
   'Linha 100 - Centro/Bairro',
   'Linha 200 - Expresso',
   'Linha 300 - Circular',
@@ -318,11 +319,29 @@ export const MOCK_VEICULOS_DISPONIVEIS = [
   { id: 'V004', placa: 'JKL-3456', modelo: 'Apache VIP V' },
 ];
 
-export const MOCK_ROTAS_DISPONIVEIS = [
+export const MOCK_LINHAS_DISPONIVEIS = [
   { id: 'R001', nome: 'Linha 100 - Centro/Bairro' },
   { id: 'R002', nome: 'Linha 200 - Expresso' },
   { id: 'R003', nome: 'Linha 300 - Circular' },
   { id: 'R004', nome: 'Linha 400 - Terminal' },
+];
+
+export const MOCK_PARADAS = [
+  { paradaId: 1, logradouro: 'Av. Paulista', numero: '1000', obs: '', cep: '01310-100', latLong: [-23.5614, -46.6561], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 2, logradouro: 'Rua Augusta', numero: '500', obs: '', cep: '01304-000', latLong: [-23.5550, -46.6450], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 3, logradouro: 'Av. Brigadeiro Faria Lima', numero: '3000', obs: '', cep: '04538-132', latLong: [-23.5788, -46.6849], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 4, logradouro: 'Praça da Sé', numero: 'S/N', obs: '', cep: '01001-000', latLong: [-23.5505, -46.6333], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 5, logradouro: 'Av. Rebouças', numero: '2500', obs: '', cep: '05401-400', latLong: [-23.5628, -46.6721], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 6, logradouro: 'Rua da Consolação', numero: '1500', obs: '', cep: '01302-001', latLong: [-23.5492, -46.6578], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 7, logradouro: 'Av. Santo Amaro', numero: '4000', obs: '', cep: '04556-200', latLong: [-23.5984, -46.6805], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 8, logradouro: 'Rua 25 de Março', numero: '900', obs: '', cep: '01021-200', latLong: [-23.5437, -46.6384], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 9, logradouro: 'Av. Celso Garcia', numero: '2000', obs: '', cep: '03064-000', latLong: [-23.5308, -46.5970], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 10, logradouro: 'Terminal Pq Dom Pedro II', numero: 'S/N', obs: '', cep: '03010-000', latLong: [-23.5440, -46.6278], municipio: 3550308, ufSigla: 'SP', tipoId: 2, flagAtiva: 'S' },
+  { paradaId: 11, logradouro: 'Terminal Pinheiros', numero: 'S/N', obs: '', cep: '05422-010', latLong: [-23.5675, -46.6945], municipio: 3550308, ufSigla: 'SP', tipoId: 2, flagAtiva: 'S' },
+  { paradaId: 12, logradouro: 'Terminal São Miguel', numero: 'S/N', obs: '', cep: '08010-000', latLong: [-23.5020, -46.4653], municipio: 3550308, ufSigla: 'SP', tipoId: 2, flagAtiva: 'S' },
+  { paradaId: 13, logradouro: 'Metrô Bresser', numero: 'S/N', obs: '', cep: '03054-000', latLong: [-23.5364, -46.6059], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 14, logradouro: 'Largo da Batata', numero: 'S/N', obs: '', cep: '05422-020', latLong: [-23.5692, -46.6843], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 15, logradouro: 'Av. Jabaquara', numero: '1800', obs: '', cep: '04046-200', latLong: [-23.6300, -46.6400], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
 ];
 
 // ---------------------------------------------------------
@@ -331,11 +350,11 @@ export const MOCK_ROTAS_DISPONIVEIS = [
 export const MOCK_STATS = {
   motoristasAtivos: 124,
   veiculosAtivos: 89,
-  rotasEmOperacao: 45,
+  linhasEmOperacao: 45,
   coberturaTotal: '12.5K km',
 };
 
-export const MOCK_ROUTES_BY_DAY = [
+export const MOCK_LINHAS_BY_DAY = [
   { label: 'Seg', value: 42 },
   { label: 'Ter', value: 38 },
   { label: 'Qua', value: 45 },
@@ -386,7 +405,7 @@ export const MOCK_RECENT_ACTIVITY = [
   },
 ];
 
-export const MOCK_ROUTES_BY_HOUR = [
+export const MOCK_LINHAS_BY_HOUR = [
   { label: '00h', value: 8 },
   { label: '01h', value: 5 },
   { label: '02h', value: 3 },
@@ -428,7 +447,7 @@ export const MOCK_PASSENGER_CAPACITY_BY_HOUR = [
   { label: '23h', value: 420 },
 ];
 
-export const MOCK_VEHICLES_BY_ROUTE = [
+export const MOCK_VEHICLES_BY_LINHA = [
   { route: 'Linha 001 - Centro/Bairro A', vehicles: 12, color: '#00b4d8' },
   { route: 'Linha 002 - Aeroporto/Centro', vehicles: 8, color: '#0891b2' },
   { route: 'Linha 003 - Zona Norte/Sul', vehicles: 15, color: '#0e7490' },

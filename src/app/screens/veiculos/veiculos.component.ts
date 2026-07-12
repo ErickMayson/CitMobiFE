@@ -3,7 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   Motorista,
-  Rota,
+  Linha,
   Veiculo,
   ScheduleBlock,
 } from '../../models/veiculo.model';
@@ -16,7 +16,7 @@ import {
   MOCK_TYPES as TYPES,
   MOCK_GARAGES as GARAGES,
   MOCK_DROPDOWN_DRIVERS as MOCK_DRIVERS,
-  MOCK_DROPDOWN_ROUTES as MOCK_ROUTES,
+  MOCK_DROPDOWN_LINHAS as MOCK_LINHAS,
 } from '../../mock-data/mock-data';
 
 @Component({
@@ -72,7 +72,7 @@ export class VeiculosComponent implements OnInit {
   types = TYPES;
   garages = GARAGES;
   mockDrivers = MOCK_DRIVERS;
-  mockRoutes = MOCK_ROUTES;
+  mockRoutes = MOCK_LINHAS;
 
   daysOfWeek = [
     { code: 'SEG', label: 'Seg' },
@@ -342,7 +342,7 @@ export class VeiculosComponent implements OnInit {
       this.routeForm.endTime &&
       this.routeForm.days.length > 0
     ) {
-      const newRoute: Rota = {
+      const newRoute: Linha = {
         routeName: this.routeForm.routeName,
         startTime: this.routeForm.startTime,
         endTime: this.routeForm.endTime,

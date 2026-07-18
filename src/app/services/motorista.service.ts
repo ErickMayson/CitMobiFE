@@ -1,38 +1,82 @@
 import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { MockMotorista, MOCK_MOTORISTAS } from '../mock-data/mock-data';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { MockMotorista } from '../mock-data/mock-data';
+import { environment } from '../../../environments/enviroment';
+import { LoginService } from './login.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class MotoristaService {
-  private motoristas = [...MOCK_MOTORISTAS];
+  private apiUrl = environment.apiUrl;
 
-  constructor() {}
+  constructor(private http: HttpClient, private loginService: LoginService) {}
 
   getMotoristas(): Observable<MockMotorista[]> {
-    return of(this.motoristas);
+    const headers = this.loginService.getAuthHeaders();
+    return this.http.get<any>(`${this.apiUrl}/v1/api/usuarios`, {
+      headers,
+      params: { role: 'MOTORISTA' }
+    }).pipe(
+      map(res => {
+        const list = res.data || [];
+        return list.map((u: any) => {
+          return {
+            id: u.login,
+            nome: u.nome,
+            cpf: u.cpf,
+            telefone: u.telefone,
+            status: 'FORA DE TURNO', // Default status or dynamically updated in components
+            horarios: []
+          } as MockMotorista;
+        });
+      })
+    );
   }
 
   addMotorista(motorista: MockMotorista): Observable<MockMotorista> {
-    this.motoristas.push(motorista);
-    return of(motorista);
+    const headers = this.loginService.getAuthHeaders();
+    const currentUser = this.loginService.currentUserValue;
+    const body = {
+      login: motorista.cpf.replace(/\D/g, ''),
+      senha: 'mobibrasil', // Default password
+      email: `${motorista.nome.toLowerCase().replace(/\s+/g, '')}@citmobi.com.br`,
+      nome: motorista.nome,
+      telefone: motorista.telefone.replace(/\D/g, ''),
+      cpf: motorista.cpf.replace(/\D/g, ''),
+      flagAtivo: 'S',
+      role: 'MOTORISTA',
+      operador: currentUser?.operador
+    };
+
+    return this.http.post<any>(`${this.apiUrl}/v1/api/usuarios`, body, { headers }).pipe(
+      map(() => motorista)
+    );
   }
 
   updateMotorista(motorista: MockMotorista): Observable<MockMotorista> {
-    const index = this.motoristas.findIndex((m) => m.id === motorista.id);
-    if (index !== -1) {
-      this.motoristas[index] = motorista;
-    }
-    return of(motorista);
+    const headers = this.loginService.getAuthHeaders();
+    const body = {
+      nome: motorista.nome,
+      telefone: motorista.telefone.replace(/\D/g, ''),
+      cpf: motorista.cpf.replace(/\D/g, ''),
+      flagAtivo: 'S',
+      role: 'MOTORISTA'
+    };
+    return this.http.patch<any>(`${this.apiUrl}/v1/api/usuarios/${motorista.id}`, body, { headers }).pipe(
+      map(() => motorista)
+    );
   }
 
   deleteMotorista(id: string): Observable<boolean> {
-    const index = this.motoristas.findIndex((m) => m.id === id);
-    if (index !== -1) {
-      this.motoristas.splice(index, 1);
-      return of(true);
-    }
-    return of(false);
+    const headers = this.loginService.getAuthHeaders();
+    const body = {
+      flagAtivo: 'N'
+    };
+    return this.http.patch<any>(`${this.apiUrl}/v1/api/usuarios/${id}`, body, { headers }).pipe(
+      map(res => res.status === '200' || res.status === 200)
+    );
   }
 }

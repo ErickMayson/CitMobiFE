@@ -17,6 +17,7 @@ export class LoginComponent {
   senha: string = '';
   showPassword: boolean = false;
   isTransitioning: boolean = false;
+  hasError: boolean = false;
   errorMessage: string = '';
 
   constructor(private loginService: LoginService, private router: Router) {
@@ -31,9 +32,14 @@ export class LoginComponent {
     this.showPassword = !this.showPassword;
   }
 
+  clearError(): void {
+    this.errorMessage = '';
+  }
+
   onLogin(): void {
     this.isTransitioning = true;
     this.errorMessage = '';
+    this.hasError = false;
 
     this.loginService.login(this.login, this.senha).subscribe({
       next: (user: User) => {
@@ -42,8 +48,9 @@ export class LoginComponent {
         }, 800);
       },
       error: (err) => {
-        this.errorMessage = 'Login failed. Check your credentials.';
+        this.errorMessage = 'Usuário ou senha incorretos. Por favor, verifique suas credenciais e tente novamente.';
         this.isTransitioning = false;
+        this.hasError = true;
       },
       complete: () => {},
     });

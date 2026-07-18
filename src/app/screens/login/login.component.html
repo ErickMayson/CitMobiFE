@@ -19,15 +19,27 @@
         Para continuar, favor inserir suas credenciais abaixo.
       </p>
 
-      <form (ngSubmit)="onLogin()" class="login-form">
+      <!-- Error Message Banner -->
+      <div *ngIf="errorMessage" class="error-banner">
+        <svg class="error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span class="error-text">{{ errorMessage }}</span>
+      </div>
+
+      <form (ngSubmit)="onLogin()" class="login-form" [class.shake]="hasError" (animationend)="hasError = false">
         <!-- Email Input -->
         <div class="input-group">
           <input
             type="text"
             [(ngModel)]="login"
+            (ngModelChange)="clearError()"
             name="login"
             placeholder="Login"
             class="input-field"
+            [class.input-error]="hasError || errorMessage"
             required
           />
         </div>
@@ -38,9 +50,11 @@
             <input
               [type]="showPassword ? 'text' : 'password'"
               [(ngModel)]="senha"
+              (ngModelChange)="clearError()"
               name="senha"
               placeholder="Password"
               class="input-field"
+              [class.input-error]="hasError || errorMessage"
               required
             />
             <button

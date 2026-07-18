@@ -1,38 +1,44 @@
 import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { MockVeiculo, MOCK_VEICULOS } from '../mock-data/mock-data';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { MockVeiculo as Veiculo } from '../mock-data/mock-data';
+import { environment } from '../../../environments/enviroment';
+import { LoginService } from './login.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class VeiculoService {
-  private veiculos = [...MOCK_VEICULOS];
+  private apiUrl = environment.apiUrl;
 
-  constructor() {}
+  constructor(private http: HttpClient, private loginService: LoginService) {}
 
-  getVeiculos(): Observable<MockVeiculo[]> {
-    return of(this.veiculos);
+  getVeiculos(): Observable<Veiculo[]> {
+    const headers = this.loginService.getAuthHeaders();
+    return this.http.get<any>(`${this.apiUrl}/v1/api/veiculos`, { headers }).pipe(
+      map(res => res.data || [])
+    );
   }
 
-  addVeiculo(veiculo: MockVeiculo): Observable<MockVeiculo> {
-    this.veiculos.push(veiculo);
-    return of(veiculo);
+  addVeiculo(veiculo: Veiculo): Observable<Veiculo> {
+    const headers = this.loginService.getAuthHeaders();
+    return this.http.post<any>(`${this.apiUrl}/v1/api/veiculos`, veiculo, { headers }).pipe(
+      map(res => res.data)
+    );
   }
 
-  updateVeiculo(veiculo: MockVeiculo): Observable<MockVeiculo> {
-    const index = this.veiculos.findIndex((v) => v.id === veiculo.id);
-    if (index !== -1) {
-      this.veiculos[index] = veiculo;
-    }
-    return of(veiculo);
+  updateVeiculo(veiculo: Veiculo): Observable<Veiculo> {
+    const headers = this.loginService.getAuthHeaders();
+    return this.http.put<any>(`${this.apiUrl}/v1/api/veiculos/${veiculo.plate}`, veiculo, { headers }).pipe(
+      map(res => res.data)
+    );
   }
 
-  deleteVeiculo(id: string): Observable<boolean> {
-    const index = this.veiculos.findIndex((v) => v.id === id);
-    if (index !== -1) {
-      this.veiculos.splice(index, 1);
-      return of(true);
-    }
-    return of(false);
+  deleteVeiculo(plate: string): Observable<boolean> {
+    const headers = this.loginService.getAuthHeaders();
+    return this.http.delete<any>(`${this.apiUrl}/v1/api/veiculos/${plate}`, { headers }).pipe(
+      map(res => res.status === '200')
+    );
   }
 }

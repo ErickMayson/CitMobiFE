@@ -209,7 +209,7 @@ export class LoginService {
   }
 
   /** Get refresh token safely */
-  private getRefreshToken(): string | null {
+  getRefreshToken(): string | null {
     if (typeof localStorage === 'undefined') return null;
     return localStorage.getItem(this.refreshTokenKey);
   }

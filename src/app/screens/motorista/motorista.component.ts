@@ -8,11 +8,14 @@ import { LoginService } from '../../services/login.service';
 import { MotoristaService } from '../../services/motorista.service';
 import { VeiculoService } from '../../services/veiculo.service';
 import { LinhaService } from '../../services/linha.service';
+import { formatCpf, formatPhone, formatOnlyNumbers } from '../../utils/mask.utils';
 import {
   MockMotorista as Motorista,
   MockHorarioMotorista as HorarioMotorista,
   MOCK_VEICULOS_DISPONIVEIS as VEICULOS_DISPONIVEIS,
   MOCK_LINHAS_DISPONIVEIS as LINHAS_DISPONIVEIS,
+  ENABLE_DEMO_MOCKUP,
+  DEMO_MOCK_MOTORISTA,
 } from '../../mock-data/mock-data';
 
 interface Veiculo {
@@ -49,8 +52,8 @@ export class MotoristaComponent implements OnInit {
   currentUser: User | null = null;
   companyLogo: string = 'assets/viacaoGatoPreto.png';
 
-  isLoading: boolean = true;
-  motoristas: Motorista[] = [];
+  isLoading: boolean = false;
+  motoristas: Motorista[] = ENABLE_DEMO_MOCKUP ? [DEMO_MOCK_MOTORISTA] : [];
   veiculosDisponiveis: Veiculo[] = VEICULOS_DISPONIVEIS;
   linhasDisponiveis: Linha[] = LINHAS_DISPONIVEIS;
 
@@ -70,6 +73,16 @@ export class MotoristaComponent implements OnInit {
     cpf: '',
     telefone: '',
   };
+
+  onCpfInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.newMotorista.cpf = formatCpf(input.value);
+  }
+
+  onPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.newMotorista.telefone = formatPhone(input.value);
+  }
 
   horarioForm = {
     veiculoId: '',
@@ -141,11 +154,19 @@ export class MotoristaComponent implements OnInit {
     this.isLoading = true;
     this.motoristaService.getMotoristas().subscribe({
       next: (data) => {
-        this.motoristas = (data || []) as Motorista[];
+        let list = (data || []) as Motorista[];
+        if (ENABLE_DEMO_MOCKUP && !list.some((m) => m.cpf === DEMO_MOCK_MOTORISTA.cpf)) {
+          list = [DEMO_MOCK_MOTORISTA, ...list];
+        }
+        this.motoristas = list;
         this.sortMotoristas();
         this.isLoading = false;
       },
       error: (err) => {
+        if (ENABLE_DEMO_MOCKUP) {
+          this.motoristas = [DEMO_MOCK_MOTORISTA];
+          this.sortMotoristas();
+        }
         this.isLoading = false;
         if (err.status === 401 || err.status === 403) {
           this.loginService.logout();
@@ -472,10 +493,10 @@ export class MotoristaComponent implements OnInit {
   }
 
   formatCPF(cpf: string): string {
-    return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    return formatCpf(cpf);
   }
 
   formatPhone(phone: string): string {
-    return phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    return formatPhone(phone);
   }
 }

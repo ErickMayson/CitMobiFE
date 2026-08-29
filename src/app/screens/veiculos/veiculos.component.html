@@ -12,24 +12,65 @@
   <!-- Main Content -->
   <div class="vehicle-management">
     <div class="container">
-      <div class="header">
-        <h1>Gerenciamento de Veículos</h1>
-        <button class="btn-primary" (click)="openAddModal()">
-          <span class="icon">+</span>
-          Adicionar Veículo
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="header-content">
+          <h1 class="page-title">Gerenciamento de Veículos</h1>
+          <p class="page-subtitle">Cadastre a frota, atribua linhas e motoristas, e acompanhe o status operacional.</p>
+        </div>
+        <button class="btn-create" (click)="openAddModal()">
+          <span class="btn-icon">+</span>
+          Novo Veículo
         </button>
       </div>
 
-      <div class="vehicle-grid">
+      <!-- Loading State -->
+      <div class="loading-state" *ngIf="isLoading">
+        <div class="spinner"></div>
+        <p>Carregando veículos...</p>
+      </div>
+
+      <!-- Empty State Feedback -->
+      <div class="empty-state-card" *ngIf="!isLoading && sortedVeiculos.length === 0">
+        <div class="empty-icon-circle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="empty-icon">
+            <rect x="1" y="3" width="15" height="13"></rect>
+            <polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon>
+            <circle cx="5.5" cy="18.5" r="2.5"></circle>
+            <circle cx="18.5" cy="18.5" r="2.5"></circle>
+          </svg>
+        </div>
+        <h3 class="empty-title">Nenhum veículo cadastrado</h3>
+        <p class="empty-description">
+          Sua operadora ainda não possui veículos registrados na frota. Cadastre novos ônibus para atribuir itinerários, motoristas e horários de operação.
+        </p>
+        <button class="btn-empty-cta" (click)="openAddModal()">
+          <span class="btn-icon">+</span>
+          Cadastrar Primeiro Veículo
+        </button>
+      </div>
+
+      <!-- Vehicles Grid -->
+      <div class="vehicle-grid" *ngIf="!isLoading && sortedVeiculos.length > 0">
         <div
           class="vehicle-card"
           *ngFor="let veiculo of sortedVeiculos"
           (click)="openEditModal(veiculo)"
         >
           <div class="card-header">
-            <div>
-              <h3>{{ veiculo.plate }}</h3>
-              <p class="vehicle-id">ID: {{ veiculo.id }}</p>
+            <div class="vehicle-profile">
+              <div class="vehicle-icon-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="1" y="3" width="15" height="13"></rect>
+                  <polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon>
+                  <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                  <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                </svg>
+              </div>
+              <div class="vehicle-identifiers">
+                <h3 class="vehicle-plate">{{ veiculo.plate }}</h3>
+                <span class="vehicle-id">ID: {{ veiculo.id }}</span>
+              </div>
             </div>
             <span
               class="status-badge"
@@ -40,22 +81,44 @@
           </div>
 
           <div class="card-body">
-            <p><strong>Modelo:</strong> {{ veiculo.model }}</p>
-            <p><strong>Tipo:</strong> {{ veiculo.type }}</p>
-            <p>
-              <strong>Capacidade:</strong> {{ veiculo.capacity }} passageiros
-            </p>
-            <p><strong>Garagem:</strong> {{ veiculo.garage }}</p>
-            <p *ngIf="veiculo.routes.length > 0">
-              <strong>Linhas:</strong> {{ veiculo.routes.length }}
-            </p>
-            <p *ngIf="veiculo.drivers.length > 0">
-              <strong>Motoristas:</strong> {{ veiculo.drivers.length }}
-            </p>
+            <div class="info-row">
+              <span class="info-label">Modelo</span>
+              <span class="info-value">{{ veiculo.model }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Tipo</span>
+              <span class="info-value">{{ veiculo.type }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Capacidade</span>
+              <span class="info-value">{{ veiculo.capacity }} passageiros</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Garagem</span>
+              <span class="info-value">{{ veiculo.garage }}</span>
+            </div>
+
+            <div class="stats-row">
+              <div class="stat-pill">
+                <span class="stat-icon">📍</span>
+                <span>{{ (veiculo.routes ? veiculo.routes.length : 0) }} {{ (veiculo.routes ? veiculo.routes.length : 0) === 1 ? 'linha' : 'linhas' }}</span>
+              </div>
+              <div class="stat-pill">
+                <span class="stat-icon">👤</span>
+                <span>{{ (veiculo.drivers ? veiculo.drivers.length : 0) }} {{ (veiculo.drivers ? veiculo.drivers.length : 0) === 1 ? 'motorista' : 'motoristas' }}</span>
+              </div>
+            </div>
           </div>
 
           <div class="card-footer">
             <span class="edit-link">✏️ Editar informações</span>
+            <button
+              class="btn-icon-delete"
+              (click)="handleDeleteVeiculo($event, veiculo)"
+              title="Inativar veículo"
+            >
+              🗑️
+            </button>
           </div>
         </div>
       </div>
@@ -64,36 +127,65 @@
 
   <!-- Modal Adicionar Veículo -->
   <div class="modal-overlay" *ngIf="showAddModal" (click)="closeAddModal()">
-    <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal modal-add-vehicle" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>Adicionar Veículo</h2>
-        <button class="btn-close" (click)="closeAddModal()">×</button>
+        <div class="modal-title-group">
+          <div class="modal-title-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="1" y="3" width="15" height="13"></rect>
+              <polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon>
+              <circle cx="5.5" cy="18.5" r="2.5"></circle>
+              <circle cx="18.5" cy="18.5" r="2.5"></circle>
+            </svg>
+          </div>
+          <div>
+            <h2 class="modal-title">Adicionar Veículo</h2>
+            <p class="modal-subtitle">Cadastre um novo ônibus na frota da operadora</p>
+          </div>
+        </div>
+        <button class="btn-close" (click)="closeAddModal()" title="Fechar">✕</button>
       </div>
 
       <div class="modal-body">
-        <div class="form-group">
-          <label>Placa</label>
-          <input
-            type="text"
-            placeholder="ABC-1234"
-            [(ngModel)]="newVeiculo.plate"
-            class="form-control"
-          />
+        <!-- Error Alert Banner -->
+        <div class="modal-error-alert" *ngIf="errorMessage">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-icon">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{{ errorMessage }}</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Placa</label>
+            <input
+              type="text"
+              placeholder="Ex: ABC-1234 ou ABC1D23"
+              [(ngModel)]="newVeiculo.plate"
+              (input)="onPlateInput($event)"
+              maxlength="8"
+              class="form-control"
+              [disabled]="isSaving"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>ID do Veículo (Prefixo)</label>
+            <input
+              type="text"
+              placeholder="Ex: V001 ou 2304"
+              [(ngModel)]="newVeiculo.id"
+              class="form-control"
+              [disabled]="isSaving"
+            />
+          </div>
         </div>
 
         <div class="form-group">
-          <label>ID do Veículo</label>
-          <input
-            type="text"
-            placeholder="V001"
-            [(ngModel)]="newVeiculo.id"
-            class="form-control"
-          />
-        </div>
-
-        <div class="form-group">
-          <label>Modelo</label>
-          <select [(ngModel)]="newVeiculo.model" class="form-control">
+          <label>Modelo do Veículo</label>
+          <select [(ngModel)]="newVeiculo.model" class="form-control" [disabled]="isSaving">
             <option value="">Selecione o modelo</option>
             <option *ngFor="let model of models" [value]="model">
               {{ model }}
@@ -102,8 +194,8 @@
         </div>
 
         <div class="form-group">
-          <label>Tipo</label>
-          <select [(ngModel)]="newVeiculo.type" class="form-control">
+          <label>Tipo de Carroceria / Porte</label>
+          <select [(ngModel)]="newVeiculo.type" class="form-control" [disabled]="isSaving">
             <option value="">Selecione o tipo</option>
             <option *ngFor="let type of types" [value]="type">
               {{ type }}
@@ -112,8 +204,8 @@
         </div>
 
         <div class="form-group">
-          <label>Garagem</label>
-          <select [(ngModel)]="newVeiculo.garage" class="form-control">
+          <label>Garagem de Origem</label>
+          <select [(ngModel)]="newVeiculo.garage" class="form-control" [disabled]="isSaving">
             <option value="">Selecione a garagem</option>
             <option *ngFor="let garage of garages" [value]="garage">
               {{ garage }}
@@ -123,11 +215,12 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn-secondary" (click)="closeAddModal()">
+        <button class="btn-secondary" (click)="closeAddModal()" [disabled]="isSaving">
           Cancelar
         </button>
-        <button class="btn-primary" (click)="handleAddVeiculo()">
-          Adicionar
+        <button class="btn-primary" (click)="handleAddVeiculo()" [disabled]="isSaving">
+          <span class="btn-spinner" *ngIf="isSaving"></span>
+          {{ isSaving ? 'Cadastrando...' : 'Adicionar Veículo' }}
         </button>
       </div>
     </div>

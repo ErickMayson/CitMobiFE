@@ -69,6 +69,57 @@ export interface MockMotorista {
 }
 
 // ---------------------------------------------------------
+// Demo Mockup Toggle (Set to false to remove demo items)
+// ---------------------------------------------------------
+export const ENABLE_DEMO_MOCKUP: boolean = true;
+
+export const DEMO_MOCK_VEICULO: MockVeiculo = {
+  id: 'V-2304',
+  plate: 'ABC-1D23',
+  model: 'Caio Millennium III',
+  type: 'Articulado',
+  capacity: 120,
+  status: 'EM ATENDIMENTO',
+  garage: 'Garagem Central',
+  routes: [
+    {
+      routeName: 'Linha 100 - Centro / Terminal',
+      startTime: '06:00',
+      endTime: '14:00',
+      days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
+    },
+  ],
+  drivers: [
+    {
+      name: 'Carlos Eduardo da Silva',
+      startTime: '06:00',
+      endTime: '14:00',
+      days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
+    },
+  ],
+};
+
+export const DEMO_MOCK_MOTORISTA: MockMotorista = {
+  id: 'M001',
+  nome: 'Carlos Eduardo da Silva',
+  cpf: '123.456.789-00',
+  telefone: '(11) 98765-4321',
+  status: 'EM ATENDIMENTO',
+  horarios: [
+    {
+      veiculoId: 'V-2304',
+      veiculoPlaca: 'ABC-1D23',
+      veiculoModelo: 'Caio Millennium III',
+      rotaId: 'R001',
+      rotaNome: 'Linha 100 - Centro / Terminal',
+      startTime: '06:00',
+      endTime: '14:00',
+      days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
+    },
+  ],
+};
+
+// ---------------------------------------------------------
 // Linhas Mock Data
 // ---------------------------------------------------------
 export const MOCK_LINHAS_ATIVAS: MockRota[] = [

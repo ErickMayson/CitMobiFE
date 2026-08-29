@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import {
   Motorista,
   Linha,
@@ -11,12 +12,17 @@ import { User } from '../../models/userLiteResponse.model';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { VeiculoService } from '../../services/veiculo.service';
 import { LoginService } from '../../services/login.service';
+import { MotoristaService } from '../../services/motorista.service';
+import { LinhaService } from '../../services/linha.service';
+import { formatPlate, formatOnlyNumbers } from '../../utils/mask.utils';
 import {
   MOCK_MODELS as MODELS,
   MOCK_TYPES as TYPES,
   MOCK_GARAGES as GARAGES,
   MOCK_DROPDOWN_DRIVERS as MOCK_DRIVERS,
   MOCK_DROPDOWN_LINHAS as MOCK_LINHAS,
+  ENABLE_DEMO_MOCKUP,
+  DEMO_MOCK_VEICULO,
 } from '../../mock-data/mock-data';
 
 @Component({
@@ -32,7 +38,11 @@ export class VeiculosComponent implements OnInit {
   currentUser: User | null = null;
   companyLogo: string = 'assets/viacaoGatoPreto.png';
 
-  veiculos: Veiculo[] = [];
+  isLoading: boolean = false;
+  isSaving: boolean = false;
+  errorMessage: string = '';
+
+  veiculos: Veiculo[] = ENABLE_DEMO_MOCKUP ? [DEMO_MOCK_VEICULO] : [];
 
   showAddModal = false;
   showEditModal = false;
@@ -53,6 +63,11 @@ export class VeiculosComponent implements OnInit {
     garage: '',
   };
 
+  onPlateInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.newVeiculo.plate = formatPlate(input.value);
+  }
+
   driverForm = {
     name: '',
     startTime: '06:00',
@@ -71,8 +86,8 @@ export class VeiculosComponent implements OnInit {
   models = MODELS;
   types = TYPES;
   garages = GARAGES;
-  mockDrivers = MOCK_DRIVERS;
-  mockRoutes = MOCK_LINHAS;
+  mockDrivers: string[] = MOCK_DRIVERS;
+  mockRoutes: string[] = MOCK_LINHAS;
 
   daysOfWeek = [
     { code: 'SEG', label: 'Seg' },
@@ -88,7 +103,10 @@ export class VeiculosComponent implements OnInit {
 
   constructor(
     private veiculoService: VeiculoService,
-    private loginService: LoginService
+    private loginService: LoginService,
+    private motoristaService: MotoristaService,
+    private linhaService: LinhaService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -97,14 +115,55 @@ export class VeiculosComponent implements OnInit {
     });
 
     this.loadVeiculos();
-    // Animar abertura da sidebar
+    this.loadDriversAndRoutes();
     setTimeout(() => (this.showSidebarContent = true), 100);
   }
 
+  loadDriversAndRoutes(): void {
+    this.motoristaService.getMotoristas().subscribe({
+      next: (motoristas) => {
+        if (motoristas && motoristas.length > 0) {
+          this.mockDrivers = motoristas.map((m) => m.nome);
+        }
+      },
+      error: () => {},
+    });
+
+    this.linhaService.getLinhas().subscribe({
+      next: (linhas) => {
+        if (linhas && linhas.length > 0) {
+          this.mockRoutes = linhas.map(
+            (l) => l.descricao || `${l.codigo} - ${l.partida} / ${l.chegada}`
+          );
+        }
+      },
+      error: () => {},
+    });
+  }
+
   loadVeiculos(): void {
-    this.veiculoService.getVeiculos().subscribe((data) => {
-      this.veiculos = data as Veiculo[];
-      this.sortVeiculos();
+    this.isLoading = true;
+    this.veiculoService.getVeiculos().subscribe({
+      next: (data) => {
+        let list = (data || []) as Veiculo[];
+        if (ENABLE_DEMO_MOCKUP && !list.some((v) => v.plate === DEMO_MOCK_VEICULO.plate)) {
+          list = [DEMO_MOCK_VEICULO, ...list];
+        }
+        this.veiculos = list;
+        this.sortVeiculos();
+        this.isLoading = false;
+      },
+      error: (err) => {
+        if (ENABLE_DEMO_MOCKUP) {
+          this.veiculos = [DEMO_MOCK_VEICULO];
+          this.sortVeiculos();
+        }
+        this.isLoading = false;
+        if (err.status === 401 || err.status === 403) {
+          this.loginService.logout();
+          this.router.navigate(['/login']);
+        }
+      },
     });
   }
 
@@ -133,47 +192,73 @@ export class VeiculosComponent implements OnInit {
 
   // Vehicle CRUD
   openAddModal(): void {
+    this.errorMessage = '';
+    this.isSaving = false;
+    this.newVeiculo = { plate: '', id: '', model: '', type: '', garage: '' };
     this.showAddModal = true;
   }
 
   closeAddModal(): void {
     this.showAddModal = false;
+    this.errorMessage = '';
+    this.isSaving = false;
     this.newVeiculo = { plate: '', id: '', model: '', type: '', garage: '' };
   }
 
   handleAddVeiculo(): void {
+    this.errorMessage = '';
     if (
-      this.newVeiculo.plate &&
-      this.newVeiculo.id &&
-      this.newVeiculo.model &&
-      this.newVeiculo.type &&
-      this.newVeiculo.garage
+      !this.newVeiculo.plate ||
+      !this.newVeiculo.id ||
+      !this.newVeiculo.model ||
+      !this.newVeiculo.type ||
+      !this.newVeiculo.garage
     ) {
-      const capacityMap: { [key: string]: number } = {
-        Básico: 60,
-        Padrão: 80,
-        Articulado: 120,
-        'Bi-articulado': 180,
-        BRT: 160,
-      };
+      this.errorMessage = 'Preencha todos os campos do formulário.';
+      return;
+    }
 
-      const veiculo: Veiculo = {
-        id: this.newVeiculo.id,
-        plate: this.newVeiculo.plate,
-        model: this.newVeiculo.model,
-        type: this.newVeiculo.type,
-        garage: this.newVeiculo.garage,
-        capacity: capacityMap[this.newVeiculo.type],
-        status: 'GARAGEM',
-        routes: [],
-        drivers: [],
-      };
+    const capacityMap: { [key: string]: number } = {
+      Básico: 60,
+      Padrão: 80,
+      Articulado: 120,
+      'Bi-articulado': 180,
+      BRT: 160,
+    };
 
-      this.veiculoService.addVeiculo(veiculo).subscribe(() => {
+    const veiculo: Veiculo = {
+      id: this.newVeiculo.id.trim(),
+      plate: this.newVeiculo.plate.trim().toUpperCase(),
+      model: this.newVeiculo.model,
+      type: this.newVeiculo.type,
+      garage: this.newVeiculo.garage,
+      capacity: capacityMap[this.newVeiculo.type] || 80,
+      status: 'GARAGEM',
+      routes: [],
+      drivers: [],
+    };
+
+    this.isSaving = true;
+    this.veiculoService.addVeiculo(veiculo).subscribe({
+      next: () => {
+        this.isSaving = false;
         this.loadVeiculos();
         this.closeAddModal();
-      });
-    }
+      },
+      error: (err) => {
+        this.isSaving = false;
+        if (err.status === 401 || err.status === 403) {
+          this.errorMessage = 'Sessão expirada ou acesso negado. Redirecionando para login...';
+          this.loginService.logout();
+          this.router.navigate(['/login']);
+        } else {
+          this.errorMessage =
+            err?.error?.message ||
+            err?.error?.error ||
+            'Erro ao cadastrar veículo no servidor. Verifique os dados e tente novamente.';
+        }
+      },
+    });
   }
 
   openEditModal(veiculo: Veiculo): void {
@@ -189,9 +274,37 @@ export class VeiculosComponent implements OnInit {
 
   handleSaveEdit(): void {
     if (this.selectedVeiculo) {
-      this.veiculoService.updateVeiculo(this.selectedVeiculo).subscribe(() => {
-        this.loadVeiculos();
-        this.closeEditModal();
+      this.veiculoService.updateVeiculo(this.selectedVeiculo).subscribe({
+        next: () => {
+          this.loadVeiculos();
+          this.closeEditModal();
+        },
+        error: (err) => {
+          if (err.status === 401 || err.status === 403) {
+            this.loginService.logout();
+            this.router.navigate(['/login']);
+          }
+        },
+      });
+    }
+  }
+
+  handleDeleteVeiculo(event: Event, veiculo: Veiculo): void {
+    event.stopPropagation();
+    if (confirm(`Deseja realmente inativar/remover o veículo ${veiculo.plate}?`)) {
+      this.veiculoService.deleteVeiculo(veiculo.plate).subscribe({
+        next: () => {
+          this.loadVeiculos();
+          if (this.selectedVeiculo?.plate === veiculo.plate) {
+            this.closeEditModal();
+          }
+        },
+        error: (err) => {
+          if (err.status === 401 || err.status === 403) {
+            this.loginService.logout();
+            this.router.navigate(['/login']);
+          }
+        },
       });
     }
   }

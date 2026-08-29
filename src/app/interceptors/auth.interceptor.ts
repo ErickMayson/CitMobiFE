@@ -1,67 +1,16 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import {
   HttpInterceptor,
   HttpRequest,
   HttpHandler,
   HttpEvent,
   HttpErrorResponse,
-  HttpInterceptorFn,
 } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { LoginService } from '../services/login.service';
 
-/** Functional Interceptor for provideHttpClient(withInterceptors) */
-export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const router = inject(Router);
-  const loginService = inject(LoginService);
-
-  const token = loginService.getToken();
-  let authReq = req;
-  if (token && !req.headers.has('Authorization')) {
-    authReq = req.clone({
-      setHeaders: { Authorization: `Bearer ${token}` },
-    });
-  }
-
-  return next(authReq).pipe(
-    catchError((error: HttpErrorResponse) => {
-      if (error.status === 401 || error.status === 403) {
-        const hasRefreshToken = !!loginService.getRefreshToken();
-
-        if (req.url.includes('/v1/auth/refresh')) {
-          loginService.logout();
-          router.navigate(['/login']);
-          return throwError(() => error);
-        }
-
-        if (hasRefreshToken) {
-          return loginService.refreshToken().pipe(
-            switchMap(() => {
-              const newToken = loginService.getToken();
-              const retryReq = req.clone({
-                setHeaders: { Authorization: `Bearer ${newToken}` },
-              });
-              return next(retryReq);
-            }),
-            catchError((refreshError) => {
-              loginService.logout();
-              router.navigate(['/login']);
-              return throwError(() => refreshError);
-            })
-          );
-        } else {
-          loginService.logout();
-          router.navigate(['/login']);
-        }
-      }
-      return throwError(() => error);
-    })
-  );
-};
-
-/** Class-based Interceptor for DI providers */
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
   private isRefreshing = false;

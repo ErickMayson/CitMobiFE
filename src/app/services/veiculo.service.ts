@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { MockVeiculo as Veiculo } from '../mock-data/mock-data';
+import { Observable, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
+import { MockVeiculo as Veiculo, ENABLE_DEMO_MOCKUP, DEMO_MOCK_VEICULO } from '../mock-data/mock-data';
 import { environment } from '../../../environments/enviroment';
 import { LoginService } from './login.service';
 
@@ -17,7 +17,19 @@ export class VeiculoService {
   getVeiculos(): Observable<Veiculo[]> {
     const headers = this.loginService.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/v1/api/veiculos`, { headers }).pipe(
-      map(res => res.data || [])
+      map(res => {
+        const list = res.data || [];
+        if (list.length === 0 && ENABLE_DEMO_MOCKUP) {
+          return [DEMO_MOCK_VEICULO];
+        }
+        return list;
+      }),
+      catchError(() => {
+        if (ENABLE_DEMO_MOCKUP) {
+          return of([DEMO_MOCK_VEICULO]);
+        }
+        return of([]);
+      })
     );
   }
 

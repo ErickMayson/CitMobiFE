@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { MockMotorista } from '../mock-data/mock-data';
+import { Observable, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
+import { MockMotorista, ENABLE_DEMO_MOCKUP, DEMO_MOCK_MOTORISTA } from '../mock-data/mock-data';
 import { environment } from '../../../environments/enviroment';
 import { LoginService } from './login.service';
 
@@ -21,17 +21,27 @@ export class MotoristaService {
       params: { role: 'MOTORISTA' }
     }).pipe(
       map(res => {
-        const list = res.data || [];
-        return list.map((u: any) => {
+        const list = (res.data || []).map((u: any) => {
           return {
             id: u.login,
             nome: u.nome,
             cpf: u.cpf,
             telefone: u.telefone,
-            status: 'FORA DE TURNO', // Default status or dynamically updated in components
+            status: 'FORA DE TURNO',
             horarios: []
           } as MockMotorista;
         });
+
+        if (list.length === 0 && ENABLE_DEMO_MOCKUP) {
+          return [DEMO_MOCK_MOTORISTA];
+        }
+        return list;
+      }),
+      catchError(() => {
+        if (ENABLE_DEMO_MOCKUP) {
+          return of([DEMO_MOCK_MOTORISTA]);
+        }
+        return of([]);
       })
     );
   }

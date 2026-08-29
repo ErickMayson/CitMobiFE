@@ -187,6 +187,8 @@
             type="text"
             placeholder="000.000.000-00"
             [(ngModel)]="newMotorista.cpf"
+            (input)="onCpfInput($event)"
+            maxlength="14"
             class="form-control"
             [disabled]="isSaving"
           />
@@ -198,6 +200,8 @@
             type="text"
             placeholder="(11) 98765-4321"
             [(ngModel)]="newMotorista.telefone"
+            (input)="onPhoneInput($event)"
+            maxlength="15"
             class="form-control"
             [disabled]="isSaving"
           />

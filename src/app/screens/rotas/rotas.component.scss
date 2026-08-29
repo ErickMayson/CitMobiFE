@@ -23,7 +23,7 @@ $red: #ef4444;
 
 // List View Styles
 .rotas-list-view {
-  padding: 2rem;
+  padding: 2rem 2rem 2rem 4.25rem;
   overflow-y: auto;
   height: 100%;
 
@@ -205,7 +205,7 @@ $red: #ef4444;
     display: flex;
     align-items: center;
     gap: 1.5rem;
-    padding: 1.5rem 2rem;
+    padding: 1.5rem 2rem 1.5rem 4.25rem;
     background: $white;
     border-bottom: 1px solid #e5e7eb;
 

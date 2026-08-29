@@ -1,10 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { User } from '../../models/userLiteResponse.model';
 import { LoginService } from '../../services/login.service';
 import { MotoristaService } from '../../services/motorista.service';
+import { VeiculoService } from '../../services/veiculo.service';
+import { LinhaService } from '../../services/linha.service';
 import {
   MockMotorista as Motorista,
   MockHorarioMotorista as HorarioMotorista,
@@ -46,6 +49,7 @@ export class MotoristaComponent implements OnInit {
   currentUser: User | null = null;
   companyLogo: string = 'assets/viacaoGatoPreto.png';
 
+  isLoading: boolean = true;
   motoristas: Motorista[] = [];
   veiculosDisponiveis: Veiculo[] = VEICULOS_DISPONIVEIS;
   linhasDisponiveis: Linha[] = LINHAS_DISPONIVEIS;
@@ -57,6 +61,9 @@ export class MotoristaComponent implements OnInit {
   selectedMotorista: Motorista | null = null;
   selectedDay: string = 'SEG';
   editingHorarioIndex: number = -1;
+
+  errorMessage: string = '';
+  isSaving: boolean = false;
 
   newMotorista = {
     nome: '',
@@ -88,7 +95,10 @@ export class MotoristaComponent implements OnInit {
 
   constructor(
     private loginService: LoginService,
-    private motoristaService: MotoristaService
+    private motoristaService: MotoristaService,
+    private veiculoService: VeiculoService,
+    private linhaService: LinhaService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -96,13 +106,52 @@ export class MotoristaComponent implements OnInit {
       this.currentUser = user;
     });
     this.loadMotoristas();
+    this.loadVeiculosAndLinhas();
     setTimeout(() => (this.showSidebarContent = true), 100);
   }
 
+  loadVeiculosAndLinhas(): void {
+    this.veiculoService.getVeiculos().subscribe({
+      next: (veiculos) => {
+        if (veiculos && veiculos.length > 0) {
+          this.veiculosDisponiveis = veiculos.map((v) => ({
+            id: v.id || v.plate,
+            placa: v.plate,
+            modelo: v.model,
+          }));
+        }
+      },
+      error: () => {},
+    });
+
+    this.linhaService.getLinhas().subscribe({
+      next: (linhas) => {
+        if (linhas && linhas.length > 0) {
+          this.linhasDisponiveis = linhas.map((l) => ({
+            id: `${l.codigo}-${l.atendimento}`,
+            nome: l.descricao || `${l.codigo} - ${l.partida} / ${l.chegada}`,
+          }));
+        }
+      },
+      error: () => {},
+    });
+  }
+
   loadMotoristas(): void {
-    this.motoristaService.getMotoristas().subscribe((data) => {
-      this.motoristas = data as Motorista[];
-      this.sortMotoristas();
+    this.isLoading = true;
+    this.motoristaService.getMotoristas().subscribe({
+      next: (data) => {
+        this.motoristas = (data || []) as Motorista[];
+        this.sortMotoristas();
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.isLoading = false;
+        if (err.status === 401 || err.status === 403) {
+          this.loginService.logout();
+          this.router.navigate(['/login']);
+        }
+      },
     });
   }
 
@@ -136,34 +185,62 @@ export class MotoristaComponent implements OnInit {
 
   // CRUD Motorista
   openAddModal(): void {
+    this.errorMessage = '';
+    this.isSaving = false;
+    this.newMotorista = { nome: '', cpf: '', telefone: '' };
     this.showAddModal = true;
   }
 
   closeAddModal(): void {
     this.showAddModal = false;
+    this.errorMessage = '';
+    this.isSaving = false;
     this.newMotorista = { nome: '', cpf: '', telefone: '' };
   }
 
   handleAddMotorista(): void {
-    if (
-      this.newMotorista.nome &&
-      this.newMotorista.cpf &&
-      this.newMotorista.telefone
-    ) {
-      const motorista: Motorista = {
-        id: `M${String(this.motoristas.length + 1).padStart(3, '0')}`,
-        nome: this.newMotorista.nome,
-        cpf: this.newMotorista.cpf,
-        telefone: this.newMotorista.telefone,
-        status: 'FORA DE TURNO',
-        horarios: [],
-      };
+    this.errorMessage = '';
+    if (!this.newMotorista.nome || !this.newMotorista.cpf || !this.newMotorista.telefone) {
+      this.errorMessage = 'Preencha todos os campos obrigatórios.';
+      return;
+    }
 
-      this.motoristaService.addMotorista(motorista).subscribe(() => {
+    const cleanCpf = this.newMotorista.cpf.replace(/\D/g, '');
+    if (cleanCpf.length !== 11) {
+      this.errorMessage = 'CPF inválido. Certifique-se de digitar os 11 dígitos.';
+      return;
+    }
+
+    this.isSaving = true;
+    const motorista: Motorista = {
+      id: `M${String(this.motoristas.length + 1).padStart(3, '0')}`,
+      nome: this.newMotorista.nome,
+      cpf: this.newMotorista.cpf,
+      telefone: this.newMotorista.telefone,
+      status: 'FORA DE TURNO',
+      horarios: [],
+    };
+
+    this.motoristaService.addMotorista(motorista).subscribe({
+      next: () => {
+        this.isSaving = false;
         this.loadMotoristas();
         this.closeAddModal();
-      });
-    }
+      },
+      error: (err) => {
+        this.isSaving = false;
+        if (err.status === 401 || err.status === 403) {
+          this.errorMessage = 'Sessão expirada ou acesso negado. Redirecionando para login...';
+          this.loginService.logout();
+          this.router.navigate(['/login']);
+        } else {
+          this.errorMessage =
+            err?.error?.message ||
+            err?.error?.error ||
+            'Erro ao cadastrar motorista no servidor. Verifique os dados e tente novamente.';
+        }
+      },
+    });
   }
 
   openEditModal(motorista: Motorista): void {
@@ -179,11 +256,48 @@ export class MotoristaComponent implements OnInit {
 
   handleSaveEdit(): void {
     if (this.selectedMotorista) {
-      this.motoristaService.updateMotorista(this.selectedMotorista).subscribe(() => {
-        this.loadMotoristas();
-        this.closeEditModal();
+      this.motoristaService.updateMotorista(this.selectedMotorista).subscribe({
+        next: () => {
+          this.loadMotoristas();
+          this.closeEditModal();
+        },
+        error: (err) => {
+          if (err.status === 401 || err.status === 403) {
+            this.loginService.logout();
+            this.router.navigate(['/login']);
+          }
+        }
       });
     }
+  }
+
+  handleDeleteMotorista(event: Event, motorista: Motorista): void {
+    event.stopPropagation();
+    if (confirm(`Deseja realmente inativar o motorista ${motorista.nome}?`)) {
+      this.motoristaService.deleteMotorista(motorista.id).subscribe({
+        next: () => {
+          this.loadMotoristas();
+          if (this.selectedMotorista?.id === motorista.id) {
+            this.closeEditModal();
+          }
+        },
+        error: (err) => {
+          if (err.status === 401 || err.status === 403) {
+            this.loginService.logout();
+            this.router.navigate(['/login']);
+          }
+        }
+      });
+    }
+  }
+
+  getInitials(name: string): string {
+    if (!name) return 'M';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
   }
 
 

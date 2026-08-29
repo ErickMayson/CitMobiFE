@@ -12,24 +12,57 @@
   <!-- Main Content -->
   <div class="motorista-management">
     <div class="container">
-      <div class="header">
-        <h1>Gerenciamento de Motoristas</h1>
-        <button class="btn-primary" (click)="openAddModal()">
-          <span class="icon">+</span>
-          Adicionar Motorista
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="header-content">
+          <h1 class="page-title">Gerenciamento de Motoristas</h1>
+          <p class="page-subtitle">Cadastre, organize escalas e acompanhe o status dos motoristas da operadora.</p>
+        </div>
+        <button class="btn-create" (click)="openAddModal()">
+          <span class="btn-icon">+</span>
+          Novo Motorista
         </button>
       </div>
 
-      <div class="motorista-grid">
+      <!-- Loading State -->
+      <div class="loading-state" *ngIf="isLoading">
+        <div class="spinner"></div>
+        <p>Carregando motoristas...</p>
+      </div>
+
+      <!-- Empty State Feedback -->
+      <div class="empty-state-card" *ngIf="!isLoading && sortedMotoristas.length === 0">
+        <div class="empty-icon-circle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="empty-icon">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </div>
+        <h3 class="empty-title">Nenhum motorista cadastrado</h3>
+        <p class="empty-description">
+          Sua operadora ainda não possui motoristas registrados. Cadastre novos motoristas para gerenciar escalas de trabalho, linhas e alocação de veículos.
+        </p>
+        <button class="btn-empty-cta" (click)="openAddModal()">
+          <span class="btn-icon">+</span>
+          Cadastrar Primeiro Motorista
+        </button>
+      </div>
+
+      <!-- Motoristas Grid -->
+      <div class="motorista-grid" *ngIf="!isLoading && sortedMotoristas.length > 0">
         <div
           class="motorista-card"
           *ngFor="let motorista of sortedMotoristas"
           (click)="openEditModal(motorista)"
         >
           <div class="card-header">
-            <div>
-              <h3>{{ motorista.nome }}</h3>
-              <p class="motorista-id">ID: {{ motorista.id }}</p>
+            <div class="driver-profile">
+              <div class="driver-avatar">{{ getInitials(motorista.nome) }}</div>
+              <div class="driver-names">
+                <h3 class="driver-name">{{ motorista.nome }}</h3>
+                <span class="driver-id">ID: {{ motorista.id }}</span>
+              </div>
             </div>
             <span
               class="status-badge"
@@ -40,16 +73,23 @@
           </div>
 
           <div class="card-body">
-            <p><strong>CPF:</strong> {{ motorista.cpf }}</p>
-            <p><strong>Telefone:</strong> {{ motorista.telefone }}</p>
+            <div class="info-row">
+              <span class="info-label">CPF</span>
+              <span class="info-value">{{ formatCPF(motorista.cpf) || motorista.cpf }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Telefone</span>
+              <span class="info-value">{{ formatPhone(motorista.telefone) || motorista.telefone }}</span>
+            </div>
 
+            <!-- Route & Vehicle Preview -->
             <div
               *ngIf="getCurrentHorario(motorista) as horario"
-              class="route-info"
+              class="schedule-preview"
             >
               <div class="route-badge">
                 <svg
-                  class="route-icon"
+                  class="badge-icon"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -64,7 +104,7 @@
               </div>
               <div class="vehicle-badge">
                 <svg
-                  class="vehicle-icon"
+                  class="badge-icon"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -74,20 +114,24 @@
                     d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
                   />
                 </svg>
-                <div class="vehicle-details">
-                  <span class="vehicle-plate">{{ horario.veiculoPlaca }}</span>
-                  <span class="vehicle-model">{{ horario.veiculoModelo }}</span>
-                </div>
+                <span class="vehicle-plate">{{ horario.veiculoPlaca }}</span>
               </div>
             </div>
 
-            <p *ngIf="motorista.horarios.length === 0" class="no-schedule">
-              Nenhum horário cadastrado
-            </p>
+            <div *ngIf="motorista.horarios.length === 0" class="no-schedule-box">
+              <span>Nenhum horário cadastrado</span>
+            </div>
           </div>
 
           <div class="card-footer">
             <span class="edit-link">✏️ Editar informações</span>
+            <button
+              class="btn-icon-delete"
+              (click)="handleDeleteMotorista($event, motorista)"
+              title="Inativar motorista"
+            >
+              🗑️
+            </button>
           </div>
         </div>
       </div>
@@ -96,20 +140,44 @@
 
   <!-- Modal Adicionar Motorista -->
   <div class="modal-overlay" *ngIf="showAddModal" (click)="closeAddModal()">
-    <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal modal-add-motorista" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>Adicionar Motorista</h2>
-        <button class="btn-close" (click)="closeAddModal()">×</button>
+        <div class="modal-title-group">
+          <div class="modal-title-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="8.5" cy="7" r="4" />
+              <line x1="20" y1="8" x2="20" y2="14" />
+              <line x1="23" y1="11" x2="17" y2="11" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="modal-title">Adicionar Motorista</h2>
+            <p class="modal-subtitle">Cadastre um novo motorista na operadora</p>
+          </div>
+        </div>
+        <button class="btn-close" (click)="closeAddModal()" title="Fechar">✕</button>
       </div>
 
       <div class="modal-body">
+        <!-- Error Alert Banner -->
+        <div class="modal-error-alert" *ngIf="errorMessage">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-icon">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{{ errorMessage }}</span>
+        </div>
+
         <div class="form-group">
           <label>Nome Completo</label>
           <input
             type="text"
-            placeholder="Digite o nome do motorista"
+            placeholder="Ex: Carlos Eduardo da Silva"
             [(ngModel)]="newMotorista.nome"
             class="form-control"
+            [disabled]="isSaving"
           />
         </div>
 
@@ -120,26 +188,29 @@
             placeholder="000.000.000-00"
             [(ngModel)]="newMotorista.cpf"
             class="form-control"
+            [disabled]="isSaving"
           />
         </div>
 
         <div class="form-group">
-          <label>Telefone</label>
+          <label>Telefone / WhatsApp</label>
           <input
             type="text"
-            placeholder="(00) 00000-0000"
+            placeholder="(11) 98765-4321"
             [(ngModel)]="newMotorista.telefone"
             class="form-control"
+            [disabled]="isSaving"
           />
         </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn-secondary" (click)="closeAddModal()">
+        <button class="btn-secondary" (click)="closeAddModal()" [disabled]="isSaving">
           Cancelar
         </button>
-        <button class="btn-primary" (click)="handleAddMotorista()">
-          Adicionar
+        <button class="btn-primary" (click)="handleAddMotorista()" [disabled]="isSaving">
+          <span class="btn-spinner" *ngIf="isSaving"></span>
+          {{ isSaving ? 'Cadastrando...' : 'Adicionar Motorista' }}
         </button>
       </div>
     </div>

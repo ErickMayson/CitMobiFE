@@ -16,22 +16,9 @@ export class MotoristaService {
 
   getMotoristas(): Observable<MockMotorista[]> {
     const headers = this.loginService.getAuthHeaders();
-    return this.http.get<any>(`${this.apiUrl}/v1/api/usuarios`, {
-      headers,
-      params: { role: 'MOTORISTA' }
-    }).pipe(
+    return this.http.get<any>(`${this.apiUrl}/v1/api/motoristas`, { headers }).pipe(
       map(res => {
-        const list = (res.data || []).map((u: any) => {
-          return {
-            id: u.id || u.login,
-            nome: u.nome,
-            cpf: u.cpf,
-            telefone: u.telefone,
-            status: 'FORA DE TURNO',
-            horarios: []
-          } as MockMotorista;
-        });
-
+        const list = res.data || [];
         if (list.length === 0 && ENABLE_DEMO_MOCKUP) {
           return [DEMO_MOCK_MOTORISTA];
         }
@@ -48,45 +35,22 @@ export class MotoristaService {
 
   addMotorista(motorista: MockMotorista): Observable<MockMotorista> {
     const headers = this.loginService.getAuthHeaders();
-    const currentUser = this.loginService.currentUserValue;
-    const body = {
-      login: motorista.cpf.replace(/\D/g, ''),
-      senha: 'mobibrasil', // Default password
-      email: `${motorista.nome.toLowerCase().replace(/\s+/g, '')}@citmobi.com.br`,
-      nome: motorista.nome,
-      telefone: motorista.telefone.replace(/\D/g, ''),
-      cpf: motorista.cpf.replace(/\D/g, ''),
-      flagAtivo: 'S',
-      role: 'MOTORISTA',
-      operador: currentUser?.operador
-    };
-
-    return this.http.post<any>(`${this.apiUrl}/v1/api/usuarios`, body, { headers }).pipe(
-      map(() => motorista)
+    return this.http.post<any>(`${this.apiUrl}/v1/api/motoristas`, motorista, { headers }).pipe(
+      map(res => res.data || motorista)
     );
   }
 
   updateMotorista(motorista: MockMotorista): Observable<MockMotorista> {
     const headers = this.loginService.getAuthHeaders();
-    const body = {
-      nome: motorista.nome,
-      telefone: motorista.telefone.replace(/\D/g, ''),
-      cpf: motorista.cpf.replace(/\D/g, ''),
-      flagAtivo: 'S',
-      role: 'MOTORISTA'
-    };
-    return this.http.patch<any>(`${this.apiUrl}/v1/api/usuarios/${motorista.id}`, body, { headers }).pipe(
-      map(() => motorista)
+    return this.http.put<any>(`${this.apiUrl}/v1/api/motoristas/${motorista.id}`, motorista, { headers }).pipe(
+      map(res => res.data || motorista)
     );
   }
 
   deleteMotorista(id: string): Observable<boolean> {
     const headers = this.loginService.getAuthHeaders();
-    const body = {
-      flagAtivo: 'N'
-    };
-    return this.http.patch<any>(`${this.apiUrl}/v1/api/usuarios/${id}`, body, { headers }).pipe(
-      map(res => res.status === '200' || res.status === 200)
+    return this.http.delete<any>(`${this.apiUrl}/v1/api/motoristas/${id}`, { headers }).pipe(
+      map(res => res.status === '200' || res.status === 200 || !res.status)
     );
   }
 }

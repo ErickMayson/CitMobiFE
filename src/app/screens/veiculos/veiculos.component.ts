@@ -39,6 +39,10 @@ export class VeiculosComponent implements OnInit {
   companyLogo: string = 'assets/viacaoGatoPreto.png';
 
   isLoading: boolean = false;
+  isLoadingDrivers: boolean = false;
+  isLoadingRoutes: boolean = false;
+  private driversLoaded: boolean = false;
+  private routesLoaded: boolean = false;
   isSaving: boolean = false;
   errorMessage: string = '';
 
@@ -116,20 +120,30 @@ export class VeiculosComponent implements OnInit {
     });
 
     this.loadVeiculos();
-    this.loadDriversAndRoutes();
     setTimeout(() => (this.showSidebarContent = true), 100);
   }
 
-  loadDriversAndRoutes(): void {
+  ensureDriversLoaded(): void {
+    if (this.driversLoaded) return;
+    this.isLoadingDrivers = true;
     this.motoristaService.getMotoristas().subscribe({
       next: (motoristas) => {
         if (motoristas && motoristas.length > 0) {
           this.mockDrivers = motoristas.map((m) => m.nome);
         }
+        this.driversLoaded = true;
+        this.isLoadingDrivers = false;
       },
-      error: () => {},
+      error: () => {
+        this.driversLoaded = true;
+        this.isLoadingDrivers = false;
+      },
     });
+  }
 
+  ensureRoutesLoaded(): void {
+    if (this.routesLoaded) return;
+    this.isLoadingRoutes = true;
     this.linhaService.getLinhas().subscribe({
       next: (linhas) => {
         if (linhas && linhas.length > 0) {
@@ -137,14 +151,19 @@ export class VeiculosComponent implements OnInit {
             (l) => l.descricao || `${l.codigo} - ${l.partida} / ${l.chegada}`
           );
         }
+        this.routesLoaded = true;
+        this.isLoadingRoutes = false;
       },
-      error: () => {},
+      error: () => {
+        this.routesLoaded = true;
+        this.isLoadingRoutes = false;
+      },
     });
   }
 
-  loadVeiculos(): void {
+  loadVeiculos(forceRefresh: boolean = false): void {
     this.isLoading = true;
-    this.veiculoService.getVeiculos().subscribe({
+    this.veiculoService.getVeiculos(forceRefresh).subscribe({
       next: (data) => {
         let list = (data || []) as Veiculo[];
         if (ENABLE_DEMO_MOCKUP && !list.some((v) => v.plate === DEMO_MOCK_VEICULO.plate)) {
@@ -271,7 +290,7 @@ export class VeiculosComponent implements OnInit {
     this.veiculoService.addVeiculo(veiculo).subscribe({
       next: () => {
         this.isSaving = false;
-        this.loadVeiculos();
+        this.loadVeiculos(true);
         this.closeAddModal();
       },
       error: (err) => {
@@ -305,7 +324,7 @@ export class VeiculosComponent implements OnInit {
     if (this.selectedVeiculo) {
       this.veiculoService.updateVeiculo(this.selectedVeiculo).subscribe({
         next: () => {
-          this.loadVeiculos();
+          this.loadVeiculos(true);
           this.closeEditModal();
         },
         error: (err) => {
@@ -323,7 +342,7 @@ export class VeiculosComponent implements OnInit {
     if (confirm(`Deseja realmente inativar/remover o veículo ${veiculo.plate}?`)) {
       this.veiculoService.deleteVeiculo(veiculo.plate).subscribe({
         next: () => {
-          this.loadVeiculos();
+          this.loadVeiculos(true);
           if (this.selectedVeiculo?.plate === veiculo.plate) {
             this.closeEditModal();
           }
@@ -347,6 +366,7 @@ export class VeiculosComponent implements OnInit {
       days: [],
     };
     this.showAddDriverModal = true;
+    this.ensureDriversLoaded();
   }
 
   closeAddDriverModal(): void {
@@ -364,6 +384,7 @@ export class VeiculosComponent implements OnInit {
       };
       this.editingDriverIndex = index;
       this.showEditDriverModal = true;
+      this.ensureDriversLoaded();
     }
   }
 
@@ -438,6 +459,7 @@ export class VeiculosComponent implements OnInit {
       days: [],
     };
     this.showAddRouteModal = true;
+    this.ensureRoutesLoaded();
   }
 
   closeAddRouteModal(): void {
@@ -455,6 +477,7 @@ export class VeiculosComponent implements OnInit {
       };
       this.editingRouteIndex = index;
       this.showEditRouteModal = true;
+      this.ensureRoutesLoaded();
     }
   }
 

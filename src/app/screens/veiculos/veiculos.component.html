@@ -461,58 +461,82 @@
       </div>
 
       <div class="modal-body">
-        <div class="form-group">
-          <label>Nome do Motorista</label>
-          <input
-            type="text"
-            placeholder="Digite ou selecione..."
-            [(ngModel)]="driverForm.name"
-            list="drivers-list"
-            class="form-control"
-          />
-          <datalist id="drivers-list">
-            <option
-              *ngFor="let driver of mockDrivers"
-              [value]="driver"
-            ></option>
-          </datalist>
-        </div>
-
-        <div class="form-group">
-          <label>Horário de Trabalho</label>
-          <div class="time-selector">
-            <div class="time-input-group">
-              <label>Início</label>
-              <input
-                type="time"
-                [(ngModel)]="driverForm.startTime"
-                class="form-control-time"
-              />
+        <!-- Skeleton loading state while fetching drivers -->
+        <div class="modal-skeleton-body" *ngIf="isLoadingDrivers">
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-shimmer skeleton-input"></div>
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-input-row">
+              <div class="skeleton-shimmer skeleton-input-half"></div>
+              <div class="skeleton-shimmer skeleton-input-half"></div>
             </div>
-            <span class="time-separator">até</span>
-            <div class="time-input-group">
-              <label>Fim</label>
-              <input
-                type="time"
-                [(ngModel)]="driverForm.endTime"
-                class="form-control-time"
-              />
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-chips-row">
+              <div class="skeleton-shimmer skeleton-chip" *ngFor="let d of [1,2,3,4,5,6,7]"></div>
             </div>
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Dias da Semana</label>
-          <div class="days-selector">
-            <button
-              *ngFor="let day of daysOfWeek"
-              [class.selected]="isDriverDaySelected(day.code)"
-              (click)="toggleDriverDay(day.code)"
-              class="day-toggle-btn"
-              type="button"
-            >
-              {{ day.label }}
-            </button>
+        <!-- Form content -->
+        <div *ngIf="!isLoadingDrivers">
+          <div class="form-group">
+            <label>Nome do Motorista</label>
+            <input
+              type="text"
+              placeholder="Digite ou selecione..."
+              [(ngModel)]="driverForm.name"
+              list="drivers-list"
+              class="form-control"
+            />
+            <datalist id="drivers-list">
+              <option
+                *ngFor="let driver of mockDrivers"
+                [value]="driver"
+              ></option>
+            </datalist>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Horário de Trabalho</label>
+            <div class="time-selector">
+              <div class="time-input-group">
+                <label>Início</label>
+                <input
+                  type="time"
+                  [(ngModel)]="driverForm.startTime"
+                  class="form-control-time"
+                />
+              </div>
+              <span class="time-separator">até</span>
+              <div class="time-input-group">
+                <label>Fim</label>
+                <input
+                  type="time"
+                  [(ngModel)]="driverForm.endTime"
+                  class="form-control-time"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Dias da Semana</label>
+            <div class="days-selector">
+              <button
+                *ngFor="let day of daysOfWeek"
+                [class.selected]="isDriverDaySelected(day.code)"
+                (click)="toggleDriverDay(day.code)"
+                class="day-toggle-btn"
+                type="button"
+              >
+                {{ day.label }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -521,7 +545,7 @@
         <button class="btn-secondary" (click)="closeAddDriverModal()">
           Cancelar
         </button>
-        <button class="btn-primary" (click)="handleAddDriver()">
+        <button class="btn-primary" (click)="handleAddDriver()" [disabled]="isLoadingDrivers">
           Adicionar Motorista
         </button>
       </div>
@@ -541,58 +565,82 @@
       </div>
 
       <div class="modal-body">
-        <div class="form-group">
-          <label>Nome do Motorista</label>
-          <input
-            type="text"
-            placeholder="Digite ou selecione..."
-            [(ngModel)]="driverForm.name"
-            list="drivers-list-edit"
-            class="form-control"
-          />
-          <datalist id="drivers-list-edit">
-            <option
-              *ngFor="let driver of mockDrivers"
-              [value]="driver"
-            ></option>
-          </datalist>
-        </div>
-
-        <div class="form-group">
-          <label>Horário de Trabalho</label>
-          <div class="time-selector">
-            <div class="time-input-group">
-              <label>Início</label>
-              <input
-                type="time"
-                [(ngModel)]="driverForm.startTime"
-                class="form-control-time"
-              />
+        <!-- Skeleton loading state while fetching drivers -->
+        <div class="modal-skeleton-body" *ngIf="isLoadingDrivers">
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-shimmer skeleton-input"></div>
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-input-row">
+              <div class="skeleton-shimmer skeleton-input-half"></div>
+              <div class="skeleton-shimmer skeleton-input-half"></div>
             </div>
-            <span class="time-separator">até</span>
-            <div class="time-input-group">
-              <label>Fim</label>
-              <input
-                type="time"
-                [(ngModel)]="driverForm.endTime"
-                class="form-control-time"
-              />
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-chips-row">
+              <div class="skeleton-shimmer skeleton-chip" *ngFor="let d of [1,2,3,4,5,6,7]"></div>
             </div>
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Dias da Semana</label>
-          <div class="days-selector">
-            <button
-              *ngFor="let day of daysOfWeek"
-              [class.selected]="isDriverDaySelected(day.code)"
-              (click)="toggleDriverDay(day.code)"
-              class="day-toggle-btn"
-              type="button"
-            >
-              {{ day.label }}
-            </button>
+        <!-- Form content -->
+        <div *ngIf="!isLoadingDrivers">
+          <div class="form-group">
+            <label>Nome do Motorista</label>
+            <input
+              type="text"
+              placeholder="Digite ou selecione..."
+              [(ngModel)]="driverForm.name"
+              list="drivers-list-edit"
+              class="form-control"
+            />
+            <datalist id="drivers-list-edit">
+              <option
+                *ngFor="let driver of mockDrivers"
+                [value]="driver"
+              ></option>
+            </datalist>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Horário de Trabalho</label>
+            <div class="time-selector">
+              <div class="time-input-group">
+                <label>Início</label>
+                <input
+                  type="time"
+                  [(ngModel)]="driverForm.startTime"
+                  class="form-control-time"
+                />
+              </div>
+              <span class="time-separator">até</span>
+              <div class="time-input-group">
+                <label>Fim</label>
+                <input
+                  type="time"
+                  [(ngModel)]="driverForm.endTime"
+                  class="form-control-time"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Dias da Semana</label>
+            <div class="days-selector">
+              <button
+                *ngFor="let day of daysOfWeek"
+                [class.selected]="isDriverDaySelected(day.code)"
+                (click)="toggleDriverDay(day.code)"
+                class="day-toggle-btn"
+                type="button"
+              >
+                {{ day.label }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -601,7 +649,7 @@
         <button class="btn-secondary" (click)="closeEditDriverModal()">
           Cancelar
         </button>
-        <button class="btn-primary" (click)="handleEditDriver()">
+        <button class="btn-primary" (click)="handleEditDriver()" [disabled]="isLoadingDrivers">
           Salvar Alterações
         </button>
       </div>
@@ -621,55 +669,79 @@
       </div>
 
       <div class="modal-body">
-        <div class="form-group">
-          <label>Nome da Linha</label>
-          <input
-            type="text"
-            placeholder="Digite ou selecione..."
-            [(ngModel)]="routeForm.routeName"
-            list="routes-list"
-            class="form-control"
-          />
-          <datalist id="routes-list">
-            <option *ngFor="let route of mockRoutes" [value]="route"></option>
-          </datalist>
-        </div>
-
-        <div class="form-group">
-          <label>Horário de Atendimento</label>
-          <div class="time-selector">
-            <div class="time-input-group">
-              <label>Início</label>
-              <input
-                type="time"
-                [(ngModel)]="routeForm.startTime"
-                class="form-control-time"
-              />
+        <!-- Skeleton loading state while fetching routes -->
+        <div class="modal-skeleton-body" *ngIf="isLoadingRoutes">
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-shimmer skeleton-input"></div>
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-input-row">
+              <div class="skeleton-shimmer skeleton-input-half"></div>
+              <div class="skeleton-shimmer skeleton-input-half"></div>
             </div>
-            <span class="time-separator">até</span>
-            <div class="time-input-group">
-              <label>Fim</label>
-              <input
-                type="time"
-                [(ngModel)]="routeForm.endTime"
-                class="form-control-time"
-              />
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-chips-row">
+              <div class="skeleton-shimmer skeleton-chip" *ngFor="let d of [1,2,3,4,5,6,7]"></div>
             </div>
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Dias da Semana</label>
-          <div class="days-selector">
-            <button
-              *ngFor="let day of daysOfWeek"
-              [class.selected]="isRouteDaySelected(day.code)"
-              (click)="toggleRouteDay(day.code)"
-              class="day-toggle-btn"
-              type="button"
-            >
-              {{ day.label }}
-            </button>
+        <!-- Form content -->
+        <div *ngIf="!isLoadingRoutes">
+          <div class="form-group">
+            <label>Nome da Linha</label>
+            <input
+              type="text"
+              placeholder="Digite ou selecione..."
+              [(ngModel)]="routeForm.routeName"
+              list="routes-list"
+              class="form-control"
+            />
+            <datalist id="routes-list">
+              <option *ngFor="let route of mockRoutes" [value]="route"></option>
+            </datalist>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Horário de Atendimento</label>
+            <div class="time-selector">
+              <div class="time-input-group">
+                <label>Início</label>
+                <input
+                  type="time"
+                  [(ngModel)]="routeForm.startTime"
+                  class="form-control-time"
+                />
+              </div>
+              <span class="time-separator">até</span>
+              <div class="time-input-group">
+                <label>Fim</label>
+                <input
+                  type="time"
+                  [(ngModel)]="routeForm.endTime"
+                  class="form-control-time"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Dias da Semana</label>
+            <div class="days-selector">
+              <button
+                *ngFor="let day of daysOfWeek"
+                [class.selected]="isRouteDaySelected(day.code)"
+                (click)="toggleRouteDay(day.code)"
+                class="day-toggle-btn"
+                type="button"
+              >
+                {{ day.label }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -678,7 +750,7 @@
         <button class="btn-secondary" (click)="closeAddRouteModal()">
           Cancelar
         </button>
-        <button class="btn-primary" (click)="handleAddRoute()">
+        <button class="btn-primary" (click)="handleAddRoute()" [disabled]="isLoadingRoutes">
           Adicionar Linha
         </button>
       </div>
@@ -698,55 +770,79 @@
       </div>
 
       <div class="modal-body">
-        <div class="form-group">
-          <label>Nome da Linha</label>
-          <input
-            type="text"
-            placeholder="Digite ou selecione..."
-            [(ngModel)]="routeForm.routeName"
-            list="routes-list-edit"
-            class="form-control"
-          />
-          <datalist id="routes-list-edit">
-            <option *ngFor="let route of mockRoutes" [value]="route"></option>
-          </datalist>
-        </div>
-
-        <div class="form-group">
-          <label>Horário de Atendimento</label>
-          <div class="time-selector">
-            <div class="time-input-group">
-              <label>Início</label>
-              <input
-                type="time"
-                [(ngModel)]="routeForm.startTime"
-                class="form-control-time"
-              />
+        <!-- Skeleton loading state while fetching routes -->
+        <div class="modal-skeleton-body" *ngIf="isLoadingRoutes">
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-shimmer skeleton-input"></div>
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-input-row">
+              <div class="skeleton-shimmer skeleton-input-half"></div>
+              <div class="skeleton-shimmer skeleton-input-half"></div>
             </div>
-            <span class="time-separator">até</span>
-            <div class="time-input-group">
-              <label>Fim</label>
-              <input
-                type="time"
-                [(ngModel)]="routeForm.endTime"
-                class="form-control-time"
-              />
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-chips-row">
+              <div class="skeleton-shimmer skeleton-chip" *ngFor="let d of [1,2,3,4,5,6,7]"></div>
             </div>
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Dias da Semana</label>
-          <div class="days-selector">
-            <button
-              *ngFor="let day of daysOfWeek"
-              [class.selected]="isRouteDaySelected(day.code)"
-              (click)="toggleRouteDay(day.code)"
-              class="day-toggle-btn"
-              type="button"
-            >
-              {{ day.label }}
-            </button>
+        <!-- Form content -->
+        <div *ngIf="!isLoadingRoutes">
+          <div class="form-group">
+            <label>Nome da Linha</label>
+            <input
+              type="text"
+              placeholder="Digite ou selecione..."
+              [(ngModel)]="routeForm.routeName"
+              list="routes-list-edit"
+              class="form-control"
+            />
+            <datalist id="routes-list-edit">
+              <option *ngFor="let route of mockRoutes" [value]="route"></option>
+            </datalist>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Horário de Atendimento</label>
+            <div class="time-selector">
+              <div class="time-input-group">
+                <label>Início</label>
+                <input
+                  type="time"
+                  [(ngModel)]="routeForm.startTime"
+                  class="form-control-time"
+                />
+              </div>
+              <span class="time-separator">até</span>
+              <div class="time-input-group">
+                <label>Fim</label>
+                <input
+                  type="time"
+                  [(ngModel)]="routeForm.endTime"
+                  class="form-control-time"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Dias da Semana</label>
+            <div class="days-selector">
+              <button
+                *ngFor="let day of daysOfWeek"
+                [class.selected]="isRouteDaySelected(day.code)"
+                (click)="toggleRouteDay(day.code)"
+                class="day-toggle-btn"
+                type="button"
+              >
+                {{ day.label }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -755,7 +851,7 @@
         <button class="btn-secondary" (click)="closeEditRouteModal()">
           Cancelar
         </button>
-        <button class="btn-primary" (click)="handleEditRoute()">
+        <button class="btn-primary" (click)="handleEditRoute()" [disabled]="isLoadingRoutes">
           Salvar Alterações
         </button>
       </div>

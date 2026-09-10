@@ -12,29 +12,42 @@ import { LoginService } from './login.service';
 })
 export class VeiculoService {
   private apiUrl = environment.apiUrl;
+  private cachedVeiculos: Veiculo[] | null = null;
 
   constructor(private http: HttpClient, private loginService: LoginService) {}
 
-  getVeiculos(): Observable<Veiculo[]> {
+  getVeiculos(forceRefresh: boolean = false): Observable<Veiculo[]> {
+    if (!forceRefresh && this.cachedVeiculos) {
+      return of(this.cachedVeiculos);
+    }
+
     const headers = this.loginService.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/v1/api/veiculos`, { headers }).pipe(
       map(res => {
         const list = res.data || [];
         if (list.length === 0 && ENABLE_DEMO_MOCKUP) {
-          return [DEMO_MOCK_VEICULO as unknown as Veiculo];
+          this.cachedVeiculos = [DEMO_MOCK_VEICULO as unknown as Veiculo];
+          return this.cachedVeiculos;
         }
+        this.cachedVeiculos = list;
         return list;
       }),
       catchError(() => {
         if (ENABLE_DEMO_MOCKUP) {
-          return of([DEMO_MOCK_VEICULO as unknown as Veiculo]);
+          this.cachedVeiculos = [DEMO_MOCK_VEICULO as unknown as Veiculo];
+          return of(this.cachedVeiculos);
         }
         return of([]);
       })
     );
   }
 
+  clearCache(): void {
+    this.cachedVeiculos = null;
+  }
+
   addVeiculo(veiculo: Veiculo): Observable<Veiculo> {
+    this.clearCache();
     const headers = this.loginService.getAuthHeaders();
     return this.http.post<any>(`${this.apiUrl}/v1/api/veiculos`, veiculo, { headers }).pipe(
       map(res => res.data || veiculo)
@@ -42,6 +55,7 @@ export class VeiculoService {
   }
 
   updateVeiculo(veiculo: Veiculo): Observable<Veiculo> {
+    this.clearCache();
     const headers = this.loginService.getAuthHeaders();
     return this.http.put<any>(`${this.apiUrl}/v1/api/veiculos/${veiculo.plate}`, veiculo, { headers }).pipe(
       map(res => res.data || veiculo)
@@ -49,6 +63,7 @@ export class VeiculoService {
   }
 
   deleteVeiculo(plate: string): Observable<boolean> {
+    this.clearCache();
     const headers = this.loginService.getAuthHeaders();
     return this.http.delete<any>(`${this.apiUrl}/v1/api/veiculos/${plate}`, { headers }).pipe(
       map(res => res.status === '200' || res.status === 200 || !res.status)

@@ -152,9 +152,9 @@ export class MotoristaComponent implements OnInit {
     });
   }
 
-  loadMotoristas(): void {
+  loadMotoristas(forceRefresh: boolean = false): void {
     this.isLoading = true;
-    this.motoristaService.getMotoristas().subscribe({
+    this.motoristaService.getMotoristas(forceRefresh).subscribe({
       next: (data) => {
         let list = (data || []) as Motorista[];
         if (ENABLE_DEMO_MOCKUP && !list.some((m) => m.cpf === DEMO_MOCK_MOTORISTA.cpf)) {
@@ -247,7 +247,7 @@ export class MotoristaComponent implements OnInit {
     this.motoristaService.addMotorista(motorista).subscribe({
       next: () => {
         this.isSaving = false;
-        this.loadMotoristas();
+        this.loadMotoristas(true);
         this.closeAddModal();
       },
       error: (err) => {
@@ -281,7 +281,7 @@ export class MotoristaComponent implements OnInit {
     if (this.selectedMotorista) {
       this.motoristaService.updateMotorista(this.selectedMotorista).subscribe({
         next: () => {
-          this.loadMotoristas();
+          this.loadMotoristas(true);
           this.closeEditModal();
         },
         error: (err) => {
@@ -299,7 +299,7 @@ export class MotoristaComponent implements OnInit {
     if (confirm(`Deseja realmente inativar o motorista ${motorista.nome}?`)) {
       this.motoristaService.deleteMotorista(motorista.id).subscribe({
         next: () => {
-          this.loadMotoristas();
+          this.loadMotoristas(true);
           if (this.selectedMotorista?.id === motorista.id) {
             this.closeEditModal();
           }

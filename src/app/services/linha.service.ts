@@ -42,14 +42,14 @@ export class LinhaService {
   private inactiveLinhas: LinhaDetails[] = [];
 
   private readonly hardcodedLines = [
+    { id: '3301', atendimento: '10', partida: 'Term. Amaral Gurgel', chegada: 'Term. Pq. D. Pedro II', desc: 'Term. Amaral Gurgel / Term. Pq. D. Pedro II', status: 'ativa' as const },
     { id: '001', atendimento: '1', partida: 'Centro', chegada: 'Bairro A', desc: 'Centro/Bairro A', status: 'ativa' as const },
     { id: '002', atendimento: '1', partida: 'Aeroporto', chegada: 'Centro', desc: 'Aeroporto/Centro', status: 'ativa' as const },
     { id: '003', atendimento: '1', partida: 'Zona Norte', chegada: 'Zona Sul', desc: 'Zona Norte/Sul', status: 'ativa' as const },
     { id: '004', atendimento: '1', partida: 'Terminal A', chegada: 'Terminal B', desc: 'Terminal A/B', status: 'inativa' as const },
-    { id: '005', atendimento: '1', partida: 'Terminal Central', chegada: 'Circular', desc: 'Circular', status: 'inativa' as const },
+    { id: '005', atendimento: '1', partida: 'Terminal Central', chegada: 'Circular Centro', desc: 'Circular Centro', status: 'inativa' as const },
     { id: '372F', atendimento: '10', partida: 'Univ. São Judas', chegada: 'Metrô Bresser', desc: 'Via Alcântara Machado', status: 'ativa' as const },
     { id: '1178', atendimento: '10', partida: 'T. São Miguel', chegada: 'Praça do Correio', desc: 'Via Celso Garcia', status: 'ativa' as const },
-    { id: '3301', atendimento: '10', partida: 'T. São Miguel', chegada: 'T. Pq Dom Pedro', desc: 'Via Celso Garcia', status: 'ativa' as const },
     { id: '9051', atendimento: '10', partida: 'T. Pinheiros', chegada: 'Lapa', desc: 'Via Sumaré', status: 'ativa' as const },
     { id: '8000', atendimento: '10', partida: 'Pça Ramos', chegada: 'T. Lapa', desc: 'Via Lapa', status: 'ativa' as const },
   ];
@@ -93,10 +93,12 @@ export class LinhaService {
         linhaResults.forEach((l, index) => {
           const lineDef = this.defaultLines[index];
           if (l) {
+            const rawCodigo = l.codigoLinha || (typeof l.linhaId === 'string' ? l.linhaId : (l.linhaId?.linhaId || lineDef.id));
+            const rawAtendimento = l.atendimento || l.linhaAtendimento || (l.linhaId?.linhaAtendimento || lineDef.atendimento);
             loadedLinhas.push({
-              codigo: l.linhaId.trim(),
-              atendimento: l.linhaId.linhaAtendimento ? l.linhaId.linhaAtendimento.trim() : lineDef.atendimento,
-              descricao: l.linhaDescricao,
+              codigo: String(rawCodigo).trim(),
+              atendimento: String(rawAtendimento).trim(),
+              descricao: l.linhaDescricao || `${lineDef.partida} - ${lineDef.chegada}`,
               status: l.flagAtiva === 'S' ? 'ativa' : 'inativa',
               isFromBackend: true
             });
@@ -113,6 +115,7 @@ export class LinhaService {
         });
         return loadedLinhas;
       }),
+
       // Query rotas in parallel for all lines
       switchMap((linhas) => {
         if (linhas.length === 0) return of([]);

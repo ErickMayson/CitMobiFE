@@ -23,7 +23,7 @@ export class MotoristaService {
       map(res => {
         const list = (res.data || []).map((u: any) => {
           return {
-            id: u.login,
+            id: u.id || u.login,
             nome: u.nome,
             cpf: u.cpf,
             telefone: u.telefone,

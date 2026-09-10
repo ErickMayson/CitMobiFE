@@ -43,3 +43,6 @@ Thumbs.db
 
 # Temporary AI Implementation Plans
 /temp_plans/
+db_refactoring_plan.md
+frontend_integration_guide.md
+

@@ -345,13 +345,8 @@ $amber: #f59e0b;
       border-color: #86efac;
     }
 
+    &.status-maintenance,
     &.status-garage {
-      background-color: #dbeafe;
-      color: #1e40af;
-      border-color: #93c5fd;
-    }
-
-    &.status-reserve {
       background-color: #fef3c7;
       color: #92400e;
       border-color: #fcd34d;
@@ -359,11 +354,25 @@ $amber: #f59e0b;
 
     &.status-inactive {
       background-color: #f3f4f6;
-      color: #374151;
+      color: #4b5563;
       border-color: #d1d5db;
+    }
+
+    &.status-scrapped,
+    &.status-reserve {
+      background-color: #fee2e2;
+      color: #991b1b;
+      border-color: #fca5a5;
+    }
+
+    &.status-sold {
+      background-color: #e2e8f0;
+      color: #475569;
+      border-color: #cbd5e1;
     }
   }
 }
+
 
 // MODAL STYLES
 .modal-overlay {

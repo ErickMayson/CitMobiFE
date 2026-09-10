@@ -1,3 +1,5 @@
+export type VeiculoStatus = 'ATIVO' | 'MANUTENCAO' | 'INATIVO' | 'SUCATEADO' | 'VENDIDO';
+
 export interface Motorista {
   name: string;
   startTime: string;
@@ -13,12 +15,12 @@ export interface Linha {
 }
 
 export interface Veiculo {
-  id: string;
+  id: string | number;
   plate: string;
   model: string;
   type: string;
   capacity: number;
-  status: 'EM ATENDIMENTO' | 'GARAGEM' | 'RESERVA' | 'INATIVO';
+  status: VeiculoStatus;
   garage: string;
   routes: Linha[];
   drivers: Motorista[];
@@ -31,3 +33,29 @@ export interface ScheduleBlock {
   end: number;
   duration: number;
 }
+
+export interface Viagem {
+  id?: number;
+  usuarioId: string;
+  veiculoId: number;
+  linhaId: number;
+  rotaId: number;
+  dataInicio: string;
+  dataFim?: string;
+  status: 'EM_ANDAMENTO' | 'FINALIZADA' | 'CANCELADA';
+}
+
+export interface Telemetria {
+  veiculoId: number;
+  viagemId?: number;
+  latitude: number;
+  longitude: number;
+  velocidade: number;
+  bearing: number;
+  odometer: number;
+  sequenciaParadaAtual?: number;
+  statusParadaAtual?: string;
+  paradaId?: number;
+  ultimaAtualizacao?: string;
+}
+

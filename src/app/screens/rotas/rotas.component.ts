@@ -277,16 +277,16 @@ export class RotasComponent implements OnInit {
     const name = p.logradouro || 'Parada';
     const address = `${p.logradouro || ''}, ${p.numero || ''}`;
     const cep = p.cep || '';
-    const lat = Array.isArray(p.latLong) && p.latLong.length >= 2 ? p.latLong[0] : 0;
-    const lng = Array.isArray(p.latLong) && p.latLong.length >= 2 ? p.latLong[1] : 0;
+    const lat = Array.isArray(p.latLong) && p.latLong.length >= 2 ? p.latLong[0] : (p.latitude || 0);
+    const lng = Array.isArray(p.latLong) && p.latLong.length >= 2 ? p.latLong[1] : (p.longitude || 0);
 
     const newEndereco: Endereco = {
-      id: p.paradaId || Date.now(),
+      id: p.paradaId || p.id || Date.now(),
       nome: name,
       endereco: address,
       cep,
-      lat: lat,
-      lng: lng,
+      lat: Number(lat),
+      lng: Number(lng),
       ordem: this.enderecos.length,
     };
     this.enderecos.push(newEndereco);
@@ -294,6 +294,7 @@ export class RotasComponent implements OnInit {
     this.filteredParadas = [];
     this.showParadasDropdown = false;
   }
+
 
   removeEndereco(index: number): void {
     this.enderecos.splice(index, 1);

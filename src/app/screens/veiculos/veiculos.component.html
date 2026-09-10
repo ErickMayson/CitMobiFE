@@ -76,9 +76,10 @@
               class="status-badge"
               [ngClass]="getStatusColor(veiculo.status)"
             >
-              {{ veiculo.status }}
+              {{ getStatusLabel(veiculo.status) }}
             </span>
           </div>
+
 
           <div class="card-body">
             <div class="info-row">
@@ -266,16 +267,20 @@
                   </option>
                 </select>
               </div>
-              <div class="status-display">
-                <span
-                  class="status-badge"
-                  [ngClass]="getStatusColor(selectedVeiculo.status)"
+              <div class="form-group" style="margin-top: 16px">
+                <label>Status Operacional</label>
+                <select
+                  [(ngModel)]="selectedVeiculo.status"
+                  class="form-control"
                 >
-                  {{ selectedVeiculo.status }}
-                </span>
+                  <option *ngFor="let s of availableStatuses" [value]="s">
+                    {{ getStatusLabel(s) }}
+                  </option>
+                </select>
               </div>
             </div>
           </div>
+
 
           <div class="schedule-section">
             <h3>Distribuição de Disponibilidade</h3>

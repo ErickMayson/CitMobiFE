@@ -1,4 +1,5 @@
-// Centralized Mock Data for CitMobi
+// Centralized Mock Data for CitMobi aligned with Modern Database & Backend Seeds
+import { VeiculoStatus } from '../models/veiculo.model';
 
 export interface MockEndereco {
   id: number;
@@ -37,27 +38,28 @@ export interface MockVehicleDriver {
 }
 
 export interface MockVeiculo {
-  id: string;
+  id: string | number;
   plate: string;
   model: string;
   type: string;
   capacity: number;
-  status: 'EM ATENDIMENTO' | 'GARAGEM' | 'RESERVA' | 'INATIVO';
+  status: VeiculoStatus;
   garage: string;
   routes: MockVehicleRoute[];
   drivers: MockVehicleDriver[];
 }
 
 export interface MockHorarioMotorista {
-  veiculoId: string;
+  veiculoId: string | number;
   veiculoPlaca: string;
   veiculoModelo: string;
-  rotaId: string;
+  rotaId: string | number;
   rotaNome: string;
   startTime: string;
   endTime: string;
   days: string[];
 }
+
 
 export interface MockMotorista {
   id: string;
@@ -74,24 +76,24 @@ export interface MockMotorista {
 export const ENABLE_DEMO_MOCKUP: boolean = true;
 
 export const DEMO_MOCK_VEICULO: MockVeiculo = {
-  id: 'V-2304',
-  plate: 'ABC-1D23',
-  model: 'Caio Millennium III',
-  type: 'Articulado',
-  capacity: 120,
-  status: 'EM ATENDIMENTO',
+  id: '1',
+  plate: 'ABC1D23',
+  model: 'Apache VIP IV',
+  type: 'Padrao',
+  capacity: 80,
+  status: 'ATIVO',
   garage: 'Garagem Central',
   routes: [
     {
-      routeName: 'Linha 100 - Centro / Terminal',
+      routeName: 'Linha 3301 - 10 (Term. Amaral Gurgel / Term. Pq. D. Pedro II)',
       startTime: '06:00',
-      endTime: '14:00',
+      endTime: '22:00',
       days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
     },
   ],
   drivers: [
     {
-      name: 'Carlos Eduardo da Silva',
+      name: 'Antonio Souza',
       startTime: '06:00',
       endTime: '14:00',
       days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
@@ -100,18 +102,18 @@ export const DEMO_MOCK_VEICULO: MockVeiculo = {
 };
 
 export const DEMO_MOCK_MOTORISTA: MockMotorista = {
-  id: 'M001',
-  nome: 'Carlos Eduardo da Silva',
-  cpf: '123.456.789-00',
+  id: '00000000-0000-0000-0003-000000000001',
+  nome: 'Antonio Souza',
+  cpf: '111.222.333-44',
   telefone: '(11) 98765-4321',
   status: 'EM ATENDIMENTO',
   horarios: [
     {
-      veiculoId: 'V-2304',
-      veiculoPlaca: 'ABC-1D23',
-      veiculoModelo: 'Caio Millennium III',
-      rotaId: 'R001',
-      rotaNome: 'Linha 100 - Centro / Terminal',
+      veiculoId: '1',
+      veiculoPlaca: 'ABC1D23',
+      veiculoModelo: 'Apache VIP IV',
+      rotaId: '1',
+      rotaNome: 'Linha 3301 - 10',
       startTime: '06:00',
       endTime: '14:00',
       days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
@@ -119,12 +121,24 @@ export const DEMO_MOCK_MOTORISTA: MockMotorista = {
   ],
 };
 
+
 // ---------------------------------------------------------
 // Linhas Mock Data
 // ---------------------------------------------------------
 export const MOCK_LINHAS_ATIVAS: MockRota[] = [
   {
     id: 1,
+    nome: 'Linha 3301 - Term. Amaral Gurgel / Term. Pq. D. Pedro II',
+    codigo: '3301',
+    descricao: 'Term. Amaral Gurgel / Term. Pq. D. Pedro II',
+    distancia: '14.2 km',
+    duracao: '40 min',
+    veiculos: 6,
+    status: 'ativa',
+    enderecos: [],
+  },
+  {
+    id: 2,
     nome: 'Linha 001 - Centro/Bairro A',
     codigo: '001',
     descricao: 'Rota principal do centro',
@@ -135,7 +149,7 @@ export const MOCK_LINHAS_ATIVAS: MockRota[] = [
     enderecos: [],
   },
   {
-    id: 2,
+    id: 3,
     nome: 'Linha 002 - Aeroporto/Centro',
     codigo: '002',
     descricao: 'Conexão aeroporto',
@@ -146,7 +160,7 @@ export const MOCK_LINHAS_ATIVAS: MockRota[] = [
     enderecos: [],
   },
   {
-    id: 3,
+    id: 4,
     nome: 'Linha 003 - Zona Norte/Sul',
     codigo: '003',
     descricao: 'Ligação norte-sul',
@@ -160,7 +174,7 @@ export const MOCK_LINHAS_ATIVAS: MockRota[] = [
 
 export const MOCK_LINHAS_INATIVAS: MockRota[] = [
   {
-    id: 4,
+    id: 5,
     nome: 'Linha 004 - Terminal A/B',
     codigo: '004',
     descricao: 'Rota entre terminais',
@@ -171,8 +185,8 @@ export const MOCK_LINHAS_INATIVAS: MockRota[] = [
     enderecos: [],
   },
   {
-    id: 5,
-    nome: 'Linha 005 - Circular',
+    id: 6,
+    nome: 'Linha 005 - Circular Centro',
     codigo: '005',
     descricao: 'Rota circular centro',
     distancia: '15.0 km',
@@ -188,24 +202,24 @@ export const MOCK_LINHAS_INATIVAS: MockRota[] = [
 // ---------------------------------------------------------
 export const MOCK_VEICULOS: MockVeiculo[] = [
   {
-    id: 'V001',
-    plate: 'ABC-1234',
-    model: 'Caio Millennium III',
-    type: 'Padrão',
+    id: '1',
+    plate: 'ABC1D23',
+    model: 'Apache VIP IV',
+    type: 'Padrao',
     capacity: 80,
-    status: 'EM ATENDIMENTO',
+    status: 'ATIVO',
     garage: 'Garagem Central',
     routes: [
       {
-        routeName: 'Linha 100 - Centro/Bairro',
+        routeName: 'Linha 3301 - 10',
         startTime: '06:00',
-        endTime: '12:00',
+        endTime: '22:00',
         days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
       },
     ],
     drivers: [
       {
-        name: 'João Silva',
+        name: 'Antonio Souza',
         startTime: '06:00',
         endTime: '14:00',
         days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
@@ -213,45 +227,56 @@ export const MOCK_VEICULOS: MockVeiculo[] = [
     ],
   },
   {
-    id: 'V002',
-    plate: 'DEF-5678',
-    model: 'Apache VIP V',
-    type: 'BRT',
-    capacity: 160,
-    status: 'EM ATENDIMENTO',
-    garage: 'Garagem Norte',
+    id: '2',
+    plate: 'BRA4E56',
+    model: 'CAIO Millennium',
+    type: 'Articulado',
+    capacity: 120,
+    status: 'ATIVO',
+    garage: 'Garagem Central',
     routes: [
       {
-        routeName: 'Linha 200 - Expresso',
-        startTime: '05:30',
-        endTime: '13:30',
-        days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'],
+        routeName: 'Linha 3301 - 10',
+        startTime: '06:00',
+        endTime: '18:00',
+        days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
       },
     ],
     drivers: [
       {
-        name: 'Maria Santos',
-        startTime: '05:30',
-        endTime: '13:30',
-        days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'],
+        name: 'Carlos Silva',
+        startTime: '06:00',
+        endTime: '14:00',
+        days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
       },
     ],
   },
   {
-    id: 'V003',
-    plate: 'GHI-9012',
-    model: 'Caio Millennium III',
-    type: 'Articulado',
-    capacity: 120,
-    status: 'GARAGEM',
+    id: '3',
+    plate: 'GHI9012',
+    model: 'Apache VIP V',
+    type: 'BRT',
+    capacity: 160,
+    status: 'MANUTENCAO',
     garage: 'Garagem Sul',
+    routes: [],
+    drivers: [],
+  },
+  {
+    id: '4',
+    plate: 'JKL3456',
+    model: 'Caio Millennium III',
+    type: 'Padrao',
+    capacity: 80,
+    status: 'INATIVO',
+    garage: 'Garagem Norte',
     routes: [],
     drivers: [],
   },
 ];
 
-export const MOCK_MODELS = ['Caio Millennium III', 'Apache VIP V'];
-export const MOCK_TYPES = ['Básico', 'Padrão', 'Articulado', 'Bi-articulado', 'BRT'];
+export const MOCK_MODELS = ['Apache VIP IV', 'CAIO Millennium', 'Caio Millennium III', 'Apache VIP V'];
+export const MOCK_TYPES = ['Básico', 'Padrao', 'Padrão', 'Articulado', 'Bi-articulado', 'BRT'];
 export const MOCK_GARAGES = [
   'Garagem Central',
   'Garagem Norte',
@@ -260,13 +285,14 @@ export const MOCK_GARAGES = [
   'Garagem Oeste',
 ];
 export const MOCK_DROPDOWN_DRIVERS = [
+  'Antonio Souza',
+  'Carlos Silva',
+  'Marcos Oliveira',
   'João Silva',
   'Maria Santos',
-  'Pedro Oliveira',
-  'Ana Costa',
-  'Carlos Souza',
 ];
 export const MOCK_DROPDOWN_LINHAS = [
+  'Linha 3301 - 10',
   'Linha 100 - Centro/Bairro',
   'Linha 200 - Expresso',
   'Linha 300 - Circular',
@@ -278,18 +304,18 @@ export const MOCK_DROPDOWN_LINHAS = [
 // ---------------------------------------------------------
 export const MOCK_MOTORISTAS: MockMotorista[] = [
   {
-    id: 'M001',
-    nome: 'João Silva',
-    cpf: '123.456.789-00',
+    id: '00000000-0000-0000-0003-000000000001',
+    nome: 'Antonio Souza',
+    cpf: '111.222.333-44',
     telefone: '(11) 98765-4321',
     status: 'EM ATENDIMENTO',
     horarios: [
       {
-        veiculoId: 'V001',
-        veiculoPlaca: 'ABC-1234',
-        veiculoModelo: 'Caio Millennium III',
-        rotaId: 'R001',
-        rotaNome: 'Linha 100 - Centro/Bairro',
+        veiculoId: '1',
+        veiculoPlaca: 'ABC1D23',
+        veiculoModelo: 'Apache VIP IV',
+        rotaId: '1',
+        rotaNome: 'Linha 3301 - 10',
         startTime: '06:00',
         endTime: '14:00',
         days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
@@ -297,102 +323,69 @@ export const MOCK_MOTORISTAS: MockMotorista[] = [
     ],
   },
   {
-    id: 'M002',
-    nome: 'Maria Santos',
-    cpf: '987.654.321-00',
+    id: '00000000-0000-0000-0003-000000000002',
+    nome: 'Carlos Silva',
+    cpf: '222.333.444-55',
     telefone: '(11) 91234-5678',
     status: 'EM ATENDIMENTO',
     horarios: [
       {
-        veiculoId: 'V002',
-        veiculoPlaca: 'DEF-5678',
-        veiculoModelo: 'Apache VIP V',
-        rotaId: 'R002',
-        rotaNome: 'Linha 200 - Expresso',
-        startTime: '05:30',
-        endTime: '13:30',
-        days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'],
-      },
-    ],
-  },
-  {
-    id: 'M003',
-    nome: 'Pedro Oliveira',
-    cpf: '456.789.123-00',
-    telefone: '(11) 99876-5432',
-    status: 'AGUARDANDO',
-    horarios: [],
-  },
-  {
-    id: 'M004',
-    nome: 'Ana Costa',
-    cpf: '321.654.987-00',
-    telefone: '(11) 97654-3210',
-    status: 'PAUSA',
-    horarios: [
-      {
-        veiculoId: 'V001',
-        veiculoPlaca: 'ABC-1234',
-        veiculoModelo: 'Caio Millennium III',
-        rotaId: 'R003',
-        rotaNome: 'Linha 300 - Circular',
-        startTime: '14:00',
-        endTime: '22:00',
+        veiculoId: '2',
+        veiculoPlaca: 'BRA4E56',
+        veiculoModelo: 'CAIO Millennium',
+        rotaId: '1',
+        rotaNome: 'Linha 3301 - 10',
+        startTime: '06:00',
+        endTime: '14:00',
         days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX'],
       },
     ],
   },
   {
-    id: 'M005',
-    nome: 'Carlos Souza',
-    cpf: '789.123.456-00',
-    telefone: '(11) 96543-2109',
-    status: 'FORA DE TURNO',
-    horarios: [
-      {
-        veiculoId: 'V003',
-        veiculoPlaca: 'GHI-9012',
-        veiculoModelo: 'Caio Millennium III',
-        rotaId: 'R004',
-        rotaNome: 'Linha 400 - Terminal',
-        startTime: '22:00',
-        endTime: '06:00',
-        days: ['DOM'],
-      },
-    ],
+    id: '00000000-0000-0000-0003-000000000003',
+    nome: 'Marcos Oliveira',
+    cpf: '333.444.555-66',
+    telefone: '(11) 99876-5432',
+    status: 'AGUARDANDO',
+    horarios: [],
+  },
+  {
+    id: '00000000-0000-0000-0002-000000000001',
+    nome: 'Ana Júlia',
+    cpf: '321.654.987-00',
+    telefone: '(11) 97654-3210',
+    status: 'PAUSA',
+    horarios: [],
   },
 ];
 
 export const MOCK_VEICULOS_DISPONIVEIS = [
-  { id: 'V001', placa: 'ABC-1234', modelo: 'Caio Millennium III' },
-  { id: 'V002', placa: 'DEF-5678', modelo: 'Apache VIP V' },
-  { id: 'V003', placa: 'GHI-9012', modelo: 'Caio Millennium III' },
-  { id: 'V004', placa: 'JKL-3456', modelo: 'Apache VIP V' },
+  { id: '1', placa: 'ABC1D23', modelo: 'Apache VIP IV' },
+  { id: '2', placa: 'BRA4E56', modelo: 'CAIO Millennium' },
+  { id: '3', placa: 'GHI9012', modelo: 'Apache VIP V' },
+  { id: '4', placa: 'JKL3456', modelo: 'Caio Millennium III' },
 ];
 
 export const MOCK_LINHAS_DISPONIVEIS = [
-  { id: 'R001', nome: 'Linha 100 - Centro/Bairro' },
-  { id: 'R002', nome: 'Linha 200 - Expresso' },
-  { id: 'R003', nome: 'Linha 300 - Circular' },
-  { id: 'R004', nome: 'Linha 400 - Terminal' },
+  { id: '1', nome: 'Linha 3301 - 10 (Term. Amaral Gurgel / Term. Pq. D. Pedro II)' },
+  { id: '2', nome: 'Linha 100 - Centro/Bairro' },
+  { id: '3', nome: 'Linha 200 - Expresso' },
+  { id: '4', nome: 'Linha 300 - Circular' },
 ];
 
 export const MOCK_PARADAS = [
-  { paradaId: 1, logradouro: 'Av. Paulista', numero: '1000', obs: '', cep: '01310-100', latLong: [-23.5614, -46.6561], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
-  { paradaId: 2, logradouro: 'Rua Augusta', numero: '500', obs: '', cep: '01304-000', latLong: [-23.5550, -46.6450], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
-  { paradaId: 3, logradouro: 'Av. Brigadeiro Faria Lima', numero: '3000', obs: '', cep: '04538-132', latLong: [-23.5788, -46.6849], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
-  { paradaId: 4, logradouro: 'Praça da Sé', numero: 'S/N', obs: '', cep: '01001-000', latLong: [-23.5505, -46.6333], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
-  { paradaId: 5, logradouro: 'Av. Rebouças', numero: '2500', obs: '', cep: '05401-400', latLong: [-23.5628, -46.6721], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
-  { paradaId: 6, logradouro: 'Rua da Consolação', numero: '1500', obs: '', cep: '01302-001', latLong: [-23.5492, -46.6578], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
-  { paradaId: 7, logradouro: 'Av. Santo Amaro', numero: '4000', obs: '', cep: '04556-200', latLong: [-23.5984, -46.6805], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
-  { paradaId: 8, logradouro: 'Rua 25 de Março', numero: '900', obs: '', cep: '01021-200', latLong: [-23.5437, -46.6384], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
-  { paradaId: 9, logradouro: 'Av. Celso Garcia', numero: '2000', obs: '', cep: '03064-000', latLong: [-23.5308, -46.5970], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
-  { paradaId: 10, logradouro: 'Terminal Pq Dom Pedro II', numero: 'S/N', obs: '', cep: '03010-000', latLong: [-23.5440, -46.6278], municipio: 3550308, ufSigla: 'SP', tipoId: 2, flagAtiva: 'S' },
-  { paradaId: 11, logradouro: 'Terminal Pinheiros', numero: 'S/N', obs: '', cep: '05422-010', latLong: [-23.5675, -46.6945], municipio: 3550308, ufSigla: 'SP', tipoId: 2, flagAtiva: 'S' },
-  { paradaId: 12, logradouro: 'Terminal São Miguel', numero: 'S/N', obs: '', cep: '08010-000', latLong: [-23.5020, -46.4653], municipio: 3550308, ufSigla: 'SP', tipoId: 2, flagAtiva: 'S' },
-  { paradaId: 13, logradouro: 'Metrô Bresser', numero: 'S/N', obs: '', cep: '03054-000', latLong: [-23.5364, -46.6059], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
-  { paradaId: 14, logradouro: 'Largo da Batata', numero: 'S/N', obs: '', cep: '05422-020', latLong: [-23.5692, -46.6843], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
-  { paradaId: 15, logradouro: 'Av. Jabaquara', numero: '1800', obs: '', cep: '04046-200', latLong: [-23.6300, -46.6400], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 1, logradouro: 'Rua do Arouche', numero: '100', obs: 'Em frente à praça', cep: '01219-010', latLong: [-23.541234, -46.643210], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 2, logradouro: 'Av. São João', numero: '450', obs: '', cep: '01036-000', latLong: [-23.543456, -46.641122], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 3, logradouro: 'Av. Paulista', numero: '1000', obs: '', cep: '01310-100', latLong: [-23.5614, -46.6561], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 4, logradouro: 'Rua Augusta', numero: '500', obs: '', cep: '01304-000', latLong: [-23.5550, -46.6450], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 5, logradouro: 'Av. Brigadeiro Faria Lima', numero: '3000', obs: '', cep: '04538-132', latLong: [-23.5788, -46.6849], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 6, logradouro: 'Praça da Sé', numero: 'S/N', obs: '', cep: '01001-000', latLong: [-23.5505, -46.6333], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 7, logradouro: 'Terminal Pq Dom Pedro II', numero: 'S/N', obs: '', cep: '03010-000', latLong: [-23.5440, -46.6278], municipio: 3550308, ufSigla: 'SP', tipoId: 2, flagAtiva: 'S' },
+  { paradaId: 8, logradouro: 'Terminal Amaral Gurgel', numero: 'S/N', obs: '', cep: '01229-000', latLong: [-23.5380, -46.6500], municipio: 3550308, ufSigla: 'SP', tipoId: 2, flagAtiva: 'S' },
+  { paradaId: 9, logradouro: 'Terminal Pinheiros', numero: 'S/N', obs: '', cep: '05422-010', latLong: [-23.5675, -46.6945], municipio: 3550308, ufSigla: 'SP', tipoId: 2, flagAtiva: 'S' },
+  { paradaId: 10, logradouro: 'Terminal São Miguel', numero: 'S/N', obs: '', cep: '08010-000', latLong: [-23.5020, -46.4653], municipio: 3550308, ufSigla: 'SP', tipoId: 2, flagAtiva: 'S' },
+  { paradaId: 11, logradouro: 'Metrô Bresser', numero: 'S/N', obs: '', cep: '03054-000', latLong: [-23.5364, -46.6059], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
+  { paradaId: 12, logradouro: 'Largo da Batata', numero: 'S/N', obs: '', cep: '05422-020', latLong: [-23.5692, -46.6843], municipio: 3550308, ufSigla: 'SP', tipoId: 1, flagAtiva: 'S' },
 ];
 
 // ---------------------------------------------------------
@@ -416,10 +409,11 @@ export const MOCK_LINHAS_BY_DAY = [
 ];
 
 export const MOCK_VEHICLE_STATUS = [
-  { label: 'Em Operação', value: 54, percentage: 61, color: '#00b4d8' },
-  { label: 'Disponível', value: 23, percentage: 26, color: '#10b981' },
-  { label: 'Manutenção', value: 8, percentage: 9, color: '#f59e0b' },
-  { label: 'Indisponível', value: 4, percentage: 4, color: '#ef4444' },
+  { label: 'Ativo', value: 54, percentage: 61, color: '#00b4d8' },
+  { label: 'Manutenção', value: 12, percentage: 14, color: '#f59e0b' },
+  { label: 'Inativo', value: 15, percentage: 17, color: '#94a3b8' },
+  { label: 'Sucateado', value: 5, percentage: 5, color: '#ef4444' },
+  { label: 'Vendido', value: 3, percentage: 3, color: '#64748b' },
 ];
 
 export const MOCK_DRIVERS_BY_SHIFT = [
@@ -431,27 +425,27 @@ export const MOCK_DRIVERS_BY_SHIFT = [
 export const MOCK_RECENT_ACTIVITY = [
   {
     type: 'route',
-    text: 'Nova rota iniciada: Centro → Zona Norte',
+    text: 'Nova rota iniciada: Term. Amaral Gurgel → Term. Pq. D. Pedro II',
     time: 'há 5 min',
   },
   {
     type: 'vehicle',
-    text: 'Veículo #VH-1234 entrou em manutenção',
+    text: 'Veículo #ABC1D23 entrou em manutenção',
     time: 'há 12 min',
   },
   {
     type: 'driver',
-    text: 'Motorista Carlos Silva finalizou turno',
+    text: 'Motorista Antonio Souza finalizou turno',
     time: 'há 28 min',
   },
   {
     type: 'route',
-    text: 'Rota concluída: Aeroporto → Centro',
+    text: 'Rota concluída: Term. Pq. D. Pedro II → Amaral Gurgel',
     time: 'há 45 min',
   },
   {
     type: 'vehicle',
-    text: 'Veículo #VH-5678 voltou à operação',
+    text: 'Veículo #BRA4E56 voltou à operação',
     time: 'há 1h',
   },
 ];
@@ -499,10 +493,10 @@ export const MOCK_PASSENGER_CAPACITY_BY_HOUR = [
 ];
 
 export const MOCK_VEHICLES_BY_LINHA = [
-  { route: 'Linha 001 - Centro/Bairro A', vehicles: 12, color: '#00b4d8' },
-  { route: 'Linha 002 - Aeroporto/Centro', vehicles: 8, color: '#0891b2' },
-  { route: 'Linha 003 - Zona Norte/Sul', vehicles: 15, color: '#0e7490' },
-  { route: 'Linha 004 - Terminal A/B', vehicles: 10, color: '#06b6d4' },
+  { route: 'Linha 3301 - Term. Amaral Gurgel / Pq D Pedro', vehicles: 12, color: '#00b4d8' },
+  { route: 'Linha 001 - Centro/Bairro A', vehicles: 10, color: '#0891b2' },
+  { route: 'Linha 002 - Aeroporto/Centro', vehicles: 8, color: '#0e7490' },
+  { route: 'Linha 003 - Zona Norte/Sul', vehicles: 15, color: '#06b6d4' },
   { route: 'Linha 005 - Circular Centro', vehicles: 6, color: '#0284c7' },
 ];
 
@@ -558,3 +552,4 @@ export const MOCK_VEHICLE_INCIDENTS = [
     icon: 'more',
   },
 ];
+

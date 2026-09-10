@@ -82,7 +82,8 @@ export class VeiculosComponent implements OnInit {
     days: [] as string[],
   };
 
-  statusOrder = ['EM ATENDIMENTO', 'GARAGEM', 'RESERVA', 'INATIVO'];
+  statusOrder = ['ATIVO', 'MANUTENCAO', 'INATIVO', 'SUCATEADO', 'VENDIDO'];
+  availableStatuses = ['ATIVO', 'MANUTENCAO', 'INATIVO', 'SUCATEADO', 'VENDIDO'];
   models = MODELS;
   types = TYPES;
   garages = GARAGES;
@@ -147,7 +148,7 @@ export class VeiculosComponent implements OnInit {
       next: (data) => {
         let list = (data || []) as Veiculo[];
         if (ENABLE_DEMO_MOCKUP && !list.some((v) => v.plate === DEMO_MOCK_VEICULO.plate)) {
-          list = [DEMO_MOCK_VEICULO, ...list];
+          list = [DEMO_MOCK_VEICULO as unknown as Veiculo, ...list];
         }
         this.veiculos = list;
         this.sortVeiculos();
@@ -155,7 +156,7 @@ export class VeiculosComponent implements OnInit {
       },
       error: (err) => {
         if (ENABLE_DEMO_MOCKUP) {
-          this.veiculos = [DEMO_MOCK_VEICULO];
+          this.veiculos = [DEMO_MOCK_VEICULO as unknown as Veiculo];
           this.sortVeiculos();
         }
         this.isLoading = false;
@@ -177,16 +178,42 @@ export class VeiculosComponent implements OnInit {
 
   getStatusColor(status: string): string {
     switch (status) {
+      case 'ATIVO':
       case 'EM ATENDIMENTO':
         return 'status-active';
+      case 'MANUTENCAO':
       case 'GARAGEM':
-        return 'status-garage';
-      case 'RESERVA':
-        return 'status-reserve';
+        return 'status-maintenance';
       case 'INATIVO':
         return 'status-inactive';
+      case 'SUCATEADO':
+      case 'RESERVA':
+        return 'status-scrapped';
+      case 'VENDIDO':
+        return 'status-sold';
       default:
         return 'status-inactive';
+    }
+  }
+
+  getStatusLabel(status: string): string {
+    switch (status) {
+      case 'ATIVO':
+      case 'EM ATENDIMENTO':
+        return 'Ativo';
+      case 'MANUTENCAO':
+      case 'GARAGEM':
+        return 'Manutenção';
+      case 'INATIVO':
+        return 'Inativo';
+      case 'SUCATEADO':
+        return 'Sucateado';
+      case 'VENDIDO':
+        return 'Vendido';
+      case 'RESERVA':
+        return 'Reserva';
+      default:
+        return status;
     }
   }
 
@@ -220,6 +247,7 @@ export class VeiculosComponent implements OnInit {
 
     const capacityMap: { [key: string]: number } = {
       Básico: 60,
+      Padrao: 80,
       Padrão: 80,
       Articulado: 120,
       'Bi-articulado': 180,
@@ -233,10 +261,11 @@ export class VeiculosComponent implements OnInit {
       type: this.newVeiculo.type,
       garage: this.newVeiculo.garage,
       capacity: capacityMap[this.newVeiculo.type] || 80,
-      status: 'GARAGEM',
+      status: 'ATIVO',
       routes: [],
       drivers: [],
     };
+
 
     this.isSaving = true;
     this.veiculoService.addVeiculo(veiculo).subscribe({

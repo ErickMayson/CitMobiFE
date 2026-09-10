@@ -19,7 +19,7 @@ import {
 } from '../../mock-data/mock-data';
 
 interface Veiculo {
-  id: string;
+  id: string | number;
   placa: string;
   modelo: string;
 }
@@ -28,6 +28,7 @@ interface Linha {
   id: string;
   nome: string;
 }
+
 
 interface ScheduleBlock {
   type: 'schedule';
@@ -85,12 +86,13 @@ export class MotoristaComponent implements OnInit {
   }
 
   horarioForm = {
-    veiculoId: '',
-    rotaId: '',
+    veiculoId: '' as string | number,
+    rotaId: '' as string | number,
     startTime: '06:00',
     endTime: '14:00',
     days: [] as string[],
   };
+
 
   statusOrder = ['EM ATENDIMENTO', 'AGUARDANDO', 'PAUSA', 'FORA DE TURNO'];
 

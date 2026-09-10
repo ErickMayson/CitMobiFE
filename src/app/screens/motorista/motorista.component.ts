@@ -4,31 +4,28 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { User } from '../../models/userLiteResponse.model';
+import { Motorista, HorarioMotorista } from '../../models/motorista.model';
 import { LoginService } from '../../services/login.service';
 import { MotoristaService } from '../../services/motorista.service';
 import { VeiculoService } from '../../services/veiculo.service';
 import { LinhaService } from '../../services/linha.service';
-import { formatCpf, formatPhone, formatOnlyNumbers } from '../../utils/mask.utils';
+import { formatCpf, formatPhone, formatOnlyNumbers, abbreviateName } from '../../utils/mask.utils';
+import { AbbreviateNamePipe } from '../../pipes/abbreviate-name.pipe';
 import {
-  MockMotorista as Motorista,
-  MockHorarioMotorista as HorarioMotorista,
   MOCK_VEICULOS_DISPONIVEIS as VEICULOS_DISPONIVEIS,
   MOCK_LINHAS_DISPONIVEIS as LINHAS_DISPONIVEIS,
-  ENABLE_DEMO_MOCKUP,
-  DEMO_MOCK_MOTORISTA,
 } from '../../mock-data/mock-data';
 
-interface Veiculo {
+interface VeiculoItem {
   id: string | number;
   placa: string;
   modelo: string;
 }
 
-interface Linha {
+interface LinhaItem {
   id: string;
   nome: string;
 }
-
 
 interface ScheduleBlock {
   type: 'schedule';
@@ -43,7 +40,7 @@ interface ScheduleBlock {
 @Component({
   selector: 'app-motorista',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidebarComponent],
+  imports: [CommonModule, FormsModule, SidebarComponent, AbbreviateNamePipe],
   templateUrl: './motorista.component.html',
   styleUrls: ['./motorista.component.scss'],
 })
@@ -54,9 +51,12 @@ export class MotoristaComponent implements OnInit {
   companyLogo: string = 'assets/viacaoGatoPreto.png';
 
   isLoading: boolean = false;
-  motoristas: Motorista[] = ENABLE_DEMO_MOCKUP ? [DEMO_MOCK_MOTORISTA] : [];
-  veiculosDisponiveis: Veiculo[] = VEICULOS_DISPONIVEIS;
-  linhasDisponiveis: Linha[] = LINHAS_DISPONIVEIS;
+  isLoadingVeiculosLinhas: boolean = false;
+  private veiculosLinhasLoaded: boolean = false;
+
+  motoristas: Motorista[] = [];
+  veiculosDisponiveis: VeiculoItem[] = VEICULOS_DISPONIVEIS;
+  linhasDisponiveis: LinhaItem[] = LINHAS_DISPONIVEIS;
 
   showAddModal = false;
   showEditModal = false;
@@ -93,8 +93,7 @@ export class MotoristaComponent implements OnInit {
     days: [] as string[],
   };
 
-
-  statusOrder = ['EM ATENDIMENTO', 'AGUARDANDO', 'PAUSA', 'FORA DE TURNO'];
+  statusOrder = ['EM ATENDIMENTO', 'ATIVO', 'AGUARDANDO', 'PAUSA', 'FORA DE TURNO', 'INATIVO'];
 
   daysOfWeek = [
     { code: 'SEG', label: 'Seg' },
@@ -121,11 +120,13 @@ export class MotoristaComponent implements OnInit {
       this.currentUser = user;
     });
     this.loadMotoristas();
-    this.loadVeiculosAndLinhas();
     setTimeout(() => (this.showSidebarContent = true), 100);
   }
 
-  loadVeiculosAndLinhas(): void {
+  ensureVeiculosAndLinhasLoaded(): void {
+    if (this.veiculosLinhasLoaded) return;
+    this.isLoadingVeiculosLinhas = true;
+
     this.veiculoService.getVeiculos().subscribe({
       next: (veiculos) => {
         if (veiculos && veiculos.length > 0) {
@@ -147,8 +148,13 @@ export class MotoristaComponent implements OnInit {
             nome: l.descricao || `${l.codigo} - ${l.partida} / ${l.chegada}`,
           }));
         }
+        this.veiculosLinhasLoaded = true;
+        this.isLoadingVeiculosLinhas = false;
       },
-      error: () => {},
+      error: () => {
+        this.veiculosLinhasLoaded = true;
+        this.isLoadingVeiculosLinhas = false;
+      },
     });
   }
 
@@ -156,19 +162,11 @@ export class MotoristaComponent implements OnInit {
     this.isLoading = true;
     this.motoristaService.getMotoristas(forceRefresh).subscribe({
       next: (data) => {
-        let list = (data || []) as Motorista[];
-        if (ENABLE_DEMO_MOCKUP && !list.some((m) => m.cpf === DEMO_MOCK_MOTORISTA.cpf)) {
-          list = [DEMO_MOCK_MOTORISTA, ...list];
-        }
-        this.motoristas = list;
+        this.motoristas = data || [];
         this.sortMotoristas();
         this.isLoading = false;
       },
       error: (err) => {
-        if (ENABLE_DEMO_MOCKUP) {
-          this.motoristas = [DEMO_MOCK_MOTORISTA];
-          this.sortMotoristas();
-        }
         this.isLoading = false;
         if (err.status === 401 || err.status === 403) {
           this.loginService.logout();
@@ -180,21 +178,23 @@ export class MotoristaComponent implements OnInit {
 
   get sortedMotoristas(): Motorista[] {
     return [...this.motoristas].sort((a, b) => {
-      return (
-        this.statusOrder.indexOf(a.status) - this.statusOrder.indexOf(b.status)
-      );
+      const indexA = this.statusOrder.indexOf(a.status);
+      const indexB = this.statusOrder.indexOf(b.status);
+      return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
     });
   }
 
   getStatusColor(status: string): string {
     switch (status) {
       case 'EM ATENDIMENTO':
+      case 'ATIVO':
         return 'status-active';
       case 'AGUARDANDO':
         return 'status-waiting';
       case 'PAUSA':
         return 'status-pause';
       case 'FORA DE TURNO':
+      case 'INATIVO':
         return 'status-off';
       default:
         return 'status-off';
@@ -202,7 +202,7 @@ export class MotoristaComponent implements OnInit {
   }
 
   getCurrentHorario(motorista: Motorista): HorarioMotorista | null {
-    if (motorista.horarios.length === 0) return null;
+    if (!motorista.horarios || motorista.horarios.length === 0) return null;
     return motorista.horarios[0];
   }
 
@@ -228,18 +228,17 @@ export class MotoristaComponent implements OnInit {
       return;
     }
 
-    const cleanCpf = this.newMotorista.cpf.replace(/\D/g, '');
+    const cleanCpf = formatOnlyNumbers(this.newMotorista.cpf);
     if (cleanCpf.length !== 11) {
       this.errorMessage = 'CPF inválido. Certifique-se de digitar os 11 dígitos.';
       return;
     }
 
     this.isSaving = true;
-    const motorista: Motorista = {
-      id: `M${String(this.motoristas.length + 1).padStart(3, '0')}`,
-      nome: this.newMotorista.nome,
-      cpf: this.newMotorista.cpf,
-      telefone: this.newMotorista.telefone,
+    const motorista: Partial<Motorista> = {
+      nome: this.newMotorista.nome.trim(),
+      cpf: cleanCpf,
+      telefone: this.newMotorista.telefone.trim(),
       status: 'FORA DE TURNO',
       horarios: [],
     };
@@ -289,7 +288,7 @@ export class MotoristaComponent implements OnInit {
             this.loginService.logout();
             this.router.navigate(['/login']);
           }
-        }
+        },
       });
     }
   }
@@ -309,20 +308,23 @@ export class MotoristaComponent implements OnInit {
             this.loginService.logout();
             this.router.navigate(['/login']);
           }
-        }
+        },
       });
     }
   }
 
+  abbreviateName(name: string | null | undefined): string {
+    return abbreviateName(name);
+  }
+
   getInitials(name: string): string {
     if (!name) return 'M';
-    const parts = name.trim().split(' ');
+    const parts = name.trim().split(/\s+/);
     if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
     return name.slice(0, 2).toUpperCase();
   }
-
 
   // CRUD Horário
   openAddHorarioModal(): void {
@@ -334,6 +336,7 @@ export class MotoristaComponent implements OnInit {
       days: [],
     };
     this.showAddHorarioModal = true;
+    this.ensureVeiculosAndLinhasLoaded();
   }
 
   closeAddHorarioModal(): void {
@@ -352,6 +355,7 @@ export class MotoristaComponent implements OnInit {
       };
       this.editingHorarioIndex = index;
       this.showEditHorarioModal = true;
+      this.ensureVeiculosAndLinhasLoaded();
     }
   }
 
@@ -383,26 +387,28 @@ export class MotoristaComponent implements OnInit {
       this.horarioForm.days.length > 0
     ) {
       const veiculo = this.veiculosDisponiveis.find(
-        (v) => v.id === this.horarioForm.veiculoId
+        (v) => String(v.id) === String(this.horarioForm.veiculoId) || v.placa === this.horarioForm.veiculoId
       );
       const linha = this.linhasDisponiveis.find(
-        (l) => l.id === this.horarioForm.rotaId
+        (l) => String(l.id) === String(this.horarioForm.rotaId)
       );
 
-      if (veiculo && linha) {
-        const newHorario: HorarioMotorista = {
-          veiculoId: veiculo.id,
-          veiculoPlaca: veiculo.placa,
-          veiculoModelo: veiculo.modelo,
-          rotaId: linha.id,
-          rotaNome: linha.nome,
-          startTime: this.horarioForm.startTime,
-          endTime: this.horarioForm.endTime,
-          days: [...this.horarioForm.days],
-        };
-        this.selectedMotorista.horarios.push(newHorario);
-        this.closeAddHorarioModal();
+      const newHorario: HorarioMotorista = {
+        veiculoId: veiculo?.id || this.horarioForm.veiculoId,
+        veiculoPlaca: veiculo?.placa || String(this.horarioForm.veiculoId),
+        veiculoModelo: veiculo?.modelo || 'Padrão',
+        rotaId: linha?.id || this.horarioForm.rotaId,
+        rotaNome: linha?.nome || String(this.horarioForm.rotaId),
+        startTime: this.horarioForm.startTime,
+        endTime: this.horarioForm.endTime,
+        days: [...this.horarioForm.days],
+      };
+
+      if (!this.selectedMotorista.horarios) {
+        this.selectedMotorista.horarios = [];
       }
+      this.selectedMotorista.horarios.push(newHorario);
+      this.closeAddHorarioModal();
     }
   }
 
@@ -417,30 +423,28 @@ export class MotoristaComponent implements OnInit {
       this.horarioForm.days.length > 0
     ) {
       const veiculo = this.veiculosDisponiveis.find(
-        (v) => v.id === this.horarioForm.veiculoId
+        (v) => String(v.id) === String(this.horarioForm.veiculoId) || v.placa === this.horarioForm.veiculoId
       );
       const linha = this.linhasDisponiveis.find(
-        (l) => l.id === this.horarioForm.rotaId
+        (l) => String(l.id) === String(this.horarioForm.rotaId)
       );
 
-      if (veiculo && linha) {
-        this.selectedMotorista.horarios[this.editingHorarioIndex] = {
-          veiculoId: veiculo.id,
-          veiculoPlaca: veiculo.placa,
-          veiculoModelo: veiculo.modelo,
-          rotaId: linha.id,
-          rotaNome: linha.nome,
-          startTime: this.horarioForm.startTime,
-          endTime: this.horarioForm.endTime,
-          days: [...this.horarioForm.days],
-        };
-        this.closeEditHorarioModal();
-      }
+      this.selectedMotorista.horarios[this.editingHorarioIndex] = {
+        veiculoId: veiculo?.id || this.horarioForm.veiculoId,
+        veiculoPlaca: veiculo?.placa || String(this.horarioForm.veiculoId),
+        veiculoModelo: veiculo?.modelo || 'Padrão',
+        rotaId: linha?.id || this.horarioForm.rotaId,
+        rotaNome: linha?.nome || String(this.horarioForm.rotaId),
+        startTime: this.horarioForm.startTime,
+        endTime: this.horarioForm.endTime,
+        days: [...this.horarioForm.days],
+      };
+      this.closeEditHorarioModal();
     }
   }
 
   removeHorario(index: number): void {
-    if (this.selectedMotorista) {
+    if (this.selectedMotorista && this.selectedMotorista.horarios) {
       this.selectedMotorista.horarios.splice(index, 1);
     }
   }
@@ -451,12 +455,12 @@ export class MotoristaComponent implements OnInit {
   }
 
   getScheduleBlocks(): ScheduleBlock[] {
-    if (!this.selectedMotorista) return [];
+    if (!this.selectedMotorista || !this.selectedMotorista.horarios) return [];
 
     const blocks: ScheduleBlock[] = [];
 
     this.selectedMotorista.horarios
-      .filter((h) => h.days.includes(this.selectedDay))
+      .filter((h) => h.days && h.days.includes(this.selectedDay))
       .forEach((horario) => {
         const start = parseInt(horario.startTime.split(':')[0]);
         const end = parseInt(horario.endTime.split(':')[0]);
@@ -484,9 +488,9 @@ export class MotoristaComponent implements OnInit {
 
   private sortMotoristas(): void {
     this.motoristas.sort((a, b) => {
-      return (
-        this.statusOrder.indexOf(a.status) - this.statusOrder.indexOf(b.status)
-      );
+      const indexA = this.statusOrder.indexOf(a.status);
+      const indexB = this.statusOrder.indexOf(b.status);
+      return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
     });
   }
 

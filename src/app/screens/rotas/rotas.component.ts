@@ -1,4 +1,4 @@
-import { Component, OnInit, afterNextRender } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
@@ -21,6 +21,10 @@ export class RotasComponent implements OnInit {
   currentUser: User | null = null;
   companyLogo: string = 'assets/viacaoGatoPreto.png';
 
+  // Loading States
+  isLoadingLinhas: boolean = false;
+  isLoadingParadas: boolean = false;
+
   // Wizard and View Navigation State
   activeStep: 'list' | 'create_linha' | 'edit_itinerary' = 'list';
   showLinhaDetailsModal: boolean = false;
@@ -36,13 +40,13 @@ export class RotasComponent implements OnInit {
     atendimento: '10',
     partida: '',
     chegada: '',
-    descricao: ''
+    descricao: '',
   };
 
   // Step 2 & 3: Itinerary Form State
   itineraryForm = {
     sentido: 'IDA' as 'IDA' | 'VOLTA',
-    prefixo: ''
+    prefixo: '',
   };
   enderecos: Endereco[] = [];
   searchQuery: string = '';
@@ -54,12 +58,7 @@ export class RotasComponent implements OnInit {
   constructor(
     private loginService: LoginService,
     private linhaService: LinhaService
-  ) {
-    afterNextRender(() => {
-      this.loadLinhas();
-      this.loadTodasAsParadas();
-    });
-  }
+  ) {}
 
   ngOnInit(): void {
     this.loginService.currentUser.subscribe((user) => {
@@ -67,22 +66,37 @@ export class RotasComponent implements OnInit {
     });
 
     this.loadLinhas();
-    this.loadTodasAsParadas();
+    setTimeout(() => (this.showSidebarContent = true), 100);
   }
 
-  loadLinhas(): void {
-    this.linhaService.getLinhas().subscribe((data) => {
-      if (data) {
-        this.linhasAtivas = data.filter((l) => l.status === 'ativa');
-        this.linhasInativas = data.filter((l) => l.status === 'inativa');
-      }
+  loadLinhas(forceRefresh: boolean = false): void {
+    this.isLoadingLinhas = true;
+    this.linhaService.getLinhas(forceRefresh).subscribe({
+      next: (data) => {
+        if (data) {
+          this.linhasAtivas = data.filter((l) => l.status === 'ativa');
+          this.linhasInativas = data.filter((l) => l.status === 'inativa');
+        }
+        this.isLoadingLinhas = false;
+      },
+      error: () => {
+        this.isLoadingLinhas = false;
+      },
     });
   }
 
-  loadTodasAsParadas(): void {
-    this.linhaService.getParadas(3550308).subscribe((paradas) => {
-      this.todasAsParadas = paradas || [];
-      this.filteredParadas = [];
+  ensureTodasAsParadasLoaded(): void {
+    if (this.todasAsParadas.length > 0) return;
+    this.isLoadingParadas = true;
+    this.linhaService.getParadas(3550308).subscribe({
+      next: (paradas) => {
+        this.todasAsParadas = paradas || [];
+        this.filteredParadas = [...this.todasAsParadas];
+        this.isLoadingParadas = false;
+      },
+      error: () => {
+        this.isLoadingParadas = false;
+      },
     });
   }
 
@@ -113,6 +127,7 @@ export class RotasComponent implements OnInit {
     };
     this.searchQuery = '';
     this.filteredParadas = [];
+    this.ensureTodasAsParadasLoaded();
   }
 
   saveLinha(): void {
@@ -133,7 +148,7 @@ export class RotasComponent implements OnInit {
   confirmAddRota(sentido: 'IDA' | 'VOLTA'): void {
     this.showConfirmationModal = false;
     this.itineraryForm.sentido = sentido;
-    
+
     // Auto prefix naming
     if (sentido === 'IDA') {
       this.itineraryForm.prefixo = `${this.linhaForm.partida.trim()} - ${this.linhaForm.chegada.trim()}`;
@@ -141,8 +156,10 @@ export class RotasComponent implements OnInit {
       this.itineraryForm.prefixo = `${this.linhaForm.chegada.trim()} - ${this.linhaForm.partida.trim()}`;
     }
 
-    // Create temporary selectedLinha context
-    this.selectedLinha = {
+    const matched = [...this.linhasAtivas, ...this.linhasInativas].find(
+      (l) => l.codigo === this.linhaForm.codigo && l.atendimento === this.linhaForm.atendimento
+    );
+    this.selectedLinha = matched || {
       id: Date.now(),
       codigo: this.linhaForm.codigo,
       atendimento: this.linhaForm.atendimento,
@@ -151,24 +168,38 @@ export class RotasComponent implements OnInit {
       nome: this.linhaForm.descricao,
       descricao: this.linhaForm.descricao,
       status: 'inativa',
-      rotas: {}
-    };}
+      rotas: {},
+    };
 
-  confirmSkipRota(): void {
-    this.showConfirmationModal = false;
-    this.activeStep = 'list';
-    this.refreshStoredLinhas();
+    this.enderecos = [];
+    this.searchQuery = '';
+    this.filteredParadas = [];
+    this.activeStep = 'edit_itinerary';
+    this.ensureTodasAsParadasLoaded();
   }
 
-  // --- Linha Cards Details & Actions ---
-  selectLinhaCard(linha: LinhaDetails): void {
+  confirmSkip(): void {
+    this.showConfirmationModal = false;
+    this.activeStep = 'list';
+    this.loadLinhas(true);
+  }
+
+  confirmSkipRota(): void {
+    this.confirmSkip();
+  }
+
+  // --- Modal View Details ---
+  openLinhaDetails(linha: LinhaDetails): void {
     this.selectedLinha = linha;
     this.showLinhaDetailsModal = true;
   }
 
+  selectLinhaCard(linha: LinhaDetails): void {
+    this.openLinhaDetails(linha);
+  }
+
   closeDetailsModal(): void {
     this.showLinhaDetailsModal = false;
-    this.selectedLinha = null;
   }
 
   editExistingItinerary(linha: LinhaDetails, sentido: 'IDA' | 'VOLTA'): void {
@@ -176,7 +207,6 @@ export class RotasComponent implements OnInit {
     this.selectedLinha = linha;
     this.itineraryForm.sentido = sentido;
 
-    // Fill form context from Linha
     this.linhaForm = {
       codigo: linha.codigo,
       atendimento: linha.atendimento,
@@ -185,17 +215,20 @@ export class RotasComponent implements OnInit {
       descricao: linha.descricao,
     };
 
-    if (sentido === 'IDA') {
-      this.itineraryForm.prefixo = linha.rotas.ida?.prefixo || `${linha.partida} - ${linha.chegada}`;
-      this.enderecos = linha.rotas.ida?.enderecos ? [...linha.rotas.ida.enderecos] : [];
+    const rota = sentido === 'IDA' ? linha.rotas?.ida : linha.rotas?.volta;
+    if (rota?.prefixo) {
+      this.itineraryForm.prefixo = rota.prefixo;
+    } else if (sentido === 'IDA') {
+      this.itineraryForm.prefixo = `${linha.partida} - ${linha.chegada}`;
     } else {
-      this.itineraryForm.prefixo = linha.rotas.volta?.prefixo || `${linha.chegada} - ${linha.partida}`;
-      this.enderecos = linha.rotas.volta?.enderecos ? [...linha.rotas.volta.enderecos] : [];
+      this.itineraryForm.prefixo = `${linha.chegada} - ${linha.partida}`;
     }
 
+    this.enderecos = rota?.enderecos ? [...rota.enderecos] : [];
     this.searchQuery = '';
     this.filteredParadas = [];
     this.activeStep = 'edit_itinerary';
+    this.ensureTodasAsParadasLoaded();
   }
 
   addNewItinerary(linha: LinhaDetails, sentido: 'IDA' | 'VOLTA'): void {
@@ -221,6 +254,7 @@ export class RotasComponent implements OnInit {
     this.searchQuery = '';
     this.filteredParadas = [];
     this.activeStep = 'edit_itinerary';
+    this.ensureTodasAsParadasLoaded();
   }
 
   // --- Step 3: Itinerary Editing Logic ---
@@ -237,7 +271,7 @@ export class RotasComponent implements OnInit {
       )
       .subscribe(() => {
         this.activeStep = 'list';
-        this.refreshStoredLinhas();
+        this.loadLinhas(true);
       });
   }
 
@@ -294,7 +328,6 @@ export class RotasComponent implements OnInit {
     this.filteredParadas = [];
     this.showParadasDropdown = false;
   }
-
 
   removeEndereco(index: number): void {
     this.enderecos.splice(index, 1);

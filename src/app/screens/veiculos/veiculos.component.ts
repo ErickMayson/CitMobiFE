@@ -8,13 +8,15 @@ import {
   Veiculo,
   ScheduleBlock,
 } from '../../models/veiculo.model';
+import { Motorista as MotoristaEntity } from '../../models/motorista.model';
 import { User } from '../../models/userLiteResponse.model';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { VeiculoService } from '../../services/veiculo.service';
 import { LoginService } from '../../services/login.service';
 import { MotoristaService } from '../../services/motorista.service';
 import { LinhaService } from '../../services/linha.service';
-import { formatPlate, formatOnlyNumbers } from '../../utils/mask.utils';
+import { formatPlate, formatOnlyNumbers, abbreviateName, formatCpf } from '../../utils/mask.utils';
+import { AbbreviateNamePipe } from '../../pipes/abbreviate-name.pipe';
 import {
   MOCK_MODELS as MODELS,
   MOCK_TYPES as TYPES,
@@ -28,7 +30,7 @@ import {
 @Component({
   selector: 'app-veiculos',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidebarComponent],
+  imports: [CommonModule, FormsModule, SidebarComponent, AbbreviateNamePipe],
   templateUrl: './veiculos.component.html',
   styleUrls: ['./veiculos.component.scss'],
 })
@@ -94,6 +96,10 @@ export class VeiculosComponent implements OnInit {
   mockDrivers: string[] = MOCK_DRIVERS;
   mockRoutes: string[] = MOCK_LINHAS;
 
+  availableDrivers: MotoristaEntity[] = [];
+  filteredDrivers: MotoristaEntity[] = [];
+  isDriverDropdownOpen: boolean = false;
+
   daysOfWeek = [
     { code: 'SEG', label: 'Seg' },
     { code: 'TER', label: 'Ter' },
@@ -124,21 +130,103 @@ export class VeiculosComponent implements OnInit {
   }
 
   ensureDriversLoaded(): void {
-    if (this.driversLoaded) return;
+    if (this.driversLoaded && this.availableDrivers.length > 0) {
+      this.filterDrivers(this.driverForm.name);
+      return;
+    }
     this.isLoadingDrivers = true;
     this.motoristaService.getMotoristas().subscribe({
       next: (motoristas) => {
         if (motoristas && motoristas.length > 0) {
+          this.availableDrivers = motoristas;
           this.mockDrivers = motoristas.map((m) => m.nome);
+        } else {
+          this.availableDrivers = this.mockDrivers.map((name, i) => ({
+            id: String(i + 1),
+            nome: name,
+            cpf: '',
+            telefone: '',
+            status: 'AGUARDANDO',
+            horarios: [],
+          }));
         }
+        this.filterDrivers(this.driverForm.name);
         this.driversLoaded = true;
         this.isLoadingDrivers = false;
       },
       error: () => {
+        this.availableDrivers = this.mockDrivers.map((name, i) => ({
+          id: String(i + 1),
+          nome: name,
+          cpf: '',
+          telefone: '',
+          status: 'AGUARDANDO',
+          horarios: [],
+        }));
+        this.filterDrivers(this.driverForm.name);
         this.driversLoaded = true;
         this.isLoadingDrivers = false;
       },
     });
+  }
+
+  onDriverInputFocus(): void {
+    this.ensureDriversLoaded();
+    this.isDriverDropdownOpen = true;
+    this.filterDrivers(this.driverForm.name);
+  }
+
+  onDriverInputChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.driverForm.name = input.value;
+    this.ensureDriversLoaded();
+    this.isDriverDropdownOpen = true;
+    this.filterDrivers(input.value);
+  }
+
+  onDriverInputBlur(): void {
+    setTimeout(() => {
+      this.isDriverDropdownOpen = false;
+    }, 200);
+  }
+
+  selectDriver(driver: MotoristaEntity): void {
+    this.driverForm.name = driver.nome;
+    this.isDriverDropdownOpen = false;
+  }
+
+  filterDrivers(term?: string): void {
+    const query = (term !== undefined ? term : this.driverForm.name || '').trim().toLowerCase();
+    if (!query) {
+      this.filteredDrivers = [...this.availableDrivers];
+      return;
+    }
+
+    const normalizedQuery = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    this.filteredDrivers = this.availableDrivers.filter((driver) => {
+      const normName = (driver.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const normCpf = (driver.cpf || '').replace(/\D/g, '');
+      const cleanDigits = query.replace(/\D/g, '');
+
+      const matchesName = normName.includes(normalizedQuery);
+      const matchesCpf = cleanDigits.length > 0 && normCpf.includes(cleanDigits);
+
+      return matchesName || matchesCpf;
+    });
+  }
+
+  formatCpf(cpf: string): string {
+    return formatCpf(cpf);
+  }
+
+  getInitials(name: string): string {
+    if (!name) return 'M';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
   }
 
   ensureRoutesLoaded(): void {

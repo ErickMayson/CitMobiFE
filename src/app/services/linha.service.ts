@@ -40,6 +40,8 @@ export class LinhaService {
 
   private activeLinhas: LinhaDetails[] = [];
   private inactiveLinhas: LinhaDetails[] = [];
+  private cachedLinhas: LinhaDetails[] | null = null;
+  private cachedParadas: any[] | null = null;
 
   private readonly hardcodedLines = [
     { id: '3301', atendimento: '10', partida: 'Term. Amaral Gurgel', chegada: 'Term. Pq. D. Pedro II', desc: 'Term. Amaral Gurgel / Term. Pq. D. Pedro II', status: 'ativa' as const },
@@ -60,8 +62,17 @@ export class LinhaService {
     this.defaultLines = [...this.hardcodedLines, ...this.loadCustomLinhasFromStorage()];
   }
 
+  clearCache(): void {
+    this.cachedLinhas = null;
+    this.cachedParadas = null;
+  }
+
   /** Queries all Lines and their child Rotas dynamically from the backend DB */
-  getLinhas(): Observable<LinhaDetails[]> {
+  getLinhas(forceRefresh: boolean = false): Observable<LinhaDetails[]> {
+    if (!forceRefresh && this.cachedLinhas) {
+      return of(this.cachedLinhas);
+    }
+
     const headers = this.loginService.getAuthHeaders();
 
     const requests = this.defaultLines.map((lineDef) => {
@@ -204,11 +215,13 @@ export class LinhaService {
         );
       }),
       tap((results) => {
+        this.cachedLinhas = results;
         this.activeLinhas = results.filter((l) => l.status === 'ativa');
         this.inactiveLinhas = results.filter((l) => l.status === 'inativa');
       }),
       catchError(() => {
         const fallbackLinhas = this.buildFallbackLinhas();
+        this.cachedLinhas = fallbackLinhas;
         this.activeLinhas = fallbackLinhas.filter((l) => l.status === 'ativa');
         this.inactiveLinhas = fallbackLinhas.filter((l) => l.status === 'inativa');
         return of(fallbackLinhas);
@@ -283,6 +296,7 @@ export class LinhaService {
 
     return request$.pipe(
       tap(() => {
+        this.clearCache();
         if (isNew) {
           this.defaultLines.push({
             id: linhaForm.codigo.trim(),
@@ -393,6 +407,7 @@ export class LinhaService {
       })
       .pipe(
         tap(() => {
+          this.clearCache();
           this.updateLinhaInStore(linhaId.trim(), atendimento.trim(), sentido, prefixo, enderecos);
         }),
         catchError((err) => {
@@ -408,6 +423,10 @@ export class LinhaService {
 
   /** Fetch all registered stops for a municipality from backend, optionally filtering by logradouro */
   getParadas(municipio: number, logradouro?: string): Observable<any[]> {
+    if (!logradouro && this.cachedParadas && this.cachedParadas.length > 0) {
+      return of(this.cachedParadas);
+    }
+
     const headers = this.loginService.getAuthHeaders();
     const params: any = { municipio: municipio.toString() };
     if (logradouro) {
@@ -418,14 +437,24 @@ export class LinhaService {
       params,
     }).pipe(
       map(res => {
+        let result: any[] = [];
         if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
-          return res.data;
+          result = res.data;
+        } else {
+          result = this.filterMockParadas(logradouro);
         }
-        return this.filterMockParadas(logradouro);
+
+        if (!logradouro) {
+          this.cachedParadas = result;
+        }
+        return result;
       }),
       catchError(() => {
-        console.warn('Backend /paradas unreachable. Falling back to mock data.');
-        return of(this.filterMockParadas(logradouro));
+        const fallback = this.filterMockParadas(logradouro);
+        if (!logradouro) {
+          this.cachedParadas = fallback;
+        }
+        return of(fallback);
       })
     );
   }
@@ -475,6 +504,7 @@ export class LinhaService {
   }
 
   toggleLinhaStatus(linha: LinhaDetails): void {
+    this.clearCache();
     const newStatus: 'ativa' | 'inativa' = linha.status === 'ativa' ? 'inativa' : 'ativa';
     linha.status = newStatus;
 

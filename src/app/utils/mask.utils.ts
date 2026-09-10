@@ -76,3 +76,42 @@ export function formatOnlyNumbers(value: string, maxLength?: number): string {
   const digits = value.replace(/\D/g, '');
   return maxLength ? digits.slice(0, maxLength) : digits;
 }
+
+/**
+ * Abbreviates middle names to First Letter and dot (.) if person has more than 2 names.
+ * Never abbreviates the first and last name.
+ * Connectors/prepositions (de, da, do, das, dos, e) are preserved.
+ *
+ * Examples:
+ * - "Pedro Oliveira" -> "Pedro Oliveira"
+ * - "ANTONIO SEBASTIÃO FERREIRA" -> "ANTONIO S. FERREIRA"
+ * - "Maria Aparecida dos Santos" -> "Maria A. dos Santos"
+ * - "Carlos Eduardo da Silva Santos" -> "Carlos E. da S. Santos"
+ */
+export function abbreviateName(fullName: string | null | undefined): string {
+  if (!fullName || typeof fullName !== 'string') return '';
+  const trimmed = fullName.trim();
+  if (!trimmed) return '';
+
+  const words = trimmed.split(/\s+/);
+  if (words.length <= 2) {
+    return trimmed;
+  }
+
+  const prepositions = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'del', 'du', 'di']);
+
+  const first = words[0];
+  const last = words[words.length - 1];
+  const middleWords = words.slice(1, -1);
+
+  const processedMiddles = middleWords.map((word) => {
+    const lower = word.toLowerCase();
+    if (prepositions.has(lower)) {
+      return word;
+    }
+    return `${word.charAt(0).toUpperCase()}.`;
+  });
+
+  return [first, ...processedMiddles, last].join(' ');
+}
+

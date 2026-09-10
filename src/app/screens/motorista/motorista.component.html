@@ -60,8 +60,7 @@
             <div class="driver-profile">
               <div class="driver-avatar">{{ getInitials(motorista.nome) }}</div>
               <div class="driver-names">
-                <h3 class="driver-name">{{ motorista.nome }}</h3>
-                <span class="driver-id">ID: {{ motorista.id }}</span>
+                <h3 class="driver-name" [title]="motorista.nome">{{ motorista.nome | abbreviateName }}</h3>
               </div>
             </div>
             <span
@@ -242,7 +241,6 @@
             <div class="info-box">
               <h3>Informações do Motorista</h3>
               <p><strong>Nome:</strong> {{ selectedMotorista.nome }}</p>
-              <p><strong>ID:</strong> {{ selectedMotorista.id }}</p>
               <p><strong>CPF:</strong> {{ selectedMotorista.cpf }}</p>
 
               <div class="form-group" style="margin-top: 16px">
@@ -392,64 +390,92 @@
       </div>
 
       <div class="modal-body">
-        <div class="form-group">
-          <label>Veículo</label>
-          <select [(ngModel)]="horarioForm.veiculoId" class="form-control">
-            <option value="">Selecione o veículo</option>
-            <option
-              *ngFor="let veiculo of veiculosDisponiveis"
-              [value]="veiculo.id"
-            >
-              {{ veiculo.placa }} - {{ veiculo.modelo }}
-            </option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Linha</label>
-          <select [(ngModel)]="horarioForm.rotaId" class="form-control">
-            <option value="">Selecione a linha</option>
-            <option *ngFor="let linha of linhasDisponiveis" [value]="linha.id">
-              {{ linha.nome }}
-            </option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Horário de Trabalho</label>
-          <div class="time-selector">
-            <div class="time-input-group">
-              <label>Início</label>
-              <input
-                type="time"
-                [(ngModel)]="horarioForm.startTime"
-                class="form-control-time"
-              />
+        <!-- Skeleton loading state while fetching vehicles and routes -->
+        <div class="modal-skeleton-body" *ngIf="isLoadingVeiculosLinhas">
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-shimmer skeleton-input"></div>
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-shimmer skeleton-input"></div>
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-input-row">
+              <div class="skeleton-shimmer skeleton-input-half"></div>
+              <div class="skeleton-shimmer skeleton-input-half"></div>
             </div>
-            <span class="time-separator">até</span>
-            <div class="time-input-group">
-              <label>Fim</label>
-              <input
-                type="time"
-                [(ngModel)]="horarioForm.endTime"
-                class="form-control-time"
-              />
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-chips-row">
+              <div class="skeleton-shimmer skeleton-chip" *ngFor="let d of [1,2,3,4,5,6,7]"></div>
             </div>
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Dias da Semana</label>
-          <div class="days-selector">
-            <button
-              *ngFor="let day of daysOfWeek"
-              [class.selected]="isHorarioDaySelected(day.code)"
-              (click)="toggleHorarioDay(day.code)"
-              class="day-toggle-btn"
-              type="button"
-            >
-              {{ day.label }}
-            </button>
+        <!-- Form content -->
+        <div *ngIf="!isLoadingVeiculosLinhas">
+          <div class="form-group">
+            <label>Veículo</label>
+            <select [(ngModel)]="horarioForm.veiculoId" class="form-control">
+              <option value="">Selecione o veículo</option>
+              <option
+                *ngFor="let veiculo of veiculosDisponiveis"
+                [value]="veiculo.id"
+              >
+                {{ veiculo.placa }} - {{ veiculo.modelo }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Linha</label>
+            <select [(ngModel)]="horarioForm.rotaId" class="form-control">
+              <option value="">Selecione a linha</option>
+              <option *ngFor="let linha of linhasDisponiveis" [value]="linha.id">
+                {{ linha.nome }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Horário de Trabalho</label>
+            <div class="time-selector">
+              <div class="time-input-group">
+                <label>Início</label>
+                <input
+                  type="time"
+                  [(ngModel)]="horarioForm.startTime"
+                  class="form-control-time"
+                />
+              </div>
+              <span class="time-separator">até</span>
+              <div class="time-input-group">
+                <label>Fim</label>
+                <input
+                  type="time"
+                  [(ngModel)]="horarioForm.endTime"
+                  class="form-control-time"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Dias da Semana</label>
+            <div class="days-selector">
+              <button
+                *ngFor="let day of daysOfWeek"
+                [class.selected]="isHorarioDaySelected(day.code)"
+                (click)="toggleHorarioDay(day.code)"
+                class="day-toggle-btn"
+                type="button"
+              >
+                {{ day.label }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -458,7 +484,7 @@
         <button class="btn-secondary" (click)="closeAddHorarioModal()">
           Cancelar
         </button>
-        <button class="btn-primary" (click)="handleAddHorario()">
+        <button class="btn-primary" (click)="handleAddHorario()" [disabled]="isLoadingVeiculosLinhas">
           Adicionar Horário
         </button>
       </div>
@@ -478,64 +504,92 @@
       </div>
 
       <div class="modal-body">
-        <div class="form-group">
-          <label>Veículo</label>
-          <select [(ngModel)]="horarioForm.veiculoId" class="form-control">
-            <option value="">Selecione o veículo</option>
-            <option
-              *ngFor="let veiculo of veiculosDisponiveis"
-              [value]="veiculo.id"
-            >
-              {{ veiculo.placa }} - {{ veiculo.modelo }}
-            </option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Linha</label>
-          <select [(ngModel)]="horarioForm.rotaId" class="form-control">
-            <option value="">Selecione a linha</option>
-            <option *ngFor="let linha of linhasDisponiveis" [value]="linha.id">
-              {{ linha.nome }}
-            </option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Horário de Trabalho</label>
-          <div class="time-selector">
-            <div class="time-input-group">
-              <label>Início</label>
-              <input
-                type="time"
-                [(ngModel)]="horarioForm.startTime"
-                class="form-control-time"
-              />
+        <!-- Skeleton loading state while fetching vehicles and routes -->
+        <div class="modal-skeleton-body" *ngIf="isLoadingVeiculosLinhas">
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-shimmer skeleton-input"></div>
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-shimmer skeleton-input"></div>
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-input-row">
+              <div class="skeleton-shimmer skeleton-input-half"></div>
+              <div class="skeleton-shimmer skeleton-input-half"></div>
             </div>
-            <span class="time-separator">até</span>
-            <div class="time-input-group">
-              <label>Fim</label>
-              <input
-                type="time"
-                [(ngModel)]="horarioForm.endTime"
-                class="form-control-time"
-              />
+          </div>
+          <div class="skeleton-field">
+            <div class="skeleton-shimmer skeleton-label"></div>
+            <div class="skeleton-chips-row">
+              <div class="skeleton-shimmer skeleton-chip" *ngFor="let d of [1,2,3,4,5,6,7]"></div>
             </div>
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Dias da Semana</label>
-          <div class="days-selector">
-            <button
-              *ngFor="let day of daysOfWeek"
-              [class.selected]="isHorarioDaySelected(day.code)"
-              (click)="toggleHorarioDay(day.code)"
-              class="day-toggle-btn"
-              type="button"
-            >
-              {{ day.label }}
-            </button>
+        <!-- Form content -->
+        <div *ngIf="!isLoadingVeiculosLinhas">
+          <div class="form-group">
+            <label>Veículo</label>
+            <select [(ngModel)]="horarioForm.veiculoId" class="form-control">
+              <option value="">Selecione o veículo</option>
+              <option
+                *ngFor="let veiculo of veiculosDisponiveis"
+                [value]="veiculo.id"
+              >
+                {{ veiculo.placa }} - {{ veiculo.modelo }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Linha</label>
+            <select [(ngModel)]="horarioForm.rotaId" class="form-control">
+              <option value="">Selecione a linha</option>
+              <option *ngFor="let linha of linhasDisponiveis" [value]="linha.id">
+                {{ linha.nome }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Horário de Trabalho</label>
+            <div class="time-selector">
+              <div class="time-input-group">
+                <label>Início</label>
+                <input
+                  type="time"
+                  [(ngModel)]="horarioForm.startTime"
+                  class="form-control-time"
+                />
+              </div>
+              <span class="time-separator">até</span>
+              <div class="time-input-group">
+                <label>Fim</label>
+                <input
+                  type="time"
+                  [(ngModel)]="horarioForm.endTime"
+                  class="form-control-time"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label>Dias da Semana</label>
+            <div class="days-selector">
+              <button
+                *ngFor="let day of daysOfWeek"
+                [class.selected]="isHorarioDaySelected(day.code)"
+                (click)="toggleHorarioDay(day.code)"
+                class="day-toggle-btn"
+                type="button"
+              >
+                {{ day.label }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -544,7 +598,7 @@
         <button class="btn-secondary" (click)="closeEditHorarioModal()">
           Cancelar
         </button>
-        <button class="btn-primary" (click)="handleEditHorario()">
+        <button class="btn-primary" (click)="handleEditHorario()" [disabled]="isLoadingVeiculosLinhas">
           Salvar Alterações
         </button>
       </div>

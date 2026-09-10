@@ -69,7 +69,6 @@
               </div>
               <div class="vehicle-identifiers">
                 <h3 class="vehicle-plate">{{ veiculo.plate }}</h3>
-                <span class="vehicle-id">ID: {{ veiculo.id }}</span>
               </div>
             </div>
             <span
@@ -249,7 +248,6 @@
             <div class="info-box">
               <h3>Informações do Veículo</h3>
               <p><strong>Placa:</strong> {{ selectedVeiculo.plate }}</p>
-              <p><strong>ID:</strong> {{ selectedVeiculo.id }}</p>
               <p><strong>Modelo:</strong> {{ selectedVeiculo.model }}</p>
               <p><strong>Tipo:</strong> {{ selectedVeiculo.type }}</p>
               <p>
@@ -374,7 +372,7 @@
                 *ngFor="let driver of selectedVeiculo.drivers; let i = index"
               >
                 <div class="item-content">
-                  <span class="item-name">{{ driver.name }}</span>
+                  <span class="item-name" [title]="driver.name">{{ driver.name | abbreviateName }}</span>
                   <span class="item-time"
                     >{{ driver.startTime }} - {{ driver.endTime }}</span
                   >
@@ -484,21 +482,40 @@
 
         <!-- Form content -->
         <div *ngIf="!isLoadingDrivers">
-          <div class="form-group">
+          <div class="form-group autocomplete-container">
             <label>Nome do Motorista</label>
-            <input
-              type="text"
-              placeholder="Digite ou selecione..."
-              [(ngModel)]="driverForm.name"
-              list="drivers-list"
-              class="form-control"
-            />
-            <datalist id="drivers-list">
-              <option
-                *ngFor="let driver of mockDrivers"
-                [value]="driver"
-              ></option>
-            </datalist>
+            <div class="input-with-icon">
+              <input
+                type="text"
+                placeholder="Digite para buscar motorista..."
+                [(ngModel)]="driverForm.name"
+                (focus)="onDriverInputFocus()"
+                (input)="onDriverInputChange($event)"
+                (blur)="onDriverInputBlur()"
+                class="form-control"
+                autocomplete="off"
+              />
+              <span class="search-spinner" *ngIf="isLoadingDrivers">⏳</span>
+            </div>
+
+            <!-- Dynamic Autocomplete Dropdown List -->
+            <div class="autocomplete-dropdown" *ngIf="isDriverDropdownOpen && !isLoadingDrivers">
+              <div
+                class="autocomplete-item"
+                *ngFor="let driver of filteredDrivers"
+                (mousedown)="selectDriver(driver)"
+              >
+                <div class="item-avatar">{{ getInitials(driver.nome) }}</div>
+                <div class="item-details">
+                  <span class="item-name">{{ driver.nome | abbreviateName }}</span>
+                  <span class="item-cpf" *ngIf="driver.cpf">CPF: {{ formatCpf(driver.cpf) }}</span>
+                </div>
+                <span class="item-status" [ngClass]="driver.status.toLowerCase()">{{ driver.status || 'Ativo' }}</span>
+              </div>
+              <div class="autocomplete-empty" *ngIf="filteredDrivers.length === 0">
+                <span>Nenhum motorista encontrado</span>
+              </div>
+            </div>
           </div>
 
           <div class="form-group" style="margin-top: 16px;">
@@ -588,21 +605,40 @@
 
         <!-- Form content -->
         <div *ngIf="!isLoadingDrivers">
-          <div class="form-group">
+          <div class="form-group autocomplete-container">
             <label>Nome do Motorista</label>
-            <input
-              type="text"
-              placeholder="Digite ou selecione..."
-              [(ngModel)]="driverForm.name"
-              list="drivers-list-edit"
-              class="form-control"
-            />
-            <datalist id="drivers-list-edit">
-              <option
-                *ngFor="let driver of mockDrivers"
-                [value]="driver"
-              ></option>
-            </datalist>
+            <div class="input-with-icon">
+              <input
+                type="text"
+                placeholder="Digite para buscar motorista..."
+                [(ngModel)]="driverForm.name"
+                (focus)="onDriverInputFocus()"
+                (input)="onDriverInputChange($event)"
+                (blur)="onDriverInputBlur()"
+                class="form-control"
+                autocomplete="off"
+              />
+              <span class="search-spinner" *ngIf="isLoadingDrivers">⏳</span>
+            </div>
+
+            <!-- Dynamic Autocomplete Dropdown List -->
+            <div class="autocomplete-dropdown" *ngIf="isDriverDropdownOpen && !isLoadingDrivers">
+              <div
+                class="autocomplete-item"
+                *ngFor="let driver of filteredDrivers"
+                (mousedown)="selectDriver(driver)"
+              >
+                <div class="item-avatar">{{ getInitials(driver.nome) }}</div>
+                <div class="item-details">
+                  <span class="item-name">{{ driver.nome | abbreviateName }}</span>
+                  <span class="item-cpf" *ngIf="driver.cpf">CPF: {{ formatCpf(driver.cpf) }}</span>
+                </div>
+                <span class="item-status" [ngClass]="driver.status.toLowerCase()">{{ driver.status || 'Ativo' }}</span>
+              </div>
+              <div class="autocomplete-empty" *ngIf="filteredDrivers.length === 0">
+                <span>Nenhum motorista encontrado</span>
+              </div>
+            </div>
           </div>
 
           <div class="form-group" style="margin-top: 16px;">

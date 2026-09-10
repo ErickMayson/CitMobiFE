@@ -2,7 +2,8 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
-import { MockMotorista, ENABLE_DEMO_MOCKUP, DEMO_MOCK_MOTORISTA } from '../mock-data/mock-data';
+import { Motorista } from '../models/motorista.model';
+import { ENABLE_DEMO_MOCKUP, DEMO_MOCK_MOTORISTA } from '../mock-data/mock-data';
 import { environment } from '../../../environments/enviroment';
 import { LoginService } from './login.service';
 
@@ -11,30 +12,32 @@ import { LoginService } from './login.service';
 })
 export class MotoristaService {
   private apiUrl = environment.apiUrl;
-  private cachedMotoristas: MockMotorista[] | null = null;
+  private cachedMotoristas: Motorista[] | null = null;
 
-  constructor(private http: HttpClient, private loginService: LoginService) {}
+  constructor(
+    private http: HttpClient,
+    private loginService: LoginService
+  ) {}
 
-  getMotoristas(forceRefresh: boolean = false): Observable<MockMotorista[]> {
+  getMotoristas(forceRefresh: boolean = false): Observable<Motorista[]> {
     if (!forceRefresh && this.cachedMotoristas) {
       return of(this.cachedMotoristas);
     }
 
     const headers = this.loginService.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/v1/api/motoristas`, { headers }).pipe(
-      map(res => {
-        const list = res.data || [];
-        if (list.length === 0 && ENABLE_DEMO_MOCKUP) {
-          this.cachedMotoristas = [DEMO_MOCK_MOTORISTA];
-          return this.cachedMotoristas;
-        }
+      map((res) => {
+        const rawList = this.extractArray(res);
+        const list: Motorista[] = rawList.map((item) => this.normalizeMotorista(item));
+
         this.cachedMotoristas = list;
         return list;
       }),
       catchError(() => {
         if (ENABLE_DEMO_MOCKUP) {
-          this.cachedMotoristas = [DEMO_MOCK_MOTORISTA];
-          return of(this.cachedMotoristas);
+          const fallback = [this.normalizeMotorista(DEMO_MOCK_MOTORISTA)];
+          this.cachedMotoristas = fallback;
+          return of(fallback);
         }
         return of([]);
       })
@@ -45,19 +48,31 @@ export class MotoristaService {
     this.cachedMotoristas = null;
   }
 
-  addMotorista(motorista: MockMotorista): Observable<MockMotorista> {
+  addMotorista(motorista: Partial<Motorista>): Observable<Motorista> {
     this.clearCache();
     const headers = this.loginService.getAuthHeaders();
-    return this.http.post<any>(`${this.apiUrl}/v1/api/motoristas`, motorista, { headers }).pipe(
-      map(res => res.data || motorista)
+    const currentUser = this.loginService.currentUserValue;
+    const payload = {
+      ...motorista,
+      operadorId: motorista.operadorId || currentUser?.operador?.id,
+    };
+
+    return this.http.post<any>(`${this.apiUrl}/v1/api/motoristas`, payload, { headers }).pipe(
+      map((res) => {
+        const data = res?.data || res;
+        return this.normalizeMotorista(data);
+      })
     );
   }
 
-  updateMotorista(motorista: MockMotorista): Observable<MockMotorista> {
+  updateMotorista(motorista: Motorista): Observable<Motorista> {
     this.clearCache();
     const headers = this.loginService.getAuthHeaders();
     return this.http.put<any>(`${this.apiUrl}/v1/api/motoristas/${motorista.id}`, motorista, { headers }).pipe(
-      map(res => res.data || motorista)
+      map((res) => {
+        const data = res?.data || res;
+        return this.normalizeMotorista(data);
+      })
     );
   }
 
@@ -65,7 +80,40 @@ export class MotoristaService {
     this.clearCache();
     const headers = this.loginService.getAuthHeaders();
     return this.http.delete<any>(`${this.apiUrl}/v1/api/motoristas/${id}`, { headers }).pipe(
-      map(res => res.status === '200' || res.status === 200 || !res.status)
+      map((res) => res?.status === '200' || res?.status === 200 || res?.success || !res?.status)
     );
+  }
+
+  private extractArray(res: any): any[] {
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.content)) return res.content;
+    if (res.data && Array.isArray(res.data.motoristas)) return res.data.motoristas;
+    return [];
+  }
+
+  private normalizeMotorista(raw: any): Motorista {
+    if (!raw) {
+      return {
+        id: '',
+        nome: '',
+        cpf: '',
+        telefone: '',
+        status: 'FORA DE TURNO',
+        horarios: [],
+      };
+    }
+
+    return {
+      id: String(raw.id || raw.uuid || raw.usuarioId || raw.cpf || ''),
+      nome: raw.nome || raw.name || raw.login || 'Motorista',
+      cpf: raw.cpf || raw.login || '',
+      login: raw.login || undefined,
+      telefone: raw.telefone || raw.phone || '',
+      operadorId: raw.operadorId || raw.operador?.id || undefined,
+      status: raw.status || 'FORA DE TURNO',
+      horarios: Array.isArray(raw.horarios) ? raw.horarios : [],
+    };
   }
 }

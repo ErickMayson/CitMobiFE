@@ -23,8 +23,27 @@
         </button>
       </div>
 
+      <!-- Loading Skeleton State -->
+      <div class="rotas-section" *ngIf="isLoadingLinhas">
+        <h2 class="section-title">Carregando linhas...</h2>
+        <div class="rotas-grid">
+          <div class="rota-skeleton-card" *ngFor="let s of [1,2,3,4,5,6]">
+            <div class="skeleton-header-row">
+              <div class="skeleton-shimmer skeleton-badge"></div>
+              <div class="skeleton-shimmer skeleton-tag"></div>
+            </div>
+            <div class="skeleton-shimmer skeleton-title"></div>
+            <div class="skeleton-shimmer skeleton-desc"></div>
+            <div class="skeleton-tags-row">
+              <div class="skeleton-shimmer skeleton-pill"></div>
+              <div class="skeleton-shimmer skeleton-pill"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Active Lines Section -->
-      <div class="rotas-section">
+      <div class="rotas-section" *ngIf="!isLoadingLinhas">
         <h2 class="section-title">Linhas em Operação</h2>
         <div class="rotas-grid">
           <div

@@ -11,7 +11,7 @@ import {
   MOCK_VEHICLES_BY_LINHA,
   MOCK_RESERVE_VEHICLES_BY_HOUR,
   MOCK_VEHICLE_INCIDENTS,
-} from '../mock-data/mock-data';
+} from '../mock-data/dashboard.mock';
 
 @Injectable({
   providedIn: 'root',

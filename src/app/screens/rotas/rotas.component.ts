@@ -6,7 +6,7 @@ import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { User } from '../../models/userLiteResponse.model';
 import { LoginService } from '../../services/login.service';
 import { LinhaService, LinhaDetails, LinhaAssignedVehicle } from '../../services/linha.service';
-import { MockEndereco as Endereco } from '../../mock-data/mock-data';
+import { Endereco } from '../../models/endereco.model';
 
 export interface LinhaTag {
   label: string;

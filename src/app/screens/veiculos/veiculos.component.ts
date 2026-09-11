@@ -18,15 +18,16 @@ import { MotoristaService } from '../../services/motorista.service';
 import { LinhaService } from '../../services/linha.service';
 import { formatPlate, formatOnlyNumbers, abbreviateName, formatCpf } from '../../utils/mask.utils';
 import { AbbreviateNamePipe } from '../../pipes/abbreviate-name.pipe';
-import {
-  MOCK_MODELS as MODELS,
-  MOCK_TYPES as TYPES,
-  MOCK_GARAGES as GARAGES,
-  MOCK_DROPDOWN_DRIVERS as MOCK_DRIVERS,
-  MOCK_DROPDOWN_LINHAS as MOCK_LINHAS,
-  ENABLE_DEMO_MOCKUP,
-  DEMO_MOCK_VEICULO,
-} from '../../mock-data/mock-data';
+
+const DEFAULT_MODELS = ['Apache VIP IV', 'CAIO Millennium', 'Caio Millennium III', 'Apache VIP V', 'Millennium BRT'];
+const DEFAULT_TYPES = ['Básico', 'Padrão', 'Padrao', 'Articulado', 'Bi-articulado', 'BRT'];
+const DEFAULT_GARAGES = [
+  'Garagem Central',
+  'Garagem Norte',
+  'Garagem Sul',
+  'Garagem Leste',
+  'Garagem Oeste',
+];
 
 @Component({
   selector: 'app-veiculos',
@@ -49,7 +50,7 @@ export class VeiculosComponent implements OnInit {
   isSaving: boolean = false;
   errorMessage: string = '';
 
-  veiculos: Veiculo[] = ENABLE_DEMO_MOCKUP ? [DEMO_MOCK_VEICULO] : [];
+  veiculos: Veiculo[] = [];
 
   showAddModal = false;
   showEditModal = false;
@@ -90,11 +91,11 @@ export class VeiculosComponent implements OnInit {
 
   statusOrder = ['ATIVO', 'MANUTENCAO', 'INATIVO', 'SUCATEADO', 'VENDIDO'];
   availableStatuses = ['ATIVO', 'MANUTENCAO', 'INATIVO', 'SUCATEADO', 'VENDIDO'];
-  models = MODELS;
-  types = TYPES;
-  garages = GARAGES;
-  mockDrivers: string[] = MOCK_DRIVERS;
-  mockRoutes: string[] = MOCK_LINHAS;
+  models = DEFAULT_MODELS;
+  types = DEFAULT_TYPES;
+  garages = DEFAULT_GARAGES;
+  mockDrivers: string[] = [];
+  mockRoutes: string[] = [];
 
   availableDrivers: MotoristaEntity[] = [];
   filteredDrivers: MotoristaEntity[] = [];
@@ -142,32 +143,16 @@ export class VeiculosComponent implements OnInit {
           this.availableDrivers = motoristas;
           this.mockDrivers = motoristas.map((m) => m.nome);
         } else {
-          this.availableDrivers = this.mockDrivers.map((name, i) => ({
-            id: String(i + 1),
-            nome: name,
-            cpf: '',
-            cnhNumero: '',
-            cnhValidade: '',
-            telefone: '',
-            status: 'AGUARDANDO',
-            horarios: [],
-          }));
+          this.availableDrivers = [];
+          this.mockDrivers = [];
         }
         this.filterDrivers(this.driverForm.name);
         this.driversLoaded = true;
         this.isLoadingDrivers = false;
       },
       error: () => {
-        this.availableDrivers = this.mockDrivers.map((name, i) => ({
-          id: String(i + 1),
-          nome: name,
-          cpf: '',
-          cnhNumero: '',
-          cnhValidade: '',
-          telefone: '',
-          status: 'AGUARDANDO',
-          horarios: [],
-        }));
+        this.availableDrivers = [];
+        this.mockDrivers = [];
         this.filterDrivers(this.driverForm.name);
         this.driversLoaded = true;
         this.isLoadingDrivers = false;
@@ -243,6 +228,8 @@ export class VeiculosComponent implements OnInit {
           this.mockRoutes = linhas.map(
             (l) => l.descricao || `${l.codigo} - ${l.partida} / ${l.chegada}`
           );
+        } else {
+          this.mockRoutes = [];
         }
         this.routesLoaded = true;
         this.isLoadingRoutes = false;
@@ -274,9 +261,6 @@ export class VeiculosComponent implements OnInit {
     this.veiculoService.getVeiculos(forceRefresh).subscribe({
       next: (data) => {
         let list = (data || []) as Veiculo[];
-        if (ENABLE_DEMO_MOCKUP && !list.some((v) => v.plate === DEMO_MOCK_VEICULO.plate)) {
-          list = [DEMO_MOCK_VEICULO as unknown as Veiculo, ...list];
-        }
         list = list.map((v) => ({
           ...v,
           routes: this.consolidateVehicleRoutes(v.routes || []),
@@ -287,11 +271,6 @@ export class VeiculosComponent implements OnInit {
         this.checkQueryParamsForSelection();
       },
       error: (err) => {
-        if (ENABLE_DEMO_MOCKUP) {
-          this.veiculos = [DEMO_MOCK_VEICULO as unknown as Veiculo];
-          this.sortVeiculos();
-          this.checkQueryParamsForSelection();
-        }
         this.isLoading = false;
         if (err.status === 401 || err.status === 403) {
           this.loginService.logout();

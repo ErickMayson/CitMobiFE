@@ -3,7 +3,6 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { Motorista } from '../models/motorista.model';
-import { ENABLE_DEMO_MOCKUP, DEMO_MOCK_MOTORISTA } from '../mock-data/mock-data';
 import { environment } from '../../../environments/enviroment';
 import { LoginService } from './login.service';
 
@@ -33,14 +32,7 @@ export class MotoristaService {
         this.cachedMotoristas = list;
         return list;
       }),
-      catchError(() => {
-        if (ENABLE_DEMO_MOCKUP) {
-          const fallback = [this.normalizeMotorista(DEMO_MOCK_MOTORISTA)];
-          this.cachedMotoristas = fallback;
-          return of(fallback);
-        }
-        return of([]);
-      })
+      catchError(() => of([]))
     );
   }
 

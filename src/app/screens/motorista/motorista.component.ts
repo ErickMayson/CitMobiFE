@@ -11,12 +11,8 @@ import { VeiculoService } from '../../services/veiculo.service';
 import { LinhaService } from '../../services/linha.service';
 import { formatCpf, formatPhone, formatOnlyNumbers, abbreviateName } from '../../utils/mask.utils';
 import { AbbreviateNamePipe } from '../../pipes/abbreviate-name.pipe';
-import {
-  MOCK_VEICULOS_DISPONIVEIS as VEICULOS_DISPONIVEIS,
-  MOCK_LINHAS_DISPONIVEIS as LINHAS_DISPONIVEIS,
-  MOCK_OPERADORES,
-  MockOperador,
-} from '../../mock-data/mock-data';
+import { Operador } from '../../models/operador.model';
+import { OperadorService } from '../../services/operador.service';
 
 interface VeiculoItem {
   id: string | number;
@@ -57,9 +53,9 @@ export class MotoristaComponent implements OnInit {
   private veiculosLinhasLoaded: boolean = false;
 
   motoristas: Motorista[] = [];
-  veiculosDisponiveis: VeiculoItem[] = VEICULOS_DISPONIVEIS;
-  linhasDisponiveis: LinhaItem[] = LINHAS_DISPONIVEIS;
-  operadoresDisponiveis: MockOperador[] = MOCK_OPERADORES;
+  veiculosDisponiveis: VeiculoItem[] = [];
+  linhasDisponiveis: LinhaItem[] = [];
+  operadoresDisponiveis: Operador[] = [];
 
   showAddModal = false;
   showEditModal = false;
@@ -134,6 +130,7 @@ export class MotoristaComponent implements OnInit {
     private motoristaService: MotoristaService,
     private veiculoService: VeiculoService,
     private linhaService: LinhaService,
+    private operadorService: OperadorService,
     private router: Router,
     private route: ActivatedRoute
   ) {}
@@ -143,7 +140,19 @@ export class MotoristaComponent implements OnInit {
       this.currentUser = user;
     });
     this.loadMotoristas();
+    this.loadOperadores();
     setTimeout(() => (this.showSidebarContent = true), 100);
+  }
+
+  loadOperadores(): void {
+    this.operadorService.getOperadores().subscribe({
+      next: (ops) => {
+        this.operadoresDisponiveis = ops || [];
+      },
+      error: () => {
+        this.operadoresDisponiveis = [];
+      },
+    });
   }
 
   ensureVeiculosAndLinhasLoaded(): void {

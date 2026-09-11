@@ -1,10 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of, forkJoin } from 'rxjs';
-import { catchError, map, tap, switchMap, timeout } from 'rxjs/operators';
+import { catchError, map, tap } from 'rxjs/operators';
 import { LoginService } from './login.service';
+import { VeiculoService } from './veiculo.service';
+import { TelemetriaService } from './telemetria.service';
 import { environment } from '../../../environments/enviroment';
-import { MockRota, MockEndereco, MOCK_LINHAS_ATIVAS, MOCK_LINHAS_INATIVAS, MOCK_PARADAS, MOCK_VEICULOS } from '../mock-data/mock-data';
+import { Endereco } from '../models/endereco.model';
+import { Veiculo } from '../models/veiculo.model';
+import { TelemetriaVeiculo } from '../models/telemetria.model';
 
 export interface LinhaTelemetrySummary {
   veiculosTotal: number;
@@ -51,13 +55,13 @@ export interface LinhaDetails {
       id?: number;
       prefixo: string;
       sentido: 'IDA';
-      enderecos: MockEndereco[];
+      enderecos: Endereco[];
     };
     volta?: {
       id?: number;
       prefixo: string;
       sentido: 'VOLTA';
-      enderecos: MockEndereco[];
+      enderecos: Endereco[];
     };
   };
   telemetry?: LinhaTelemetrySummary;
@@ -69,33 +73,25 @@ export interface LinhaDetails {
 })
 export class LinhaService {
   private apiUrl = environment.apiUrl;
-  private static readonly CUSTOM_LINHAS_KEY = 'citmobi_custom_linhas';
 
   private activeLinhas: LinhaDetails[] = [];
   private inactiveLinhas: LinhaDetails[] = [];
   private cachedLinhas: LinhaDetails[] | null = null;
   private cachedParadas: any[] | null = null;
 
-  private readonly hardcodedLines = [
-    { id: '3301', atendimento: '10', partida: 'Term. São Miguel', chegada: 'Term. Pq. D. Pedro II', desc: 'Term. São Miguel - Term. Pq. D. Pedro II', status: 'ativa' as const },
-    { id: '1178', atendimento: '10', partida: 'Term. São Miguel', chegada: 'Pça. do Correio', desc: 'Term. São Miguel - Pça. do Correio', status: 'ativa' as const },
-    { id: '9051', atendimento: '10', partida: 'Term. Pinheiros', chegada: 'Lapa', desc: 'Term. Pinheiros - Lapa', status: 'ativa' as const },
-    { id: '8000', atendimento: '10', partida: 'Pça. Ramos de Azevedo', chegada: 'Term. Lapa', desc: 'Pça. Ramos de Azevedo - Term. Lapa', status: 'ativa' as const },
-    { id: '372F', atendimento: '10', partida: 'Univ. São Judas Tadeu', chegada: 'Metrô Bresser', desc: 'Univ. São Judas Tadeu - Metrô Bresser', status: 'ativa' as const },
-  ];
-
-  private defaultLines: { id: string; atendimento: string; partida: string; chegada: string; desc: string; status: 'ativa' | 'inativa' }[] = [];
-
-  constructor(private http: HttpClient, private loginService: LoginService) {
-    this.defaultLines = [...this.hardcodedLines, ...this.loadCustomLinhasFromStorage()];
-  }
+  constructor(
+    private http: HttpClient,
+    private loginService: LoginService,
+    private veiculoService: VeiculoService,
+    private telemetriaService: TelemetriaService
+  ) {}
 
   clearCache(): void {
     this.cachedLinhas = null;
     this.cachedParadas = null;
   }
 
-  /** Queries all Lines and their child Rotas dynamically from the backend DB */
+  /** Queries all Lines, their child Rotas, Vehicles, and Telemetry dynamically from backend */
   getLinhas(forceRefresh: boolean = false): Observable<LinhaDetails[]> {
     if (!forceRefresh && this.cachedLinhas) {
       return of(this.cachedLinhas);
@@ -103,184 +99,121 @@ export class LinhaService {
 
     const headers = this.loginService.getAuthHeaders();
 
-    const requests = this.defaultLines.map((lineDef) => {
-      // Step A: Load Linha Metadata
-      return this.http
-        .get<any>(`${this.apiUrl}/v1/api/linha`, {
-          headers,
-          params: {
-            linha: lineDef.id,
-            atendimento: lineDef.atendimento,
-            municipio: '3550308',
-          },
-        })
-        .pipe(
-          map((res) => {
-            if (res && res.data && res.data.linha) {
-              return res.data.linha;
-            }
-            return null;
-          }),
-          catchError(() => of(null))
-        );
-    });
+    return forkJoin({
+      linhasRes: this.http.get<any>(`${this.apiUrl}/v1/api/linhas`, { headers, params: { municipio: '3550308' } }).pipe(
+        catchError(() => of({ data: [] }))
+      ),
+      veiculos: this.veiculoService.getVeiculos(forceRefresh).pipe(
+        catchError(() => of([] as Veiculo[]))
+      ),
+      telemetria: this.telemetriaService.getVeiculosAtivos().pipe(
+        catchError(() => of([] as TelemetriaVeiculo[]))
+      ),
+    }).pipe(
+      map(({ linhasRes, veiculos, telemetria }) => {
+        let rawLinhas: any[] = [];
+        if (Array.isArray(linhasRes)) {
+          rawLinhas = linhasRes;
+        } else if (linhasRes && Array.isArray(linhasRes.data)) {
+          rawLinhas = linhasRes.data;
+        }
 
-    return forkJoin(requests).pipe(
-      // Step B: Load associated IDA/VOLTA Rotas for each loaded Linha
-      map((linhaResults) => {
-        const loadedLinhas: any[] = [];
-        linhaResults.forEach((l, index) => {
-          const lineDef = this.defaultLines[index];
-          if (l) {
-            const rawCodigo = l.codigoLinha || (typeof l.linhaId === 'string' ? l.linhaId : (l.linhaId?.linhaId || lineDef.id));
-            const rawAtendimento = l.atendimento || l.linhaAtendimento || (l.linhaId?.linhaAtendimento || lineDef.atendimento);
-            loadedLinhas.push({
-              codigo: String(rawCodigo).trim(),
-              atendimento: String(rawAtendimento).trim(),
-              descricao: l.linhaDescricao || `${lineDef.partida} - ${lineDef.chegada}`,
-              status: l.flagAtiva === 'S' ? 'ativa' : 'inativa',
-              isFromBackend: true
-            });
-          } else {
-            // Offline fallback
-            loadedLinhas.push({
-              codigo: lineDef.id,
-              atendimento: lineDef.atendimento,
-              descricao: `${lineDef.partida} - ${lineDef.chegada}`,
-              status: lineDef.status,
-              isFromBackend: false
+        const detailsList: LinhaDetails[] = rawLinhas.map((item) => {
+          const l = item.linha || item;
+          const codigo = String(l.codigoLinha || l.linhaId || '').trim();
+          const atendimento = String(l.atendimento || l.linhaAtendimento || '10').trim();
+          const descricao = l.linhaDescricao || l.descricao || codigo;
+          const parsed = this.parsePartidaChegada(descricao);
+          const flagAtiva = l.flagAtiva === 'S';
+
+          const rotasData = l.rotas || [];
+          const rotasObj: LinhaDetails['rotas'] = {};
+
+          if (Array.isArray(rotasData)) {
+            rotasData.forEach((r: any) => {
+              const sentido = String(r.linhaSentido || r.sentido || '').toUpperCase();
+              const paradasList: Endereco[] = [];
+
+              const itinParadas = r.itinerario?.paradas || r.paradas || [];
+              if (Array.isArray(itinParadas)) {
+                itinParadas.forEach((p: any, idx: number) => {
+                  const lat = Array.isArray(p.latLong) && p.latLong.length >= 2
+                    ? Number(p.latLong[0])
+                    : Number(p.latitude || 0);
+                  const lng = Array.isArray(p.latLong) && p.latLong.length >= 2
+                    ? Number(p.latLong[1])
+                    : Number(p.longitude || 0);
+
+                  paradasList.push({
+                    id: p.paradaId || p.id || idx,
+                    nome: p.logradouro || `Parada ${idx + 1}`,
+                    endereco: `${p.logradouro || ''}, ${p.numero || 'S/N'}`,
+                    cep: p.cep || '',
+                    lat,
+                    lng,
+                    ordem: idx,
+                  });
+                });
+              }
+
+              if (sentido === 'IDA') {
+                rotasObj.ida = {
+                  id: r.itinerario?.itinerarioId || r.id || 0,
+                  prefixo: r.prefixo || `${parsed.partida} - ${parsed.chegada}`,
+                  sentido: 'IDA',
+                  enderecos: paradasList,
+                };
+              } else if (sentido === 'VOLTA') {
+                rotasObj.volta = {
+                  id: r.itinerario?.itinerarioId || r.id || 0,
+                  prefixo: r.prefixo || `${parsed.chegada} - ${parsed.partida}`,
+                  sentido: 'VOLTA',
+                  enderecos: paradasList,
+                };
+              }
             });
           }
-        });
-        return loadedLinhas;
-      }),
 
-      // Query rotas in parallel for all lines
-      switchMap((linhas) => {
-        if (linhas.length === 0) return of([]);
+          const details: LinhaDetails = {
+            id: Number(l.id || this.getNumberFromString(codigo)),
+            codigo,
+            atendimento,
+            partida: parsed.partida,
+            chegada: parsed.chegada,
+            nome: descricao,
+            descricao,
+            status: flagAtiva ? 'ativa' : 'inativa',
+            rotas: rotasObj,
+          };
 
-        const rotaRequests = linhas.map((linha) => {
-          return this.http
-            .get<any>(`${this.apiUrl}/v1/api/rotas`, {
-              headers,
-              params: {
-                linha: linha.codigo,
-                atendimento: linha.atendimento,
-                municipio: '3550308',
-              },
-            })
-            .pipe(
-              map((res) => {
-                if (res && res.data && Array.isArray(res.data.rotaRecords)) {
-                  return res.data.rotaRecords;
-                }
-                return [];
-              }),
-      catchError(() => {
-        console.warn('Backend /paradas unreachable. Falling back to mock data.');
-        return of(MOCK_PARADAS);
-      })
-            );
+          this.attachFleetAndTelemetry(details, veiculos, telemetria);
+          return details;
         });
 
-        return forkJoin(rotaRequests).pipe(
-          map((rotasResults) => {
-            return linhas.map((linha, index) => {
-              const rotas = rotasResults[index];
-              const parsedName = this.parsePartidaChegada(linha.descricao);
-              
-              const details: LinhaDetails = {
-                id: this.getNumberFromString(linha.codigo),
-                codigo: linha.codigo,
-                atendimento: linha.atendimento,
-                partida: parsedName.partida || lineDefName(linha.codigo).partida,
-                chegada: parsedName.chegada || lineDefName(linha.codigo).chegada,
-                nome: linha.descricao,
-                descricao: linha.descricao,
-                status: linha.status,
-                rotas: {},
-              };
-
-              // Map IDA and VOLTA routes from response
-              rotas.forEach((r: any) => {
-                const sentido = String(r.linhaSentido).toUpperCase();
-                const paradas = r.itinerario && Array.isArray(r.itinerario.paradas)
-                  ? r.itinerario.paradas.map((p: any, idx: number) => {
-                      const lat = Array.isArray(p.latLong) && p.latLong.length >= 2 ? Number(p.latLong[0]) : 0;
-                      const lng = Array.isArray(p.latLong) && p.latLong.length >= 2 ? Number(p.latLong[1]) : 0;
-                      return {
-                        id: p.paradaId || idx,
-                        nome: p.logradouro || `Parada ${idx + 1}`,
-                        endereco: `${p.logradouro || ''}, ${p.numero || ''}`,
-                        cep: '',
-                        lat: lat,
-                        lng: lng,
-                        ordem: idx,
-                      } as MockEndereco;
-                    })
-                  : [];
-
-                if (sentido === 'IDA') {
-                  details.rotas.ida = {
-                    id: r.itinerario?.itinerarioId || 0,
-                    prefixo: r.prefixo || `${details.partida} - ${details.chegada}`,
-                    sentido: 'IDA',
-                    enderecos: paradas,
-                  };
-                } else if (sentido === 'VOLTA') {
-                  details.rotas.volta = {
-                    id: r.itinerario?.itinerarioId || 0,
-                    prefixo: r.prefixo || `${details.chegada} - ${details.partida}`,
-                    sentido: 'VOLTA',
-                    enderecos: paradas,
-                  };
-                }
-              });
-
-              // Attach Fleet allocation and Directional Telemetry
-              this.attachFleetAndTelemetry(details);
-
-              return details;
-            });
-          })
-        );
+        this.cachedLinhas = detailsList;
+        this.activeLinhas = detailsList.filter((l) => l.status === 'ativa');
+        this.inactiveLinhas = detailsList.filter((l) => l.status === 'inativa');
+        return detailsList;
       }),
-      tap((results) => {
-        this.cachedLinhas = results;
-        this.activeLinhas = results.filter((l) => l.status === 'ativa');
-        this.inactiveLinhas = results.filter((l) => l.status === 'inativa');
-      }),
-      catchError(() => {
-        const fallbackLinhas = this.buildFallbackLinhas();
-        this.cachedLinhas = fallbackLinhas;
-        this.activeLinhas = fallbackLinhas.filter((l) => l.status === 'ativa');
-        this.inactiveLinhas = fallbackLinhas.filter((l) => l.status === 'inativa');
-        return of(fallbackLinhas);
-      }),
-      timeout(15000)
+      catchError(() => of([]))
     );
-
-    // Helpers
-    const lineDefName = (code: string) => {
-      const match = this.defaultLines.find((x: any) => x.id === code);
-      return match ? { partida: match.partida, chegada: match.chegada } : { partida: 'Origem', chegada: 'Destino' };
-    };
   }
 
-  private attachFleetAndTelemetry(details: LinhaDetails): void {
-    const rawCode = details.codigo.replace('-', '').trim();
-    const matchingVehicles = MOCK_VEICULOS.filter((v) => {
+  private attachFleetAndTelemetry(
+    details: LinhaDetails,
+    veiculos: Veiculo[],
+    telemetria: TelemetriaVeiculo[]
+  ): void {
+    const rawCode = details.codigo.replace('-', '').trim().toLowerCase();
+    const cleanCode = details.codigo.trim().toLowerCase();
+
+    const matchingVehicles = veiculos.filter((v) => {
       if (!v.routes || v.routes.length === 0) return false;
       return v.routes.some((r) => {
-        const routeName = r.routeName || '';
+        const routeName = (r.routeName || '').toLowerCase();
         return (
-          routeName.includes(details.codigo) ||
-          routeName.includes(rawCode) ||
-          (details.codigo.includes('3301') && routeName.includes('3301')) ||
-          (details.codigo.includes('1178') && routeName.includes('1178')) ||
-          (details.codigo.includes('9051') && routeName.includes('9051')) ||
-          (details.codigo.includes('8000') && routeName.includes('8000')) ||
-          (details.codigo.includes('372F') && routeName.includes('372F'))
+          routeName.includes(cleanCode) ||
+          routeName.includes(rawCode)
         );
       });
     });
@@ -294,10 +227,19 @@ export class LinhaService {
       }));
       const driverNames = driverShifts.map((d) => d.name).filter(Boolean);
       const hasDriver = driverNames.length > 0;
-      // In urban bus fleet schedules, a full operating line shift expects 2 drivers for daily coverage
       const pendingDrivers = driverNames.length < 2;
-      
-      const sentido: 'IDA' | 'VOLTA' | 'GARAGEM' | 'INATIVO' = v.status === 'INATIVO' ? 'INATIVO' : 'IDA';
+
+      // Check live telemetry for directional status if available
+      const liveTel = telemetria.find(
+        (t) => t.placa.replace(/\D/g, '') === v.plate.replace(/\D/g, '') || t.veiculoId === Number(v.id)
+      );
+
+      let sentido: 'IDA' | 'VOLTA' | 'GARAGEM' | 'INATIVO' = 'IDA';
+      if (v.status === 'INATIVO') {
+        sentido = 'INATIVO';
+      } else if (liveTel?.sentido) {
+        sentido = liveTel.sentido;
+      }
 
       // Determine active driver based on schedule & current time
       let activeDriverName: string | undefined;
@@ -358,67 +300,7 @@ export class LinhaService {
     };
   }
 
-  private buildFallbackLinhas(): LinhaDetails[] {
-    return this.defaultLines.map((lineDef) => {
-      const details: LinhaDetails = {
-        id: this.getNumberFromString(lineDef.id),
-        codigo: lineDef.id,
-        atendimento: lineDef.atendimento,
-        partida: lineDef.partida,
-        chegada: lineDef.chegada,
-        nome: lineDef.desc,
-        descricao: lineDef.desc,
-        status: lineDef.status,
-        rotas: {},
-      };
-
-      // Seed 372F-10 with its 2 Rotas and 6 Paradas
-      if (lineDef.id.includes('372F')) {
-        const paradasIda = MOCK_PARADAS.slice(6, 12).map((p, idx) => ({
-          id: p.paradaId,
-          nome: p.logradouro,
-          endereco: `${p.logradouro}, ${p.numero}`,
-          cep: p.cep,
-          lat: p.latLong[0],
-          lng: p.latLong[1],
-          ordem: idx,
-        }));
-
-        const paradasVolta = [...paradasIda].reverse().map((p, idx) => ({
-          ...p,
-          ordem: idx,
-        }));
-
-        details.rotas = {
-          ida: {
-            id: 1,
-            prefixo: `${details.partida} - ${details.chegada}`,
-            sentido: 'IDA',
-            enderecos: paradasIda,
-          },
-          volta: {
-            id: 2,
-            prefixo: `${details.chegada} - ${details.partida}`,
-            sentido: 'VOLTA',
-            enderecos: paradasVolta,
-          },
-        };
-      }
-
-      this.attachFleetAndTelemetry(details);
-      return details;
-    });
-  }
-
-  getLinhasAtivas(): Observable<MockRota[]> {
-    return of([...MOCK_LINHAS_ATIVAS]);
-  }
-
-  getLinhasInativas(): Observable<MockRota[]> {
-    return of([...MOCK_LINHAS_INATIVAS]);
-  }
-
-  /** Saves a Linha record to the backend DB */
+  /** Saves a Linha record to backend DB */
   saveLinha(linhaForm: {
     codigo: string;
     atendimento: string;
@@ -428,8 +310,8 @@ export class LinhaService {
   }): Observable<any> {
     const headers = this.loginService.getAuthHeaders();
     const currentUser = this.loginService.currentUserValue;
-    const operadorCnpj = currentUser?.operador?.cnpj || '33333333000133';
-    const operadorRazao = currentUser?.operador?.razaoSocial || 'Viação Gato Preto LTDA';
+    const operadorCnpj = currentUser?.operador?.cnpj || '01234567890123';
+    const operadorRazao = currentUser?.operador?.razaoSocial || 'CitMobi Mobilidade Urbana';
 
     const linhaRecord = {
       linhaId: linhaForm.codigo.trim(),
@@ -443,96 +325,40 @@ export class LinhaService {
       flagIntermunicipal: 'N',
       flagMetro: 'N',
       flagTrem: 'N',
-      flagAtiva: 'N',
+      flagAtiva: 'S',
     };
 
-    const isNew = !this.defaultLines.some(
-      (l) => l.id === linhaForm.codigo && l.atendimento === linhaForm.atendimento
+    const exists = this.activeLinhas.some(
+      (l) => l.codigo === linhaForm.codigo && l.atendimento === linhaForm.atendimento
+    ) || this.inactiveLinhas.some(
+      (l) => l.codigo === linhaForm.codigo && l.atendimento === linhaForm.atendimento
     );
 
-    const request$ = isNew
-      ? this.http.post<any>(`${this.apiUrl}/v1/api/linha`, linhaRecord, { headers })
-      : this.http.patch<any>(`${this.apiUrl}/v1/api/linha`, linhaRecord, { headers });
+    const request$ = exists
+      ? this.http.patch<any>(`${this.apiUrl}/v1/api/linha`, linhaRecord, { headers })
+      : this.http.post<any>(`${this.apiUrl}/v1/api/linha`, linhaRecord, { headers });
 
     return request$.pipe(
-      tap(() => {
-        this.clearCache();
-        if (isNew) {
-          this.defaultLines.push({
-            id: linhaForm.codigo.trim(),
-            atendimento: linhaForm.atendimento.trim(),
-            partida: linhaForm.partida.trim(),
-            chegada: linhaForm.chegada.trim(),
-            desc: `${linhaForm.partida.trim()} - ${linhaForm.chegada.trim()}`,
-            status: 'inativa',
-          });
-          this.saveCustomLinhasToStorage();
-
-          const newLinha: LinhaDetails = {
-            id: this.getNumberFromString(linhaForm.codigo.trim()),
-            codigo: linhaForm.codigo.trim(),
-            atendimento: linhaForm.atendimento.trim(),
-            partida: linhaForm.partida.trim(),
-            chegada: linhaForm.chegada.trim(),
-            nome: `${linhaForm.partida.trim()} - ${linhaForm.chegada.trim()}`,
-            descricao: linhaForm.descricao || `${linhaForm.partida.trim()} - ${linhaForm.chegada.trim()}`,
-            status: 'inativa',
-            rotas: {},
-          };
-          this.inactiveLinhas.push(newLinha);
-        }
-      }),
-      catchError((err) => {
-        console.warn('Backend Linha save failed. Fallback to local simulation. Error:', err);
-        if (isNew) {
-          this.defaultLines.push({
-            id: linhaForm.codigo.trim(),
-            atendimento: linhaForm.atendimento.trim(),
-            partida: linhaForm.partida.trim(),
-            chegada: linhaForm.chegada.trim(),
-            desc: `${linhaForm.partida.trim()} - ${linhaForm.chegada.trim()}`,
-            status: 'inativa',
-          });
-          this.saveCustomLinhasToStorage();
-          const newLinha: LinhaDetails = {
-            id: this.getNumberFromString(linhaForm.codigo.trim()),
-            codigo: linhaForm.codigo.trim(),
-            atendimento: linhaForm.atendimento.trim(),
-            partida: linhaForm.partida.trim(),
-            chegada: linhaForm.chegada.trim(),
-            nome: `${linhaForm.partida.trim()} - ${linhaForm.chegada.trim()}`,
-            descricao: linhaForm.descricao || `${linhaForm.partida.trim()} - ${linhaForm.chegada.trim()}`,
-            status: 'inativa',
-            rotas: {},
-          };
-          this.inactiveLinhas.push(newLinha);
-        }
-        return of({
-          status: 'success_simulated',
-          message: 'Saved locally (simulated success)',
-        });
-      })
+      tap(() => this.clearCache())
     );
   }
 
-  /** Saves/Links a Rota (itinerary) to a specific Linha in the backend DB */
+  /** Saves/Links a Rota (itinerary) to a specific Linha in backend DB */
   saveRotaItinerario(
     linhaId: string,
     atendimento: string,
     sentido: 'IDA' | 'VOLTA',
     prefixo: string,
-    enderecos: MockEndereco[]
+    enderecos: Endereco[]
   ): Observable<any> {
     const headers = this.loginService.getAuthHeaders();
 
-    // Map frontend Endereco[] to backend ParadaRecord[]
     const paradasList = enderecos.map((end, idx) => {
-      // Parse coordinates to big decimals
       const lat = end.lat ? parseFloat(end.lat.toString()) : 0;
       const lng = end.lng ? parseFloat(end.lng.toString()) : 0;
 
       return {
-        paradaId: typeof end.id === 'number' && end.id > 1000000000 ? null : end.id, // null if temporary Date.now() ID
+        paradaId: typeof end.id === 'number' && end.id > 1000000000 ? null : end.id,
         logradouro: end.nome.trim(),
         numero: end.endereco.trim() || 'S/N',
         obs: '',
@@ -551,7 +377,7 @@ export class LinhaService {
       municipio: 3550308,
       linhaSentido: sentido,
       itinerario: {
-        itinerarioId: 0, // Generated by database
+        itinerarioId: 0,
         paradas: paradasList,
       },
     };
@@ -566,23 +392,12 @@ export class LinhaService {
         },
       })
       .pipe(
-        tap(() => {
-          this.clearCache();
-          this.updateLinhaInStore(linhaId.trim(), atendimento.trim(), sentido, prefixo, enderecos);
-        }),
-        catchError((err) => {
-          console.warn('Backend save Rota failed. Fallback to local simulation. Error:', err);
-          this.updateLinhaInStore(linhaId.trim(), atendimento.trim(), sentido, prefixo, enderecos);
-          return of({
-            status: 'success_simulated',
-            message: 'Saved Rota locally (simulated success)',
-          });
-        })
+        tap(() => this.clearCache())
       );
   }
 
   /** Fetch all registered stops for a municipality from backend, optionally filtering by logradouro */
-  getParadas(municipio: number, logradouro?: string): Observable<any[]> {
+  getParadas(municipio: number = 3550308, logradouro?: string): Observable<any[]> {
     if (!logradouro && this.cachedParadas && this.cachedParadas.length > 0) {
       return of(this.cachedParadas);
     }
@@ -592,16 +407,17 @@ export class LinhaService {
     if (logradouro) {
       params.logradouro = logradouro;
     }
+
     return this.http.get<any>(`${this.apiUrl}/v1/api/paradas`, {
       headers,
       params,
     }).pipe(
-      map(res => {
+      map((res) => {
         let result: any[] = [];
-        if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
+        if (res && res.data && Array.isArray(res.data)) {
           result = res.data;
-        } else {
-          result = this.filterMockParadas(logradouro);
+        } else if (Array.isArray(res)) {
+          result = res;
         }
 
         if (!logradouro) {
@@ -609,58 +425,8 @@ export class LinhaService {
         }
         return result;
       }),
-      catchError(() => {
-        const fallback = this.filterMockParadas(logradouro);
-        if (!logradouro) {
-          this.cachedParadas = fallback;
-        }
-        return of(fallback);
-      })
+      catchError(() => of([]))
     );
-  }
-
-  private filterMockParadas(logradouro?: string): any[] {
-    if (!logradouro) return [...MOCK_PARADAS];
-    const q = logradouro.toLowerCase();
-    return MOCK_PARADAS.filter((p: any) =>
-      (p.logradouro || '').toLowerCase().includes(q) ||
-      String(p.numero || '').toLowerCase().includes(q)
-    );
-  }
-
-  /** Fetch itinerary (stops) for a specific line from backend */
-  getItinerarioForLine(linhaId: string, atendimento: string, municipio: number): Observable<MockEndereco[]> {
-    const headers = this.loginService.getAuthHeaders();
-    return this.http
-      .get<any>(`${this.apiUrl}/v1/api/itinerario`, {
-        headers,
-        params: {
-          linha: linhaId,
-          atendimento: atendimento,
-          municipio: municipio.toString(),
-        },
-      })
-      .pipe(
-        map((res) => {
-          if (res && res.data && Array.isArray(res.data)) {
-            return res.data.map((item: any, index: number) => {
-              const parada = item.parada || {};
-              const lat = Array.isArray(parada.latLong) && parada.latLong.length >= 2 ? Number(parada.latLong[0]) : 0;
-              const lng = Array.isArray(parada.latLong) && parada.latLong.length >= 2 ? Number(parada.latLong[1]) : 0;
-              return {
-                id: parada.paradaId || index,
-                nome: parada.logradouro || `Parada ${index + 1}`,
-                endereco: `${parada.logradouro || ''}, ${parada.numero || ''}`,
-                lat: lat,
-                lng: lng,
-                ordem: index,
-              } as MockEndereco;
-            });
-          }
-          return [];
-        }),
-        catchError(() => of([]))
-      );
   }
 
   toggleLinhaStatus(linha: LinhaDetails): void {
@@ -687,55 +453,10 @@ export class LinhaService {
       municipio: 3550308,
       flagAtiva: newStatus === 'ativa' ? 'S' : 'N',
     }, { headers }).pipe(catchError(() => of(null))).subscribe();
-
-    const lineDef = this.defaultLines.find((l) => l.id === linha.codigo && l.atendimento === linha.atendimento);
-    if (lineDef) {
-      lineDef.status = newStatus;
-      this.saveCustomLinhasToStorage();
-    }
   }
 
   getStoredLinhas(): { ativas: LinhaDetails[]; inativas: LinhaDetails[] } {
     return { ativas: this.activeLinhas, inativas: this.inactiveLinhas };
-  }
-
-  private updateLinhaInStore(
-    linhaId: string,
-    atendimento: string,
-    sentido: 'IDA' | 'VOLTA',
-    prefixo: string,
-    enderecos: MockEndereco[]
-  ): void {
-    let linha: LinhaDetails | undefined;
-    linha = this.activeLinhas.find((l) => l.codigo === linhaId && l.atendimento === atendimento);
-    if (!linha) {
-      linha = this.inactiveLinhas.find((l) => l.codigo === linhaId && l.atendimento === atendimento);
-    }
-    if (!linha) return;
-
-    if (!linha.rotas) linha.rotas = {};
-
-    if (sentido === 'IDA') {
-      linha.rotas.ida = {
-        prefixo,
-        sentido: 'IDA',
-        enderecos: [...enderecos],
-      };
-    } else {
-      linha.rotas.volta = {
-        prefixo,
-        sentido: 'VOLTA',
-        enderecos: [...enderecos],
-      };
-    }
-
-    if (linha.rotas.ida && linha.rotas.volta && linha.status === 'inativa') {
-      this.inactiveLinhas = this.inactiveLinhas.filter((l) => l.codigo !== linhaId || l.atendimento !== atendimento);
-      linha.status = 'ativa';
-      if (!this.activeLinhas.find((l) => l.codigo === linhaId && l.atendimento === atendimento)) {
-        this.activeLinhas.push(linha);
-      }
-    }
   }
 
   private parsePartidaChegada(desc: string): { partida: string; chegada: string } {
@@ -756,26 +477,4 @@ export class LinhaService {
     }
     return Math.abs(hash);
   }
-
-  private loadCustomLinhasFromStorage(): { id: string; atendimento: string; partida: string; chegada: string; desc: string; status: 'ativa' | 'inativa' }[] {
-    try {
-      const raw = localStorage.getItem(LinhaService.CUSTOM_LINHAS_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private saveCustomLinhasToStorage(): void {
-    const custom = this.defaultLines.filter(
-      (l) => !this.hardcodedLines.some((h) => h.id === l.id && h.atendimento === l.atendimento)
-    );
-    try {
-      localStorage.setItem(LinhaService.CUSTOM_LINHAS_KEY, JSON.stringify(custom));
-    } catch {
-      // localStorage not available
-    }
-  }
 }
-
-

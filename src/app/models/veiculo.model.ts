@@ -7,11 +7,17 @@ export interface Motorista {
   days: string[];
 }
 
-export interface Linha {
-  routeName: string;
+export interface RouteInterval {
   startTime: string;
   endTime: string;
+}
+
+export interface Linha {
+  routeName: string;
+  startTime?: string;
+  endTime?: string;
   days: string[];
+  intervals?: RouteInterval[];
 }
 
 export interface Veiculo {

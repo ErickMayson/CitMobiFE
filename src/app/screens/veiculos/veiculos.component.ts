@@ -5,6 +5,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import {
   Motorista,
   Linha,
+  RouteInterval,
   Veiculo,
   ScheduleBlock,
 } from '../../models/veiculo.model';
@@ -83,9 +84,8 @@ export class VeiculosComponent implements OnInit {
 
   routeForm = {
     routeName: '',
-    startTime: '06:00',
-    endTime: '22:00',
     days: [] as string[],
+    intervals: [{ startTime: '06:00', endTime: '22:00' }] as RouteInterval[],
   };
 
   statusOrder = ['ATIVO', 'MANUTENCAO', 'INATIVO', 'SUCATEADO', 'VENDIDO'];
@@ -277,6 +277,10 @@ export class VeiculosComponent implements OnInit {
         if (ENABLE_DEMO_MOCKUP && !list.some((v) => v.plate === DEMO_MOCK_VEICULO.plate)) {
           list = [DEMO_MOCK_VEICULO as unknown as Veiculo, ...list];
         }
+        list = list.map((v) => ({
+          ...v,
+          routes: this.consolidateVehicleRoutes(v.routes || []),
+        }));
         this.veiculos = list;
         this.sortVeiculos();
         this.isLoading = false;
@@ -364,7 +368,7 @@ export class VeiculosComponent implements OnInit {
       if (routesCount > 0 && driversCount > 0) {
         return 'Em Operação';
       } else if (routesCount > 0 && driversCount === 0) {
-        return 'Aguardando Motorista';
+        return '⚠️ Aguardando Motorista';
       } else {
         return 'Reserva / Na Garagem';
       }
@@ -460,6 +464,9 @@ export class VeiculosComponent implements OnInit {
 
   openEditModal(veiculo: Veiculo): void {
     this.selectedVeiculo = JSON.parse(JSON.stringify(veiculo));
+    if (this.selectedVeiculo && this.selectedVeiculo.routes) {
+      this.selectedVeiculo.routes = this.consolidateVehicleRoutes(this.selectedVeiculo.routes);
+    }
     this.showEditModal = true;
     this.selectedDay = this.getCurrentDayCode();
   }
@@ -602,13 +609,79 @@ export class VeiculosComponent implements OnInit {
     }
   }
 
+  // Route Interval Management
+  addRouteInterval(): void {
+    const last = this.routeForm.intervals[this.routeForm.intervals.length - 1];
+    let defaultStart = '06:00';
+    let defaultEnd = '14:00';
+    if (last && last.endTime) {
+      const endHour = parseInt(last.endTime.split(':')[0], 10);
+      const nextStart = Math.min(23, endHour + 2);
+      const nextEnd = Math.min(23, nextStart + 4);
+      defaultStart = `${String(nextStart).padStart(2, '0')}:00`;
+      defaultEnd = `${String(nextEnd).padStart(2, '0')}:00`;
+    }
+    this.routeForm.intervals.push({ startTime: defaultStart, endTime: defaultEnd });
+  }
+
+  removeRouteInterval(index: number): void {
+    if (this.routeForm.intervals.length > 1) {
+      this.routeForm.intervals.splice(index, 1);
+    }
+  }
+
+  formatRouteIntervals(route: Linha): string {
+    if (route.intervals && route.intervals.length > 0) {
+      return route.intervals.map((i) => `${i.startTime} - ${i.endTime}`).join(' / ');
+    }
+    if (route.startTime && route.endTime) {
+      return `${route.startTime} - ${route.endTime}`;
+    }
+    return 'Horário não definido';
+  }
+
+  consolidateVehicleRoutes(routes: Linha[]): Linha[] {
+    if (!routes || routes.length === 0) return [];
+    const map = new Map<string, Linha>();
+
+    for (const r of routes) {
+      const key = (r.routeName || '').trim().toLowerCase();
+      if (!map.has(key)) {
+        const intervals: RouteInterval[] = [];
+        if (r.intervals && r.intervals.length > 0) {
+          intervals.push(...r.intervals);
+        } else if (r.startTime && r.endTime) {
+          intervals.push({ startTime: r.startTime, endTime: r.endTime });
+        }
+        map.set(key, {
+          routeName: r.routeName,
+          days: [...(r.days || [])],
+          intervals: intervals.length > 0 ? intervals : [{ startTime: '06:00', endTime: '22:00' }],
+          startTime: intervals[0]?.startTime || r.startTime || '06:00',
+          endTime: intervals[intervals.length - 1]?.endTime || r.endTime || '22:00',
+        });
+      } else {
+        const existing = map.get(key)!;
+        const combinedDays = Array.from(new Set([...existing.days, ...(r.days || [])]));
+        existing.days = combinedDays;
+        const intervals = existing.intervals || [];
+        if (r.intervals && r.intervals.length > 0) {
+          intervals.push(...r.intervals);
+        } else if (r.startTime && r.endTime) {
+          intervals.push({ startTime: r.startTime, endTime: r.endTime });
+        }
+        existing.intervals = intervals;
+      }
+    }
+    return Array.from(map.values());
+  }
+
   // Route CRUD
   openAddRouteModal(): void {
     this.routeForm = {
       routeName: '',
-      startTime: '06:00',
-      endTime: '22:00',
       days: [],
+      intervals: [{ startTime: '06:00', endTime: '22:00' }],
     };
     this.showAddRouteModal = true;
     this.ensureRoutesLoaded();
@@ -621,11 +694,18 @@ export class VeiculosComponent implements OnInit {
   openEditRouteModal(index: number): void {
     const route = this.selectedVeiculo?.routes[index];
     if (route) {
+      let intervals: RouteInterval[] = [];
+      if (route.intervals && route.intervals.length > 0) {
+        intervals = route.intervals.map((i) => ({ ...i }));
+      } else if (route.startTime && route.endTime) {
+        intervals = [{ startTime: route.startTime, endTime: route.endTime }];
+      } else {
+        intervals = [{ startTime: '06:00', endTime: '22:00' }];
+      }
       this.routeForm = {
         routeName: route.routeName,
-        startTime: route.startTime,
-        endTime: route.endTime,
         days: [...route.days],
+        intervals: intervals,
       };
       this.editingRouteIndex = index;
       this.showEditRouteModal = true;
@@ -655,17 +735,41 @@ export class VeiculosComponent implements OnInit {
     if (
       this.selectedVeiculo &&
       this.routeForm.routeName &&
-      this.routeForm.startTime &&
-      this.routeForm.endTime &&
+      this.routeForm.intervals.length > 0 &&
       this.routeForm.days.length > 0
     ) {
+      const validIntervals = this.routeForm.intervals.filter((i) => i.startTime && i.endTime);
+      if (validIntervals.length === 0) return;
+
       const newRoute: Linha = {
         routeName: this.routeForm.routeName,
-        startTime: this.routeForm.startTime,
-        endTime: this.routeForm.endTime,
+        startTime: validIntervals[0].startTime,
+        endTime: validIntervals[validIntervals.length - 1].endTime,
+        intervals: validIntervals,
         days: [...this.routeForm.days],
       };
-      this.selectedVeiculo.routes.push(newRoute);
+
+      const existingIdx = this.selectedVeiculo.routes.findIndex(
+        (r) => r.routeName.trim().toLowerCase() === newRoute.routeName.trim().toLowerCase()
+      );
+      if (existingIdx >= 0) {
+        const existing = this.selectedVeiculo.routes[existingIdx];
+        const combinedDays = Array.from(new Set([...existing.days, ...newRoute.days]));
+        const combinedIntervals = [
+          ...(existing.intervals || [
+            { startTime: existing.startTime || '06:00', endTime: existing.endTime || '22:00' },
+          ]),
+          ...newRoute.intervals!,
+        ];
+        this.selectedVeiculo.routes[existingIdx] = {
+          ...existing,
+          days: combinedDays,
+          intervals: combinedIntervals,
+        };
+      } else {
+        this.selectedVeiculo.routes.push(newRoute);
+      }
+
       this.closeAddRouteModal();
     }
   }
@@ -675,14 +779,17 @@ export class VeiculosComponent implements OnInit {
       this.selectedVeiculo &&
       this.editingRouteIndex >= 0 &&
       this.routeForm.routeName &&
-      this.routeForm.startTime &&
-      this.routeForm.endTime &&
+      this.routeForm.intervals.length > 0 &&
       this.routeForm.days.length > 0
     ) {
+      const validIntervals = this.routeForm.intervals.filter((i) => i.startTime && i.endTime);
+      if (validIntervals.length === 0) return;
+
       this.selectedVeiculo.routes[this.editingRouteIndex] = {
         routeName: this.routeForm.routeName,
-        startTime: this.routeForm.startTime,
-        endTime: this.routeForm.endTime,
+        startTime: validIntervals[0].startTime,
+        endTime: validIntervals[validIntervals.length - 1].endTime,
+        intervals: validIntervals,
         days: [...this.routeForm.days],
       };
       this.closeEditRouteModal();
@@ -775,25 +882,41 @@ export class VeiculosComponent implements OnInit {
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const isViewingToday = this.selectedDay === currentDayCode;
 
-    // 1. Filter routes for the selected day
-    const rawBlocks: { name: string; start: number; end: number }[] = [];
+    // 1. Filter routes for the selected day and extract all intervals as discrete blocks
+    const rawBlocks: { name: string; start: number; end: number; rawStart: string; rawEnd: string }[] = [];
     this.selectedVeiculo.routes
       .filter((r) => r.days && r.days.includes(this.selectedDay))
       .forEach((route) => {
-        const start = parseInt(route.startTime.split(':')[0], 10);
-        const end = parseInt(route.endTime.split(':')[0], 10);
-        rawBlocks.push({
-          name: route.routeName,
-          start,
-          end,
-        });
+        if (route.intervals && route.intervals.length > 0) {
+          route.intervals.forEach((interval) => {
+            const start = parseInt(interval.startTime.split(':')[0], 10);
+            const end = parseInt(interval.endTime.split(':')[0], 10);
+            rawBlocks.push({
+              name: route.routeName,
+              start,
+              end,
+              rawStart: interval.startTime,
+              rawEnd: interval.endTime,
+            });
+          });
+        } else if (route.startTime && route.endTime) {
+          const start = parseInt(route.startTime.split(':')[0], 10);
+          const end = parseInt(route.endTime.split(':')[0], 10);
+          rawBlocks.push({
+            name: route.routeName,
+            start,
+            end,
+            rawStart: route.startTime,
+            rawEnd: route.endTime,
+          });
+        }
       });
 
     // 2. Sort by start time
     rawBlocks.sort((a, b) => a.start - b.start);
 
-    // 3. Merge contiguous / adjacent segments with the same route name into one continuous line
-    const merged: { name: string; start: number; end: number }[] = [];
+    // 3. Merge contiguous / adjacent segments with the same route name (only if overlapping or adjacent, preserving gaps)
+    const merged: { name: string; start: number; end: number; rawStart: string; rawEnd: string }[] = [];
     for (const b of rawBlocks) {
       if (merged.length === 0) {
         merged.push({ ...b });
@@ -801,6 +924,7 @@ export class VeiculosComponent implements OnInit {
         const prev = merged[merged.length - 1];
         if (prev.name.trim() === b.name.trim() && b.start <= prev.end) {
           prev.end = Math.max(prev.end, b.end);
+          prev.rawEnd = b.rawEnd;
         } else {
           merged.push({ ...b });
         }
@@ -822,11 +946,11 @@ export class VeiculosComponent implements OnInit {
 
       let tooltip = '';
       if (isActiveNow) {
-        tooltip = `${m.name} — Operando nesta linha no momento (${m.start}:00 - ${m.end}:00)`;
+        tooltip = `${m.name} — Operando nesta linha no momento (${m.rawStart || m.start + ':00'} - ${m.rawEnd || m.end + ':00'})`;
       } else if (hasAnyActiveRoute) {
-        tooltip = `${m.name} — Operando em outra linha no momento (${m.start}:00 - ${m.end}:00)`;
+        tooltip = `${m.name} — Operando em outra linha no momento (${m.rawStart || m.start + ':00'} - ${m.rawEnd || m.end + ':00'})`;
       } else {
-        tooltip = `${m.name} — Não está operando nesta linha no momento (${m.start}:00 - ${m.end}:00)`;
+        tooltip = `${m.name} — Não está operando nesta linha no momento (${m.rawStart || m.start + ':00'} - ${m.rawEnd || m.end + ':00'})`;
       }
 
       return {

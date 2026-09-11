@@ -407,7 +407,7 @@
                 <div class="item-content">
                   <span class="item-name">{{ route.routeName }}</span>
                   <span class="item-time"
-                    >{{ route.startTime }} - {{ route.endTime }}</span
+                    >{{ formatRouteIntervals(route) }}</span
                   >
                   <span class="item-days">{{ route.days.join(", ") }}</span>
                 </div>
@@ -739,25 +739,48 @@
             </datalist>
           </div>
 
-          <div class="form-group" style="margin-top: 16px;">
-            <label>Horário de Atendimento</label>
-            <div class="time-selector">
-              <div class="time-input-group">
-                <label>Início</label>
-                <input
-                  type="time"
-                  [(ngModel)]="routeForm.startTime"
-                  class="form-control-time"
-                />
-              </div>
-              <span class="time-separator">até</span>
-              <div class="time-input-group">
-                <label>Fim</label>
-                <input
-                  type="time"
-                  [(ngModel)]="routeForm.endTime"
-                  class="form-control-time"
-                />
+          <div class="form-group intervals-form-group" style="margin-top: 16px;">
+            <div class="intervals-header">
+              <label>Intervalos de Atendimento (Turnos)</label>
+              <button
+                type="button"
+                class="btn-add-interval"
+                (click)="addRouteInterval()"
+              >
+                + Adicionar Turno / Intervalo
+              </button>
+            </div>
+            <div class="intervals-list">
+              <div
+                class="interval-row"
+                *ngFor="let interval of routeForm.intervals; let idx = index"
+              >
+                <div class="time-input-group">
+                  <label>Início</label>
+                  <input
+                    type="time"
+                    [(ngModel)]="interval.startTime"
+                    class="form-control-time"
+                  />
+                </div>
+                <span class="time-separator">até</span>
+                <div class="time-input-group">
+                  <label>Fim</label>
+                  <input
+                    type="time"
+                    [(ngModel)]="interval.endTime"
+                    class="form-control-time"
+                  />
+                </div>
+                <button
+                  type="button"
+                  class="btn-remove-interval"
+                  *ngIf="routeForm.intervals.length > 1"
+                  (click)="removeRouteInterval(idx)"
+                  title="Remover intervalo"
+                >
+                  ✕
+                </button>
               </div>
             </div>
           </div>
@@ -840,25 +863,48 @@
             </datalist>
           </div>
 
-          <div class="form-group" style="margin-top: 16px;">
-            <label>Horário de Atendimento</label>
-            <div class="time-selector">
-              <div class="time-input-group">
-                <label>Início</label>
-                <input
-                  type="time"
-                  [(ngModel)]="routeForm.startTime"
-                  class="form-control-time"
-                />
-              </div>
-              <span class="time-separator">até</span>
-              <div class="time-input-group">
-                <label>Fim</label>
-                <input
-                  type="time"
-                  [(ngModel)]="routeForm.endTime"
-                  class="form-control-time"
-                />
+          <div class="form-group intervals-form-group" style="margin-top: 16px;">
+            <div class="intervals-header">
+              <label>Intervalos de Atendimento (Turnos)</label>
+              <button
+                type="button"
+                class="btn-add-interval"
+                (click)="addRouteInterval()"
+              >
+                + Adicionar Turno / Intervalo
+              </button>
+            </div>
+            <div class="intervals-list">
+              <div
+                class="interval-row"
+                *ngFor="let interval of routeForm.intervals; let idx = index"
+              >
+                <div class="time-input-group">
+                  <label>Início</label>
+                  <input
+                    type="time"
+                    [(ngModel)]="interval.startTime"
+                    class="form-control-time"
+                  />
+                </div>
+                <span class="time-separator">até</span>
+                <div class="time-input-group">
+                  <label>Fim</label>
+                  <input
+                    type="time"
+                    [(ngModel)]="interval.endTime"
+                    class="form-control-time"
+                  />
+                </div>
+                <button
+                  type="button"
+                  class="btn-remove-interval"
+                  *ngIf="routeForm.intervals.length > 1"
+                  (click)="removeRouteInterval(idx)"
+                  title="Remover intervalo"
+                >
+                  ✕
+                </button>
               </div>
             </div>
           </div>

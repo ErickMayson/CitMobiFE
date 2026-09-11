@@ -56,14 +56,16 @@
                 <span class="rota-codigo">{{ linha.codigo }}-{{ linha.atendimento }}</span>
                 <h3 class="rota-nome">{{ linha.partida }} ➔ {{ linha.chegada }}</h3>
               </div>
-              <span class="rota-status active">Ativa</span>
+              <span class="rota-status" [ngClass]="getLinhaStatusClass(linha)">
+                {{ getLinhaStatusLabel(linha) }}
+              </span>
             </div>
             
             <p class="rota-descricao">
               <strong>Obs:</strong> {{ linha.descricao || 'Sem observações' }}
             </p>
 
-            <!-- Yellow Route Tags container -->
+            <!-- Yellow Route Itineraries Container -->
             <div class="route-tags-container">
               <span 
                 class="route-tag" 
@@ -71,7 +73,7 @@
                 (click)="$event.stopPropagation(); editExistingItinerary(linha, 'IDA')"
                 title="Editar itinerário de Ida"
               >
-                💛 Itinerário de IDA
+                💛 Itinerário de IDA ({{ linha.rotas.ida.enderecos.length || 0 }} paradas)
               </span>
               <span 
                 class="route-tag" 
@@ -79,11 +81,49 @@
                 (click)="$event.stopPropagation(); editExistingItinerary(linha, 'VOLTA')"
                 title="Editar itinerário de Volta"
               >
-                💛 Itinerário de VOLTA
+                💛 Itinerário de VOLTA ({{ linha.rotas.volta.enderecos.length || 0 }} paradas)
               </span>
               <span class="no-tags-message" *ngIf="!linha.rotas.ida && !linha.rotas.volta">
                 Nenhum itinerário cadastrado
               </span>
+            </div>
+
+            <!-- Operational Telemetry & Fleet Summary -->
+            <div class="fleet-telemetry-box">
+              <div class="telemetry-header">
+                <div class="telemetry-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="telemetry-icon">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+                  </svg>
+                  <span>Telemetria Operacional</span>
+                </div>
+                <span class="telemetry-badge" [ngClass]="(linha.assignedVehicles?.length || 0) > 0 ? 'online' : 'standby'">
+                  <span class="pulse-dot"></span>
+                  {{ (linha.assignedVehicles?.length || 0) > 0 ? 'Monitorando' : 'Sem Operação' }}
+                </span>
+              </div>
+
+              <div class="telemetry-metrics-grid">
+                <div class="metric-item">
+                  <span class="metric-label">Veículos</span>
+                  <div class="metric-value-row">
+                    <span class="metric-number">{{ linha.assignedVehicles?.length || 0 }}</span>
+                  </div>
+                </div>
+
+                <div class="metric-item">
+                  <span class="metric-label">Sentidos</span>
+                  <div class="direction-pills-row">
+                    <span class="dir-pill ida" [class.has-vehicles]="(linha.telemetry?.veiculosEmIda || 0) > 0">
+                      <span class="dir-arrow">⬆️</span> IDA: <strong>{{ linha.telemetry?.veiculosEmIda || 0 }}</strong>
+                    </span>
+                    <span class="dir-pill volta" [class.has-vehicles]="(linha.telemetry?.veiculosEmVolta || 0) > 0">
+                      <span class="dir-arrow">⬇️</span> VOLTA: <strong>{{ linha.telemetry?.veiculosEmVolta || 0 }}</strong>
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -103,7 +143,9 @@
                 <span class="rota-codigo">{{ linha.codigo }}-{{ linha.atendimento }}</span>
                 <h3 class="rota-nome">{{ linha.partida }} ➔ {{ linha.chegada }}</h3>
               </div>
-              <span class="rota-status inactive">Inativa</span>
+              <span class="rota-status" [ngClass]="getLinhaStatusClass(linha)">
+                {{ getLinhaStatusLabel(linha) }}
+              </span>
             </div>
 
             <p class="rota-descricao">
@@ -116,14 +158,14 @@
                 *ngIf="linha.rotas.ida"
                 (click)="$event.stopPropagation(); editExistingItinerary(linha, 'IDA')"
               >
-                💛 Rota de IDA
+                💛 Itinerário de IDA ({{ linha.rotas.ida.enderecos.length || 0 }} paradas)
               </span>
               <span 
                 class="route-tag" 
                 *ngIf="linha.rotas.volta"
                 (click)="$event.stopPropagation(); editExistingItinerary(linha, 'VOLTA')"
               >
-                💛 Rota de VOLTA
+                💛 Itinerário de VOLTA ({{ linha.rotas.volta.enderecos.length || 0 }} paradas)
               </span>
               <span class="no-tags-message" *ngIf="!linha.rotas.ida && !linha.rotas.volta">
                 Nenhum itinerário cadastrado
@@ -397,6 +439,88 @@
               {{ selectedLinha?.status === 'ativa' ? 'Inativar' : 'Ativar' }}
             </button>
           </p>
+
+          <!-- Ver Mais Dropdown: Informações da Frota -->
+          <div class="ver-mais-section">
+            <button class="btn-toggle-ver-mais" (click)="toggleGeneralFleet()">
+              <span class="chevron">{{ showGeneralFleetDetails ? '▼' : '▶' }}</span>
+              <strong>{{ showGeneralFleetDetails ? 'Ocultar Detalhes da Frota' : 'Ver Mais: Frota Alocada & Tipos de Veículo' }}</strong>
+            </button>
+
+            <div class="ver-mais-content" *ngIf="showGeneralFleetDetails">
+              <div class="fleet-overview-grid">
+                <div class="overview-item">
+                  <span class="ov-label">Total de Veículos:</span>
+                  <span class="ov-value">{{ selectedLinha?.assignedVehicles?.length || 0 }} {{ (selectedLinha?.assignedVehicles?.length || 0) === 1 ? 'veículo' : 'veículos' }}</span>
+                </div>
+                <div class="overview-item">
+                  <span class="ov-label">Tipos de Veículo:</span>
+                  <span class="ov-value">{{ getVehicleTypesSummary(selectedLinha) }}</span>
+                </div>
+                <div class="overview-item">
+                  <span class="ov-label">Motoristas Totais:</span>
+                  <span class="ov-value">{{ getTotalDrivers(selectedLinha!) }} {{ getTotalDrivers(selectedLinha!) === 1 ? 'motorista' : 'motoristas' }}</span>
+                </div>
+              </div>
+
+              <!-- Vehicle Allocation Table -->
+              <div class="vehicles-table-wrapper" *ngIf="selectedLinha?.assignedVehicles && selectedLinha!.assignedVehicles!.length > 0">
+                <table class="modal-vehicles-table">
+                  <thead>
+                    <tr>
+                      <th>Placa</th>
+                      <th>Modelo</th>
+                      <th>Tipo</th>
+                      <th>Capacidade</th>
+                      <th>Sentido Atual</th>
+                      <th>Motoristas por Turno</th>
+                      <th>Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let v of selectedLinha?.assignedVehicles">
+                      <td>
+                        <button class="link-plate-btn" (click)="goToVeiculo(v.plate, $event)" title="Ir para Veículo {{ v.plate }}">
+                          <strong>{{ v.plate }}</strong> <span class="ext-icon">↗</span>
+                        </button>
+                      </td>
+                      <td>{{ v.model }}</td>
+                      <td><span class="type-badge">{{ v.type || 'Padrão' }}</span></td>
+                      <td>{{ v.capacity || 80 }} pass.</td>
+                      <td>
+                        <span class="sentido-tag" [ngClass]="v.sentido.toLowerCase()">
+                          {{ v.sentido }}
+                        </span>
+                      </td>
+                      <td>
+                        <div class="driver-shifts-container" *ngIf="v.driverShifts && v.driverShifts.length > 0">
+                          <div *ngFor="let shift of v.driverShifts" class="shift-entry">
+                            <button class="link-driver-btn" (click)="goToMotorista(shift.name, $event)" title="Ir para Motorista {{ shift.name }}">
+                              👤 {{ shift.name }} <span class="ext-icon">↗</span>
+                            </button>
+                            <span class="shift-hours" *ngIf="shift.startTime && shift.endTime">({{ shift.startTime }} - {{ shift.endTime }})</span>
+                          </div>
+                          <span class="vacant-txt" *ngIf="v.pendingDrivers">⚠️ 1 Turno Vago</span>
+                        </div>
+                        <div *ngIf="!v.driverShifts || v.driverShifts.length === 0">
+                          <span class="unassigned-txt">Nenhum motorista</span>
+                        </div>
+                      </td>
+                      <td>
+                        <button class="btn-table-goto-vehicle" (click)="goToVeiculo(v.plate, $event)" title="Abrir dados do veículo {{ v.plate }}">
+                          Ver Veículo ↗
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="empty-fleet-notice" *ngIf="!selectedLinha?.assignedVehicles || selectedLinha!.assignedVehicles!.length === 0">
+                <p>Nenhum veículo alocado para esta linha no momento.</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="itineraries-management-section">
@@ -424,6 +548,41 @@
                   ➕ Cadastrar Itinerário de IDA
                 </button>
               </div>
+
+              <!-- Ver Mais: Veículos no Itinerário IDA -->
+              <div class="itinerary-fleet-toggle">
+                <button class="btn-sub-ver-mais" (click)="toggleIdaFleet()">
+                  <span>{{ showIdaFleetDetails ? '▼ Ocultar veículos nesse itinerário' : '▶ Ver veículos nesse itinerário (' + getVehiclesBySentido(selectedLinha, 'IDA').length + ')' }}</span>
+                </button>
+                <div class="sub-fleet-list" *ngIf="showIdaFleetDetails">
+                  <div *ngIf="getVehiclesBySentido(selectedLinha, 'IDA').length > 0" class="sub-fleet-items">
+                    <div class="sub-fleet-card" *ngFor="let v of getVehiclesBySentido(selectedLinha, 'IDA')">
+                      <div class="sub-fleet-top">
+                        <button class="sub-plate-link" (click)="goToVeiculo(v.plate, $event)" title="Ir para Veículo {{ v.plate }}">
+                          🚍 <strong>{{ v.plate }}</strong> <span class="ext-icon">↗</span>
+                        </button>
+                        <span class="sub-model">{{ v.model }} ({{ v.type || 'Padrão' }})</span>
+                      </div>
+                      <div class="sub-fleet-bottom">
+                        <div *ngIf="getActiveDriver(v) as activeDriver" class="sub-driver-row">
+                          <span class="status-pulse-dot"></span>
+                          <span class="sub-driver-label">Em operação:</span>
+                          <button class="sub-driver-link" (click)="goToMotorista(activeDriver.name, $event)" title="Ir para motorista {{ activeDriver.name }}">
+                            👤 <strong>{{ activeDriver.name }}</strong> <span class="ext-icon">↗</span>
+                          </button>
+                          <span class="sub-shift-pill" *ngIf="activeDriver.shift">{{ activeDriver.shift }}</span>
+                        </div>
+                        <div *ngIf="!getActiveDriver(v)" class="sub-driver-row vacant">
+                          <span class="sub-driver-label vacant">⚠️ Sem motorista em turno (Vago)</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="empty-sub-fleet" *ngIf="getVehiclesBySentido(selectedLinha, 'IDA').length === 0">
+                    Nenhum veículo operando no sentido IDA no momento.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <!-- VOLTA Card -->
@@ -446,6 +605,41 @@
                 >
                   ➕ Cadastrar Itinerário de VOLTA
                 </button>
+              </div>
+
+              <!-- Ver Mais: Veículos no Itinerário VOLTA -->
+              <div class="itinerary-fleet-toggle">
+                <button class="btn-sub-ver-mais" (click)="toggleVoltaFleet()">
+                  <span>{{ showVoltaFleetDetails ? '▼ Ocultar veículos nesse itinerário' : '▶ Ver veículos nesse itinerário (' + getVehiclesBySentido(selectedLinha, 'VOLTA').length + ')' }}</span>
+                </button>
+                <div class="sub-fleet-list" *ngIf="showVoltaFleetDetails">
+                  <div *ngIf="getVehiclesBySentido(selectedLinha, 'VOLTA').length > 0" class="sub-fleet-items">
+                    <div class="sub-fleet-card" *ngFor="let v of getVehiclesBySentido(selectedLinha, 'VOLTA')">
+                      <div class="sub-fleet-top">
+                        <button class="sub-plate-link" (click)="goToVeiculo(v.plate, $event)" title="Ir para Veículo {{ v.plate }}">
+                          🚍 <strong>{{ v.plate }}</strong> <span class="ext-icon">↗</span>
+                        </button>
+                        <span class="sub-model">{{ v.model }} ({{ v.type || 'Padrão' }})</span>
+                      </div>
+                      <div class="sub-fleet-bottom">
+                        <div *ngIf="getActiveDriver(v) as activeDriver" class="sub-driver-row">
+                          <span class="status-pulse-dot"></span>
+                          <span class="sub-driver-label">Em operação:</span>
+                          <button class="sub-driver-link" (click)="goToMotorista(activeDriver.name, $event)" title="Ir para motorista {{ activeDriver.name }}">
+                            👤 <strong>{{ activeDriver.name }}</strong> <span class="ext-icon">↗</span>
+                          </button>
+                          <span class="sub-shift-pill" *ngIf="activeDriver.shift">{{ activeDriver.shift }}</span>
+                        </div>
+                        <div *ngIf="!getActiveDriver(v)" class="sub-driver-row vacant">
+                          <span class="sub-driver-label vacant">⚠️ Sem motorista em turno (Vago)</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="empty-sub-fleet" *ngIf="getVehiclesBySentido(selectedLinha, 'VOLTA').length === 0">
+                    Nenhum veículo operando no sentido VOLTA no momento.
+                  </p>
+                </div>
               </div>
             </div>
           </div>

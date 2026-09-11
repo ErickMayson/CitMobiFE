@@ -1,11 +1,19 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { User } from '../../models/userLiteResponse.model';
 import { LoginService } from '../../services/login.service';
-import { LinhaService, LinhaDetails } from '../../services/linha.service';
+import { LinhaService, LinhaDetails, LinhaAssignedVehicle } from '../../services/linha.service';
 import { MockEndereco as Endereco } from '../../mock-data/mock-data';
+
+export interface LinhaTag {
+  label: string;
+  type: 'danger' | 'warning' | 'info' | 'amber' | 'success';
+  icon: string;
+  tooltip?: string;
+}
 
 @Component({
   selector: 'app-rotas',
@@ -57,7 +65,8 @@ export class RotasComponent implements OnInit {
 
   constructor(
     private loginService: LoginService,
-    private linhaService: LinhaService
+    private linhaService: LinhaService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -67,6 +76,141 @@ export class RotasComponent implements OnInit {
 
     this.loadLinhas();
     setTimeout(() => (this.showSidebarContent = true), 100);
+  }
+
+  getLinhaStatusLabel(linha: LinhaDetails): string {
+    if (linha.status === 'inativa') {
+      return 'INATIVA';
+    }
+
+    const hasIda = !!linha.rotas?.ida && (linha.rotas.ida.enderecos?.length ?? 0) > 0;
+    const hasVolta = !!linha.rotas?.volta && (linha.rotas.volta.enderecos?.length ?? 0) > 0;
+
+    // 1. Check Itineraries
+    if (!hasIda && !hasVolta) {
+      return 'AGUARDANDO ITINERARIOS';
+    }
+    if (!hasIda && hasVolta) {
+      return 'AGUARDANDO ITINERARIO(IDA)';
+    }
+    if (hasIda && !hasVolta) {
+      return 'AGUARDANDO ITINERARIO(VOLTA)';
+    }
+
+    // 2. Check Vehicles
+    const vehiclesCount = linha.assignedVehicles?.length || 0;
+    if (vehiclesCount === 0) {
+      return 'AGUARDANDO VEICULOS';
+    }
+
+    // 3. Check Drivers
+    const hasPendingDrivers = linha.assignedVehicles?.some((v) => !v.hasDriver || v.pendingDrivers);
+    const totalDrivers = linha.assignedVehicles?.reduce((acc, v) => acc + v.driverCount, 0) || 0;
+
+    if (totalDrivers === 0 || hasPendingDrivers) {
+      return 'AGUARDANDO MOTORISTAS';
+    }
+
+    // 4. Truly active
+    return 'ATIVA';
+  }
+
+  getLinhaStatusClass(linha: LinhaDetails): string {
+    const label = this.getLinhaStatusLabel(linha);
+    switch (label) {
+      case 'AGUARDANDO ITINERARIOS':
+        return 'status-danger';
+      case 'AGUARDANDO ITINERARIO(IDA)':
+      case 'AGUARDANDO ITINERARIO(VOLTA)':
+        return 'status-warning';
+      case 'AGUARDANDO VEICULOS':
+        return 'status-info';
+      case 'AGUARDANDO MOTORISTAS':
+        return 'status-amber';
+      case 'ATIVA':
+        return 'status-active';
+      case 'INATIVA':
+      default:
+        return 'status-inactive';
+    }
+  }
+
+  getTotalDrivers(linha: LinhaDetails): number {
+    return (linha.assignedVehicles || []).reduce((acc, v) => acc + (v.driverCount || 0), 0);
+  }
+
+  showGeneralFleetDetails: boolean = false;
+  showIdaFleetDetails: boolean = false;
+  showVoltaFleetDetails: boolean = false;
+
+  toggleGeneralFleet(): void {
+    this.showGeneralFleetDetails = !this.showGeneralFleetDetails;
+  }
+
+  toggleIdaFleet(): void {
+    this.showIdaFleetDetails = !this.showIdaFleetDetails;
+  }
+
+  toggleVoltaFleet(): void {
+    this.showVoltaFleetDetails = !this.showVoltaFleetDetails;
+  }
+
+  getVehiclesBySentido(linha: LinhaDetails | null, sentido: 'IDA' | 'VOLTA'): LinhaAssignedVehicle[] {
+    if (!linha || !linha.assignedVehicles) return [];
+    return linha.assignedVehicles.filter((v) => v.sentido === sentido);
+  }
+
+  getVehicleTypesSummary(linha: LinhaDetails | null): string {
+    if (!linha || !linha.assignedVehicles || linha.assignedVehicles.length === 0) return 'Nenhum veículo alocado';
+    const types = Array.from(new Set(linha.assignedVehicles.map((v) => v.type || v.model)));
+    return types.join(', ');
+  }
+
+  hasPendingDrivers(linha: LinhaDetails): boolean {
+    if (!linha.assignedVehicles || linha.assignedVehicles.length === 0) return false;
+    return linha.assignedVehicles.some((v) => !v.hasDriver || v.pendingDrivers);
+  }
+
+  getPlatesList(linha: LinhaDetails): string {
+    if (!linha.assignedVehicles || linha.assignedVehicles.length === 0) return 'Nenhum';
+    return linha.assignedVehicles.map((v) => v.plate).join(', ');
+  }
+
+  getDriversNames(linha: LinhaDetails): string {
+    if (!linha.assignedVehicles || linha.assignedVehicles.length === 0) return 'Nenhum';
+    const names = linha.assignedVehicles.flatMap((v) => v.motoristas).filter(Boolean);
+    const hasVacant = linha.assignedVehicles.some((v) => v.pendingDrivers);
+    if (names.length === 0) return 'Nenhum motorista alocado';
+    return names.join(', ') + (hasVacant ? ' (1 Turno Vago)' : '');
+  }
+
+  goToVeiculo(plate: string, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    this.closeDetailsModal();
+    this.router.navigate(['/veiculos'], { queryParams: { plate: plate.trim() } });
+  }
+
+  goToMotorista(driverName: string, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    if (!driverName || driverName === 'Sem motorista' || driverName === 'Nenhum') return;
+    this.closeDetailsModal();
+    this.router.navigate(['/motoristas'], { queryParams: { search: driverName.trim() } });
+  }
+
+  getActiveDriver(v: LinhaAssignedVehicle): { name: string; shift?: string } | null {
+    if (v.activeDriverName) {
+      return { name: v.activeDriverName, shift: v.activeDriverShift };
+    }
+    if (v.motoristas && v.motoristas.length > 0) {
+      return { name: v.motoristas[0] };
+    }
+    return null;
   }
 
   loadLinhas(forceRefresh: boolean = false): void {
@@ -191,6 +335,9 @@ export class RotasComponent implements OnInit {
   // --- Modal View Details ---
   openLinhaDetails(linha: LinhaDetails): void {
     this.selectedLinha = linha;
+    this.showGeneralFleetDetails = false;
+    this.showIdaFleetDetails = false;
+    this.showVoltaFleetDetails = false;
     this.showLinhaDetailsModal = true;
   }
 

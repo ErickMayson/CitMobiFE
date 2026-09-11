@@ -32,6 +32,8 @@ export interface ScheduleBlock {
   start: number;
   end: number;
   duration: number;
+  isActiveNow?: boolean;
+  tooltip?: string;
 }
 
 export interface Viagem {

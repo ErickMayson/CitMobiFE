@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { Motorista } from '../models/motorista.model';
@@ -76,6 +76,26 @@ export class MotoristaService {
     );
   }
 
+  /**
+   * Transfer a driver to a new operator (concessionaire).
+   * Restricted to System Admins (ROLE_ADMIN) and Regulators (flagRegulador = 'S').
+   *
+   * @param id Driver UUID
+   * @param novoOperadorId Target operator ID
+   */
+  transferDriverOperator(id: string, novoOperadorId: number): Observable<Motorista> {
+    this.clearCache();
+    const headers = this.loginService.getAuthHeaders();
+    const params = new HttpParams().set('novoOperadorId', novoOperadorId.toString());
+
+    return this.http.patch<any>(`${this.apiUrl}/v1/api/motoristas/${id}/operador`, null, { headers, params }).pipe(
+      map((res) => {
+        const data = res?.data || res;
+        return this.normalizeMotorista(data);
+      })
+    );
+  }
+
   deleteMotorista(id: string): Observable<boolean> {
     this.clearCache();
     const headers = this.loginService.getAuthHeaders();
@@ -99,6 +119,8 @@ export class MotoristaService {
         id: '',
         nome: '',
         cpf: '',
+        cnhNumero: '',
+        cnhValidade: '',
         telefone: '',
         status: 'FORA DE TURNO',
         horarios: [],
@@ -109,9 +131,12 @@ export class MotoristaService {
       id: String(raw.id || raw.uuid || raw.usuarioId || raw.cpf || ''),
       nome: raw.nome || raw.name || raw.login || 'Motorista',
       cpf: raw.cpf || raw.login || '',
+      cnhNumero: raw.cnhNumero || '',
+      cnhValidade: raw.cnhValidade || '',
       login: raw.login || undefined,
       telefone: raw.telefone || raw.phone || '',
       operadorId: raw.operadorId || raw.operador?.id || undefined,
+      operadorNome: raw.operadorNome || raw.operador?.razaoSocial || undefined,
       status: raw.status || 'FORA DE TURNO',
       horarios: Array.isArray(raw.horarios) ? raw.horarios : [],
     };

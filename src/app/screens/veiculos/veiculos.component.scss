@@ -345,11 +345,23 @@ $amber: #f59e0b;
       border-color: #86efac;
     }
 
-    &.status-maintenance,
-    &.status-garage {
+    &.status-waiting {
       background-color: #fef3c7;
       color: #92400e;
       border-color: #fcd34d;
+    }
+
+    &.status-reserve {
+      background-color: #e0f2fe;
+      color: #0369a1;
+      border-color: #bae6fd;
+    }
+
+    &.status-maintenance,
+    &.status-garage {
+      background-color: #fff7ed;
+      color: #c2410c;
+      border-color: #fed7aa;
     }
 
     &.status-inactive {
@@ -358,8 +370,7 @@ $amber: #f59e0b;
       border-color: #d1d5db;
     }
 
-    &.status-scrapped,
-    &.status-reserve {
+    &.status-scrapped {
       background-color: #fee2e2;
       color: #991b1b;
       border-color: #fca5a5;
@@ -625,6 +636,13 @@ $amber: #f59e0b;
         cursor: not-allowed;
       }
 
+      &.btn-save-animated:disabled {
+        cursor: wait;
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        animation: savePulse 1.2s ease-in-out infinite;
+        box-shadow: 0 0 15px rgba(2, 132, 199, 0.45);
+      }
+
       .btn-spinner {
         width: 1rem;
         height: 1rem;
@@ -634,6 +652,18 @@ $amber: #f59e0b;
         animation: spin 0.6s linear infinite;
       }
     }
+  }
+}
+
+@keyframes savePulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.88;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(0, 180, 216, 0.6);
   }
 }
 
@@ -817,15 +847,45 @@ $amber: #f59e0b;
           }
 
           .driver-block {
-            background: linear-gradient(135deg, $primary-blue 0%, $primary-dark 100%);
-            color: white;
-            border: 2px solid $primary-dark;
+            &.is-active-now {
+              background: linear-gradient(135deg, $primary-blue 0%, $primary-dark 100%);
+              color: white;
+              border: 2px solid $primary-dark;
+              box-shadow: 0 2px 8px rgba(0, 180, 216, 0.4);
+            }
+
+            &.is-inactive-now {
+              background: #94a3b8;
+              color: #f8fafc;
+              border: 2px solid #64748b;
+              opacity: 0.72;
+
+              &:hover {
+                opacity: 0.95;
+                background: #64748b;
+              }
+            }
           }
 
           .route-block {
-            background: linear-gradient(135deg, $green 0%, #059669 100%);
-            color: white;
-            border: 2px solid #047857;
+            &.is-active-now {
+              background: linear-gradient(135deg, $green 0%, #059669 100%);
+              color: white;
+              border: 2px solid #047857;
+              box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4);
+            }
+
+            &.is-inactive-now {
+              background: #94a3b8;
+              color: #f8fafc;
+              border: 2px solid #64748b;
+              opacity: 0.72;
+
+              &:hover {
+                opacity: 0.95;
+                background: #64748b;
+              }
+            }
           }
         }
       }
@@ -854,6 +914,33 @@ $amber: #f59e0b;
           color: #1f2937;
           margin: 0;
         }
+
+        .btn-add-small {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.45rem 0.9rem;
+          background: linear-gradient(135deg, $primary-blue 0%, $primary-blue-hover 100%);
+          color: white;
+          border: none;
+          border-radius: 0.5rem;
+          font-size: 0.8125rem;
+          font-weight: 700;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(0, 180, 216, 0.3);
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+          &:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 180, 216, 0.45);
+            background: linear-gradient(135deg, $primary-blue-hover 0%, #0077b6 100%);
+          }
+
+          &:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 180, 216, 0.2);
+          }
+        }
       }
 
       .items-list {
@@ -876,10 +963,29 @@ $amber: #f59e0b;
             gap: 4px;
             flex: 1;
 
+            .driver-slot-header {
+              display: flex;
+              align-items: center;
+              gap: 0.5rem;
+            }
+
             .item-name {
               font-size: 14px;
               font-weight: 600;
               color: #1f2937;
+            }
+
+            .driver-slot-vacant {
+              display: inline-flex;
+              align-items: center;
+              gap: 0.35rem;
+              font-size: 12px;
+              font-weight: 700;
+              color: #b45309;
+              background-color: #fef3c7;
+              border: 1px solid #fde68a;
+              padding: 0.2rem 0.5rem;
+              border-radius: 9999px;
             }
 
             .item-time {

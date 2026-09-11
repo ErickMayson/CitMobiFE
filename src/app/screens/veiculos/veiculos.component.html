@@ -73,9 +73,9 @@
             </div>
             <span
               class="status-badge"
-              [ngClass]="getStatusColor(veiculo.status)"
+              [ngClass]="getVehicleStatusColor(veiculo)"
             >
-              {{ getStatusLabel(veiculo.status) }}
+              {{ getVehicleStatusLabel(veiculo) }}
             </span>
           </div>
 
@@ -305,25 +305,17 @@
                 <div class="track-label">👤 Motoristas</div>
                 <div class="track-timeline">
                   <div
-                    *ngFor="let block of getScheduleBlocks()"
-                    [class.time-block]="block.type === 'driver'"
-                    [class.driver-block]="block.type === 'driver'"
+                    *ngFor="let block of getDriverScheduleBlocks()"
+                    class="time-block driver-block"
+                    [class.is-active-now]="block.isActiveNow"
+                    [class.is-inactive-now]="!block.isActiveNow"
                     [style.left]="getBlockPosition(block.start)"
                     [style.width]="getBlockWidth(block.duration)"
-                    [title]="
-                      block.name +
-                      ' (' +
-                      block.start +
-                      ':00 - ' +
-                      block.end +
-                      ':00)'
-                    "
+                    [title]="block.tooltip || ''"
                   >
-                    <span
-                      class="block-content"
-                      *ngIf="block.type === 'driver'"
-                      >{{ block.name }}</span
-                    >
+                    <span class="block-content">
+                      {{ (block.name && block.name !== 'Desconhecido') ? block.name : '[ Vago ]' }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -332,25 +324,15 @@
                 <div class="track-label">🚌 Linhas</div>
                 <div class="track-timeline">
                   <div
-                    *ngFor="let block of getScheduleBlocks()"
-                    [class.time-block]="block.type === 'route'"
-                    [class.route-block]="block.type === 'route'"
+                    *ngFor="let block of getRouteScheduleBlocks()"
+                    class="time-block route-block"
+                    [class.is-active-now]="block.isActiveNow"
+                    [class.is-inactive-now]="!block.isActiveNow"
                     [style.left]="getBlockPosition(block.start)"
                     [style.width]="getBlockWidth(block.duration)"
-                    [title]="
-                      block.name +
-                      ' (' +
-                      block.start +
-                      ':00 - ' +
-                      block.end +
-                      ':00)'
-                    "
+                    [title]="block.tooltip || ''"
                   >
-                    <span
-                      class="block-content"
-                      *ngIf="block.type === 'route'"
-                      >{{ block.name }}</span
-                    >
+                    <span class="block-content">{{ block.name }}</span>
                   </div>
                 </div>
               </div>
@@ -372,7 +354,21 @@
                 *ngFor="let driver of selectedVeiculo.drivers; let i = index"
               >
                 <div class="item-content">
-                  <span class="item-name" [title]="driver.name">{{ driver.name | abbreviateName }}</span>
+                  <div class="driver-slot-header">
+                    <span
+                      class="item-name"
+                      *ngIf="driver.name && driver.name !== 'Desconhecido'"
+                      [title]="driver.name"
+                    >
+                      👤 {{ driver.name | abbreviateName }}
+                    </span>
+                    <span
+                      class="driver-slot-vacant"
+                      *ngIf="!driver.name || driver.name === 'Desconhecido' || driver.name === ''"
+                    >
+                      ⚠️ [ Vago / Aguardando Motorista ]
+                    </span>
+                  </div>
                   <span class="item-time"
                     >{{ driver.startTime }} - {{ driver.endTime }}</span
                   >
@@ -436,11 +432,12 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn-secondary" (click)="closeEditModal()">
+        <button class="btn-secondary" [disabled]="isSaving" (click)="closeEditModal()">
           Cancelar
         </button>
-        <button class="btn-primary" (click)="handleSaveEdit()">
-          Salvar Alterações
+        <button class="btn-primary btn-save-animated" [disabled]="isSaving" (click)="handleSaveEdit()">
+          <span class="btn-spinner" *ngIf="isSaving"></span>
+          <span>{{ isSaving ? 'Salvando Alterações...' : 'Salvar Alterações' }}</span>
         </button>
       </div>
     </div>

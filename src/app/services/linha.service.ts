@@ -4,7 +4,38 @@ import { Observable, of, forkJoin } from 'rxjs';
 import { catchError, map, tap, switchMap, timeout } from 'rxjs/operators';
 import { LoginService } from './login.service';
 import { environment } from '../../../environments/enviroment';
-import { MockRota, MockEndereco, MOCK_LINHAS_ATIVAS, MOCK_LINHAS_INATIVAS, MOCK_PARADAS } from '../mock-data/mock-data';
+import { MockRota, MockEndereco, MOCK_LINHAS_ATIVAS, MOCK_LINHAS_INATIVAS, MOCK_PARADAS, MOCK_VEICULOS } from '../mock-data/mock-data';
+
+export interface LinhaTelemetrySummary {
+  veiculosTotal: number;
+  veiculosComMotorista: number;
+  veiculosSemMotorista: number;
+  veiculosEmIda: number;
+  veiculosEmVolta: number;
+  veiculosEmGaragem: number;
+}
+
+export interface LinhaDriverShift {
+  name: string;
+  startTime?: string;
+  endTime?: string;
+  days?: string[];
+}
+
+export interface LinhaAssignedVehicle {
+  plate: string;
+  model: string;
+  type?: string;
+  capacity?: number;
+  sentido: 'IDA' | 'VOLTA' | 'GARAGEM' | 'INATIVO';
+  motoristas: string[];
+  driverShifts?: LinhaDriverShift[];
+  activeDriverName?: string;
+  activeDriverShift?: string;
+  hasDriver: boolean;
+  driverCount: number;
+  pendingDrivers: boolean;
+}
 
 export interface LinhaDetails {
   id: number;
@@ -29,6 +60,8 @@ export interface LinhaDetails {
       enderecos: MockEndereco[];
     };
   };
+  telemetry?: LinhaTelemetrySummary;
+  assignedVehicles?: LinhaAssignedVehicle[];
 }
 
 @Injectable({
@@ -44,16 +77,11 @@ export class LinhaService {
   private cachedParadas: any[] | null = null;
 
   private readonly hardcodedLines = [
-    { id: '3301', atendimento: '10', partida: 'Term. Amaral Gurgel', chegada: 'Term. Pq. D. Pedro II', desc: 'Term. Amaral Gurgel / Term. Pq. D. Pedro II', status: 'ativa' as const },
-    { id: '001', atendimento: '1', partida: 'Centro', chegada: 'Bairro A', desc: 'Centro/Bairro A', status: 'ativa' as const },
-    { id: '002', atendimento: '1', partida: 'Aeroporto', chegada: 'Centro', desc: 'Aeroporto/Centro', status: 'ativa' as const },
-    { id: '003', atendimento: '1', partida: 'Zona Norte', chegada: 'Zona Sul', desc: 'Zona Norte/Sul', status: 'ativa' as const },
-    { id: '004', atendimento: '1', partida: 'Terminal A', chegada: 'Terminal B', desc: 'Terminal A/B', status: 'inativa' as const },
-    { id: '005', atendimento: '1', partida: 'Terminal Central', chegada: 'Circular Centro', desc: 'Circular Centro', status: 'inativa' as const },
-    { id: '372F', atendimento: '10', partida: 'Univ. São Judas', chegada: 'Metrô Bresser', desc: 'Via Alcântara Machado', status: 'ativa' as const },
-    { id: '1178', atendimento: '10', partida: 'T. São Miguel', chegada: 'Praça do Correio', desc: 'Via Celso Garcia', status: 'ativa' as const },
-    { id: '9051', atendimento: '10', partida: 'T. Pinheiros', chegada: 'Lapa', desc: 'Via Sumaré', status: 'ativa' as const },
-    { id: '8000', atendimento: '10', partida: 'Pça Ramos', chegada: 'T. Lapa', desc: 'Via Lapa', status: 'ativa' as const },
+    { id: '3301', atendimento: '10', partida: 'Term. São Miguel', chegada: 'Term. Pq. D. Pedro II', desc: 'Term. São Miguel - Term. Pq. D. Pedro II', status: 'ativa' as const },
+    { id: '1178', atendimento: '10', partida: 'Term. São Miguel', chegada: 'Pça. do Correio', desc: 'Term. São Miguel - Pça. do Correio', status: 'ativa' as const },
+    { id: '9051', atendimento: '10', partida: 'Term. Pinheiros', chegada: 'Lapa', desc: 'Term. Pinheiros - Lapa', status: 'ativa' as const },
+    { id: '8000', atendimento: '10', partida: 'Pça. Ramos de Azevedo', chegada: 'Term. Lapa', desc: 'Pça. Ramos de Azevedo - Term. Lapa', status: 'ativa' as const },
+    { id: '372F', atendimento: '10', partida: 'Univ. São Judas Tadeu', chegada: 'Metrô Bresser', desc: 'Univ. São Judas Tadeu - Metrô Bresser', status: 'ativa' as const },
   ];
 
   private defaultLines: { id: string; atendimento: string; partida: string; chegada: string; desc: string; status: 'ativa' | 'inativa' }[] = [];
@@ -209,6 +237,9 @@ export class LinhaService {
                 }
               });
 
+              // Attach Fleet allocation and Directional Telemetry
+              this.attachFleetAndTelemetry(details);
+
               return details;
             });
           })
@@ -236,18 +267,147 @@ export class LinhaService {
     };
   }
 
+  private attachFleetAndTelemetry(details: LinhaDetails): void {
+    const rawCode = details.codigo.replace('-', '').trim();
+    const matchingVehicles = MOCK_VEICULOS.filter((v) => {
+      if (!v.routes || v.routes.length === 0) return false;
+      return v.routes.some((r) => {
+        const routeName = r.routeName || '';
+        return (
+          routeName.includes(details.codigo) ||
+          routeName.includes(rawCode) ||
+          (details.codigo.includes('3301') && routeName.includes('3301')) ||
+          (details.codigo.includes('1178') && routeName.includes('1178')) ||
+          (details.codigo.includes('9051') && routeName.includes('9051')) ||
+          (details.codigo.includes('8000') && routeName.includes('8000')) ||
+          (details.codigo.includes('372F') && routeName.includes('372F'))
+        );
+      });
+    });
+
+    const assigned: LinhaAssignedVehicle[] = matchingVehicles.map((v) => {
+      const driverShifts: LinhaDriverShift[] = (v.drivers || []).map((d) => ({
+        name: d.name,
+        startTime: d.startTime,
+        endTime: d.endTime,
+        days: d.days,
+      }));
+      const driverNames = driverShifts.map((d) => d.name).filter(Boolean);
+      const hasDriver = driverNames.length > 0;
+      // In urban bus fleet schedules, a full operating line shift expects 2 drivers for daily coverage
+      const pendingDrivers = driverNames.length < 2;
+      
+      const sentido: 'IDA' | 'VOLTA' | 'GARAGEM' | 'INATIVO' = v.status === 'INATIVO' ? 'INATIVO' : 'IDA';
+
+      // Determine active driver based on schedule & current time
+      let activeDriverName: string | undefined;
+      let activeDriverShift: string | undefined;
+
+      if (driverShifts.length > 0) {
+        const now = new Date();
+        const curMin = now.getHours() * 60 + now.getMinutes();
+        const activeShift = driverShifts.find((s) => {
+          if (!s.startTime || !s.endTime) return false;
+          const [sh, sm] = s.startTime.split(':').map(Number);
+          const [eh, em] = s.endTime.split(':').map(Number);
+          const startMin = sh * 60 + (sm || 0);
+          const endMin = eh * 60 + (em || 0);
+          return curMin >= startMin && curMin < endMin;
+        }) || driverShifts[0];
+
+        activeDriverName = activeShift.name;
+        if (activeShift.startTime && activeShift.endTime) {
+          activeDriverShift = `${activeShift.startTime} - ${activeShift.endTime}`;
+        }
+      }
+
+      return {
+        plate: v.plate,
+        model: v.model,
+        type: v.type,
+        capacity: v.capacity,
+        sentido,
+        motoristas: driverNames,
+        driverShifts,
+        activeDriverName,
+        activeDriverShift,
+        hasDriver,
+        driverCount: driverNames.length,
+        pendingDrivers,
+      };
+    });
+
+    let veiculosEmIda = 0;
+    let veiculosEmVolta = 0;
+    let veiculosEmGaragem = 0;
+
+    assigned.forEach((a) => {
+      if (a.sentido === 'IDA') veiculosEmIda++;
+      else if (a.sentido === 'VOLTA') veiculosEmVolta++;
+      else veiculosEmGaragem++;
+    });
+
+    details.assignedVehicles = assigned;
+    details.telemetry = {
+      veiculosTotal: assigned.length,
+      veiculosComMotorista: assigned.filter((a) => a.hasDriver).length,
+      veiculosSemMotorista: assigned.filter((a) => !a.hasDriver).length,
+      veiculosEmIda,
+      veiculosEmVolta,
+      veiculosEmGaragem,
+    };
+  }
+
   private buildFallbackLinhas(): LinhaDetails[] {
-    return this.defaultLines.map((lineDef) => ({
-      id: this.getNumberFromString(lineDef.id),
-      codigo: lineDef.id,
-      atendimento: lineDef.atendimento,
-      partida: lineDef.partida,
-      chegada: lineDef.chegada,
-      nome: lineDef.desc,
-      descricao: lineDef.desc,
-      status: lineDef.status,
-      rotas: {},
-    }));
+    return this.defaultLines.map((lineDef) => {
+      const details: LinhaDetails = {
+        id: this.getNumberFromString(lineDef.id),
+        codigo: lineDef.id,
+        atendimento: lineDef.atendimento,
+        partida: lineDef.partida,
+        chegada: lineDef.chegada,
+        nome: lineDef.desc,
+        descricao: lineDef.desc,
+        status: lineDef.status,
+        rotas: {},
+      };
+
+      // Seed 372F-10 with its 2 Rotas and 6 Paradas
+      if (lineDef.id.includes('372F')) {
+        const paradasIda = MOCK_PARADAS.slice(6, 12).map((p, idx) => ({
+          id: p.paradaId,
+          nome: p.logradouro,
+          endereco: `${p.logradouro}, ${p.numero}`,
+          cep: p.cep,
+          lat: p.latLong[0],
+          lng: p.latLong[1],
+          ordem: idx,
+        }));
+
+        const paradasVolta = [...paradasIda].reverse().map((p, idx) => ({
+          ...p,
+          ordem: idx,
+        }));
+
+        details.rotas = {
+          ida: {
+            id: 1,
+            prefixo: `${details.partida} - ${details.chegada}`,
+            sentido: 'IDA',
+            enderecos: paradasIda,
+          },
+          volta: {
+            id: 2,
+            prefixo: `${details.chegada} - ${details.partida}`,
+            sentido: 'VOLTA',
+            enderecos: paradasVolta,
+          },
+        };
+      }
+
+      this.attachFleetAndTelemetry(details);
+      return details;
+    });
   }
 
   getLinhasAtivas(): Observable<MockRota[]> {

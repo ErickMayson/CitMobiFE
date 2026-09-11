@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { User } from '../../models/userLiteResponse.model';
 import { Motorista, HorarioMotorista } from '../../models/motorista.model';
@@ -14,6 +14,8 @@ import { AbbreviateNamePipe } from '../../pipes/abbreviate-name.pipe';
 import {
   MOCK_VEICULOS_DISPONIVEIS as VEICULOS_DISPONIVEIS,
   MOCK_LINHAS_DISPONIVEIS as LINHAS_DISPONIVEIS,
+  MOCK_OPERADORES,
+  MockOperador,
 } from '../../mock-data/mock-data';
 
 interface VeiculoItem {
@@ -57,23 +59,41 @@ export class MotoristaComponent implements OnInit {
   motoristas: Motorista[] = [];
   veiculosDisponiveis: VeiculoItem[] = VEICULOS_DISPONIVEIS;
   linhasDisponiveis: LinhaItem[] = LINHAS_DISPONIVEIS;
+  operadoresDisponiveis: MockOperador[] = MOCK_OPERADORES;
 
   showAddModal = false;
   showEditModal = false;
   showAddHorarioModal = false;
   showEditHorarioModal = false;
+  showTransferModal = false;
+
   selectedMotorista: Motorista | null = null;
-  selectedDay: string = 'SEG';
+  selectedMotoristaForTransfer: Motorista | null = null;
+  targetOperadorId: number | null = null;
+  selectedDay: string = this.getCurrentDayCode();
   editingHorarioIndex: number = -1;
 
   errorMessage: string = '';
+  horarioErrorMessage: string = '';
+  transferErrorMessage: string = '';
   isSaving: boolean = false;
+  isTransferring: boolean = false;
 
   newMotorista = {
     nome: '',
     cpf: '',
+    cnhNumero: '',
+    cnhValidade: '',
     telefone: '',
   };
+
+  get isAdmin(): boolean {
+    return this.loginService.isAdmin();
+  }
+
+  get minDate(): string {
+    return new Date().toISOString().split('T')[0];
+  }
 
   onCpfInput(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -91,6 +111,8 @@ export class MotoristaComponent implements OnInit {
     startTime: '06:00',
     endTime: '14:00',
     days: [] as string[],
+    pausaInicio: '',
+    pausaFim: '',
   };
 
   statusOrder = ['EM ATENDIMENTO', 'ATIVO', 'AGUARDANDO', 'PAUSA', 'FORA DE TURNO', 'INATIVO'];
@@ -112,7 +134,8 @@ export class MotoristaComponent implements OnInit {
     private motoristaService: MotoristaService,
     private veiculoService: VeiculoService,
     private linhaService: LinhaService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
@@ -158,6 +181,24 @@ export class MotoristaComponent implements OnInit {
     });
   }
 
+  checkQueryParamsForSelection(): void {
+    this.route.queryParams.subscribe((params) => {
+      const targetSearch = params['search'] || params['nome'] || params['cpf'];
+      if (targetSearch && this.motoristas.length > 0) {
+        const normTarget = targetSearch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        const found = this.motoristas.find((m) => {
+          const normName = (m.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const normCpf = (m.cpf || '').replace(/\D/g, '');
+          const targetDigits = targetSearch.replace(/\D/g, '');
+          return (normName && normName.includes(normTarget)) || (targetDigits && normCpf.includes(targetDigits));
+        });
+        if (found) {
+          setTimeout(() => this.openEditModal(found), 150);
+        }
+      }
+    });
+  }
+
   loadMotoristas(forceRefresh: boolean = false): void {
     this.isLoading = true;
     this.motoristaService.getMotoristas(forceRefresh).subscribe({
@@ -165,6 +206,7 @@ export class MotoristaComponent implements OnInit {
         this.motoristas = data || [];
         this.sortMotoristas();
         this.isLoading = false;
+        this.checkQueryParamsForSelection();
       },
       error: (err) => {
         this.isLoading = false;
@@ -201,6 +243,26 @@ export class MotoristaComponent implements OnInit {
     }
   }
 
+  isCnhExpired(validade?: string): boolean {
+    if (!validade) return false;
+    const exp = new Date(validade + 'T00:00:00');
+    if (isNaN(exp.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return exp.getTime() < today.getTime();
+  }
+
+  isCnhExpiringSoon(validade?: string): boolean {
+    if (!validade) return false;
+    const exp = new Date(validade + 'T00:00:00');
+    if (isNaN(exp.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffMs = exp.getTime() - today.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 30;
+  }
+
   getCurrentHorario(motorista: Motorista): HorarioMotorista | null {
     if (!motorista.horarios || motorista.horarios.length === 0) return null;
     return motorista.horarios[0];
@@ -210,7 +272,13 @@ export class MotoristaComponent implements OnInit {
   openAddModal(): void {
     this.errorMessage = '';
     this.isSaving = false;
-    this.newMotorista = { nome: '', cpf: '', telefone: '' };
+    this.newMotorista = {
+      nome: '',
+      cpf: '',
+      cnhNumero: '',
+      cnhValidade: '',
+      telefone: '',
+    };
     this.showAddModal = true;
   }
 
@@ -218,13 +286,25 @@ export class MotoristaComponent implements OnInit {
     this.showAddModal = false;
     this.errorMessage = '';
     this.isSaving = false;
-    this.newMotorista = { nome: '', cpf: '', telefone: '' };
+    this.newMotorista = {
+      nome: '',
+      cpf: '',
+      cnhNumero: '',
+      cnhValidade: '',
+      telefone: '',
+    };
   }
 
   handleAddMotorista(): void {
     this.errorMessage = '';
-    if (!this.newMotorista.nome || !this.newMotorista.cpf || !this.newMotorista.telefone) {
-      this.errorMessage = 'Preencha todos os campos obrigatórios.';
+    if (
+      !this.newMotorista.nome ||
+      !this.newMotorista.cpf ||
+      !this.newMotorista.cnhNumero ||
+      !this.newMotorista.cnhValidade ||
+      !this.newMotorista.telefone
+    ) {
+      this.errorMessage = 'Preencha todos os campos obrigatórios (incluindo CNH e validade).';
       return;
     }
 
@@ -234,10 +314,17 @@ export class MotoristaComponent implements OnInit {
       return;
     }
 
+    if (this.newMotorista.cnhNumero.trim().length > 20) {
+      this.errorMessage = 'Número da CNH deve ter no máximo 20 caracteres.';
+      return;
+    }
+
     this.isSaving = true;
     const motorista: Partial<Motorista> = {
       nome: this.newMotorista.nome.trim(),
       cpf: cleanCpf,
+      cnhNumero: this.newMotorista.cnhNumero.trim(),
+      cnhValidade: this.newMotorista.cnhValidade,
       telefone: this.newMotorista.telefone.trim(),
       status: 'FORA DE TURNO',
       horarios: [],
@@ -265,10 +352,23 @@ export class MotoristaComponent implements OnInit {
     });
   }
 
+  getCurrentDayCode(): string {
+    const dayMap: { [key: number]: string } = {
+      0: 'DOM',
+      1: 'SEG',
+      2: 'TER',
+      3: 'QUA',
+      4: 'QUI',
+      5: 'SEX',
+      6: 'SAB',
+    };
+    return dayMap[new Date().getDay()] || 'SEG';
+  }
+
   openEditModal(motorista: Motorista): void {
     this.selectedMotorista = JSON.parse(JSON.stringify(motorista));
     this.showEditModal = true;
-    this.selectedDay = 'SEG';
+    this.selectedDay = this.getCurrentDayCode();
   }
 
   closeEditModal(): void {
@@ -278,6 +378,11 @@ export class MotoristaComponent implements OnInit {
 
   handleSaveEdit(): void {
     if (this.selectedMotorista) {
+      if (!this.selectedMotorista.nome || !this.selectedMotorista.cnhNumero || !this.selectedMotorista.cnhValidade) {
+        alert('Preencha os campos obrigatórios da CNH e Nome.');
+        return;
+      }
+
       this.motoristaService.updateMotorista(this.selectedMotorista).subscribe({
         next: () => {
           this.loadMotoristas(true);
@@ -313,6 +418,60 @@ export class MotoristaComponent implements OnInit {
     }
   }
 
+  // Operator Transfer
+  openTransferModal(event: Event, motorista: Motorista): void {
+    event.stopPropagation();
+    this.selectedMotoristaForTransfer = motorista;
+    this.targetOperadorId = null;
+    this.transferErrorMessage = '';
+    this.isTransferring = false;
+    this.showTransferModal = true;
+  }
+
+  closeTransferModal(): void {
+    this.showTransferModal = false;
+    this.selectedMotoristaForTransfer = null;
+    this.targetOperadorId = null;
+    this.transferErrorMessage = '';
+    this.isTransferring = false;
+  }
+
+  handleConfirmTransfer(): void {
+    if (!this.selectedMotoristaForTransfer) return;
+    if (!this.targetOperadorId) {
+      this.transferErrorMessage = 'Selecione a operadora de destino.';
+      return;
+    }
+
+    if (this.selectedMotoristaForTransfer.operadorId === Number(this.targetOperadorId)) {
+      this.transferErrorMessage = 'O motorista já está vinculado a esta operadora.';
+      return;
+    }
+
+    this.isTransferring = true;
+    this.transferErrorMessage = '';
+
+    this.motoristaService
+      .transferDriverOperator(this.selectedMotoristaForTransfer.id, Number(this.targetOperadorId))
+      .subscribe({
+        next: () => {
+          this.isTransferring = false;
+          this.loadMotoristas(true);
+          this.closeTransferModal();
+          if (this.showEditModal) {
+            this.closeEditModal();
+          }
+        },
+        error: (err) => {
+          this.isTransferring = false;
+          this.transferErrorMessage =
+            err?.error?.message ||
+            err?.error?.error ||
+            'Erro ao transferir motorista para nova operadora.';
+        },
+      });
+  }
+
   abbreviateName(name: string | null | undefined): string {
     return abbreviateName(name);
   }
@@ -326,14 +485,17 @@ export class MotoristaComponent implements OnInit {
     return name.slice(0, 2).toUpperCase();
   }
 
-  // CRUD Horário
+  // CRUD Horário with Split-Shift Validation
   openAddHorarioModal(): void {
+    this.horarioErrorMessage = '';
     this.horarioForm = {
       veiculoId: '',
       rotaId: '',
       startTime: '06:00',
       endTime: '14:00',
       days: [],
+      pausaInicio: '',
+      pausaFim: '',
     };
     this.showAddHorarioModal = true;
     this.ensureVeiculosAndLinhasLoaded();
@@ -341,17 +503,21 @@ export class MotoristaComponent implements OnInit {
 
   closeAddHorarioModal(): void {
     this.showAddHorarioModal = false;
+    this.horarioErrorMessage = '';
   }
 
   openEditHorarioModal(index: number): void {
     const horario = this.selectedMotorista?.horarios[index];
     if (horario) {
+      this.horarioErrorMessage = '';
       this.horarioForm = {
         veiculoId: horario.veiculoId,
         rotaId: horario.rotaId,
         startTime: horario.startTime,
         endTime: horario.endTime,
         days: [...horario.days],
+        pausaInicio: horario.pausaInicio || '',
+        pausaFim: horario.pausaFim || '',
       };
       this.editingHorarioIndex = index;
       this.showEditHorarioModal = true;
@@ -362,6 +528,7 @@ export class MotoristaComponent implements OnInit {
   closeEditHorarioModal(): void {
     this.showEditHorarioModal = false;
     this.editingHorarioIndex = -1;
+    this.horarioErrorMessage = '';
   }
 
   toggleHorarioDay(day: string): void {
@@ -377,70 +544,116 @@ export class MotoristaComponent implements OnInit {
     return this.horarioForm.days.includes(day);
   }
 
-  handleAddHorario(): void {
+  private validateHorarioForm(excludeIndex: number = -1): boolean {
+    this.horarioErrorMessage = '';
+
     if (
-      this.selectedMotorista &&
-      this.horarioForm.veiculoId &&
-      this.horarioForm.rotaId &&
-      this.horarioForm.startTime &&
-      this.horarioForm.endTime &&
-      this.horarioForm.days.length > 0
+      !this.horarioForm.veiculoId ||
+      !this.horarioForm.rotaId ||
+      !this.horarioForm.startTime ||
+      !this.horarioForm.endTime ||
+      this.horarioForm.days.length === 0
     ) {
-      const veiculo = this.veiculosDisponiveis.find(
-        (v) => String(v.id) === String(this.horarioForm.veiculoId) || v.placa === this.horarioForm.veiculoId
-      );
-      const linha = this.linhasDisponiveis.find(
-        (l) => String(l.id) === String(this.horarioForm.rotaId)
-      );
-
-      const newHorario: HorarioMotorista = {
-        veiculoId: veiculo?.id || this.horarioForm.veiculoId,
-        veiculoPlaca: veiculo?.placa || String(this.horarioForm.veiculoId),
-        veiculoModelo: veiculo?.modelo || 'Padrão',
-        rotaId: linha?.id || this.horarioForm.rotaId,
-        rotaNome: linha?.nome || String(this.horarioForm.rotaId),
-        startTime: this.horarioForm.startTime,
-        endTime: this.horarioForm.endTime,
-        days: [...this.horarioForm.days],
-      };
-
-      if (!this.selectedMotorista.horarios) {
-        this.selectedMotorista.horarios = [];
-      }
-      this.selectedMotorista.horarios.push(newHorario);
-      this.closeAddHorarioModal();
+      this.horarioErrorMessage = 'Preencha todos os campos e selecione ao menos um dia da semana.';
+      return false;
     }
+
+    const toMinutes = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+
+    const startMin = toMinutes(this.horarioForm.startTime);
+    const endMin = toMinutes(this.horarioForm.endTime);
+
+    if (startMin >= endMin) {
+      this.horarioErrorMessage = 'O horário de início deve ser anterior ao horário de término.';
+      return false;
+    }
+
+    // Split-Shift overlap check against existing schedules for the selected driver
+    if (this.selectedMotorista?.horarios) {
+      for (let i = 0; i < this.selectedMotorista.horarios.length; i++) {
+        if (i === excludeIndex) continue;
+        const other = this.selectedMotorista.horarios[i];
+        const sharedDay = other.days.some((d) => this.horarioForm.days.includes(d));
+        if (sharedDay) {
+          const otherStart = toMinutes(other.startTime);
+          const otherEnd = toMinutes(other.endTime);
+
+          const hasOverlap = Math.max(startMin, otherStart) < Math.min(endMin, otherEnd);
+          if (hasOverlap) {
+            this.horarioErrorMessage = `Conflito de escala: Já existe turno entre ${other.startTime} e ${other.endTime} em dias coincidentes.`;
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  }
+
+  handleAddHorario(): void {
+    if (!this.selectedMotorista || !this.validateHorarioForm()) {
+      return;
+    }
+
+    const veiculo = this.veiculosDisponiveis.find(
+      (v) => String(v.id) === String(this.horarioForm.veiculoId) || v.placa === this.horarioForm.veiculoId
+    );
+    const linha = this.linhasDisponiveis.find(
+      (l) => String(l.id) === String(this.horarioForm.rotaId)
+    );
+
+    const newHorario: HorarioMotorista = {
+      veiculoId: veiculo?.id || this.horarioForm.veiculoId,
+      veiculoPlaca: veiculo?.placa || String(this.horarioForm.veiculoId),
+      veiculoModelo: veiculo?.modelo || 'Padrão',
+      rotaId: linha?.id || this.horarioForm.rotaId,
+      rotaNome: linha?.nome || String(this.horarioForm.rotaId),
+      startTime: this.horarioForm.startTime,
+      endTime: this.horarioForm.endTime,
+      days: [...this.horarioForm.days],
+      pausaInicio: this.horarioForm.pausaInicio || undefined,
+      pausaFim: this.horarioForm.pausaFim || undefined,
+    };
+
+    if (!this.selectedMotorista.horarios) {
+      this.selectedMotorista.horarios = [];
+    }
+    this.selectedMotorista.horarios.push(newHorario);
+    this.closeAddHorarioModal();
   }
 
   handleEditHorario(): void {
     if (
-      this.selectedMotorista &&
-      this.editingHorarioIndex >= 0 &&
-      this.horarioForm.veiculoId &&
-      this.horarioForm.rotaId &&
-      this.horarioForm.startTime &&
-      this.horarioForm.endTime &&
-      this.horarioForm.days.length > 0
+      !this.selectedMotorista ||
+      this.editingHorarioIndex < 0 ||
+      !this.validateHorarioForm(this.editingHorarioIndex)
     ) {
-      const veiculo = this.veiculosDisponiveis.find(
-        (v) => String(v.id) === String(this.horarioForm.veiculoId) || v.placa === this.horarioForm.veiculoId
-      );
-      const linha = this.linhasDisponiveis.find(
-        (l) => String(l.id) === String(this.horarioForm.rotaId)
-      );
-
-      this.selectedMotorista.horarios[this.editingHorarioIndex] = {
-        veiculoId: veiculo?.id || this.horarioForm.veiculoId,
-        veiculoPlaca: veiculo?.placa || String(this.horarioForm.veiculoId),
-        veiculoModelo: veiculo?.modelo || 'Padrão',
-        rotaId: linha?.id || this.horarioForm.rotaId,
-        rotaNome: linha?.nome || String(this.horarioForm.rotaId),
-        startTime: this.horarioForm.startTime,
-        endTime: this.horarioForm.endTime,
-        days: [...this.horarioForm.days],
-      };
-      this.closeEditHorarioModal();
+      return;
     }
+
+    const veiculo = this.veiculosDisponiveis.find(
+      (v) => String(v.id) === String(this.horarioForm.veiculoId) || v.placa === this.horarioForm.veiculoId
+    );
+    const linha = this.linhasDisponiveis.find(
+      (l) => String(l.id) === String(this.horarioForm.rotaId)
+    );
+
+    this.selectedMotorista.horarios[this.editingHorarioIndex] = {
+      veiculoId: veiculo?.id || this.horarioForm.veiculoId,
+      veiculoPlaca: veiculo?.placa || String(this.horarioForm.veiculoId),
+      veiculoModelo: veiculo?.modelo || 'Padrão',
+      rotaId: linha?.id || this.horarioForm.rotaId,
+      rotaNome: linha?.nome || String(this.horarioForm.rotaId),
+      startTime: this.horarioForm.startTime,
+      endTime: this.horarioForm.endTime,
+      days: [...this.horarioForm.days],
+      pausaInicio: this.horarioForm.pausaInicio || undefined,
+      pausaFim: this.horarioForm.pausaFim || undefined,
+    };
+    this.closeEditHorarioModal();
   }
 
   removeHorario(index: number): void {

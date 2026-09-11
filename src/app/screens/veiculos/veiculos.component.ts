@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import {
   Motorista,
   Linha,
@@ -57,7 +57,7 @@ export class VeiculosComponent implements OnInit {
   showEditDriverModal = false;
   showEditRouteModal = false;
   selectedVeiculo: Veiculo | null = null;
-  selectedDay: string = 'SEG';
+  selectedDay: string = this.getCurrentDayCode();
   editingDriverIndex: number = -1;
   editingRouteIndex: number = -1;
 
@@ -117,7 +117,8 @@ export class VeiculosComponent implements OnInit {
     private loginService: LoginService,
     private motoristaService: MotoristaService,
     private linhaService: LinhaService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
@@ -145,6 +146,8 @@ export class VeiculosComponent implements OnInit {
             id: String(i + 1),
             nome: name,
             cpf: '',
+            cnhNumero: '',
+            cnhValidade: '',
             telefone: '',
             status: 'AGUARDANDO',
             horarios: [],
@@ -159,6 +162,8 @@ export class VeiculosComponent implements OnInit {
           id: String(i + 1),
           nome: name,
           cpf: '',
+          cnhNumero: '',
+          cnhValidade: '',
           telefone: '',
           status: 'AGUARDANDO',
           horarios: [],
@@ -249,6 +254,21 @@ export class VeiculosComponent implements OnInit {
     });
   }
 
+  checkQueryParamsForSelection(): void {
+    this.route.queryParams.subscribe((params) => {
+      const targetPlate = params['plate'] || params['placa'] || params['search'];
+      if (targetPlate && this.veiculos.length > 0) {
+        const cleanTarget = targetPlate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        const found = this.veiculos.find(
+          (v) => v.plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === cleanTarget
+        );
+        if (found) {
+          setTimeout(() => this.openEditModal(found), 150);
+        }
+      }
+    });
+  }
+
   loadVeiculos(forceRefresh: boolean = false): void {
     this.isLoading = true;
     this.veiculoService.getVeiculos(forceRefresh).subscribe({
@@ -260,11 +280,13 @@ export class VeiculosComponent implements OnInit {
         this.veiculos = list;
         this.sortVeiculos();
         this.isLoading = false;
+        this.checkQueryParamsForSelection();
       },
       error: (err) => {
         if (ENABLE_DEMO_MOCKUP) {
           this.veiculos = [DEMO_MOCK_VEICULO as unknown as Veiculo];
           this.sortVeiculos();
+          this.checkQueryParamsForSelection();
         }
         this.isLoading = false;
         if (err.status === 401 || err.status === 403) {
@@ -303,13 +325,26 @@ export class VeiculosComponent implements OnInit {
     }
   }
 
+  getVehicleStatusColor(veiculo: Veiculo): string {
+    if (veiculo.status === 'ATIVO') {
+      const routesCount = veiculo.routes?.length || 0;
+      const driversCount = veiculo.drivers?.length || 0;
+      if (routesCount > 0 && driversCount > 0) {
+        return 'status-active'; // Green: Em Operação
+      } else if (routesCount > 0 && driversCount === 0) {
+        return 'status-waiting'; // Amber: Aguardando Motorista
+      } else {
+        return 'status-reserve'; // Blue: Reserva / Disponível
+      }
+    }
+    return this.getStatusColor(veiculo.status);
+  }
+
   getStatusLabel(status: string): string {
     switch (status) {
       case 'ATIVO':
-      case 'EM ATENDIMENTO':
         return 'Ativo';
       case 'MANUTENCAO':
-      case 'GARAGEM':
         return 'Manutenção';
       case 'INATIVO':
         return 'Inativo';
@@ -317,11 +352,24 @@ export class VeiculosComponent implements OnInit {
         return 'Sucateado';
       case 'VENDIDO':
         return 'Vendido';
-      case 'RESERVA':
-        return 'Reserva';
       default:
         return status;
     }
+  }
+
+  getVehicleStatusLabel(veiculo: Veiculo): string {
+    if (veiculo.status === 'ATIVO') {
+      const routesCount = veiculo.routes?.length || 0;
+      const driversCount = veiculo.drivers?.length || 0;
+      if (routesCount > 0 && driversCount > 0) {
+        return 'Em Operação';
+      } else if (routesCount > 0 && driversCount === 0) {
+        return 'Aguardando Motorista';
+      } else {
+        return 'Reserva / Na Garagem';
+      }
+    }
+    return this.getStatusLabel(veiculo.status);
   }
 
   // Vehicle CRUD
@@ -397,10 +445,23 @@ export class VeiculosComponent implements OnInit {
     });
   }
 
+  getCurrentDayCode(): string {
+    const dayMap: { [key: number]: string } = {
+      0: 'DOM',
+      1: 'SEG',
+      2: 'TER',
+      3: 'QUA',
+      4: 'QUI',
+      5: 'SEX',
+      6: 'SAB',
+    };
+    return dayMap[new Date().getDay()] || 'SEG';
+  }
+
   openEditModal(veiculo: Veiculo): void {
     this.selectedVeiculo = JSON.parse(JSON.stringify(veiculo));
     this.showEditModal = true;
-    this.selectedDay = 'SEG';
+    this.selectedDay = this.getCurrentDayCode();
   }
 
   closeEditModal(): void {
@@ -410,12 +471,15 @@ export class VeiculosComponent implements OnInit {
 
   handleSaveEdit(): void {
     if (this.selectedVeiculo) {
+      this.isSaving = true;
       this.veiculoService.updateVeiculo(this.selectedVeiculo).subscribe({
         next: () => {
+          this.isSaving = false;
           this.loadVeiculos(true);
           this.closeEditModal();
         },
         error: (err) => {
+          this.isSaving = false;
           if (err.status === 401 || err.status === 403) {
             this.loginService.logout();
             this.router.navigate(['/login']);
@@ -636,42 +700,151 @@ export class VeiculosComponent implements OnInit {
     this.selectedDay = day;
   }
 
-  getScheduleBlocks(): ScheduleBlock[] {
-    if (!this.selectedVeiculo) return [];
+  getDriverScheduleBlocks(): ScheduleBlock[] {
+    if (!this.selectedVeiculo || !this.selectedVeiculo.drivers) return [];
+
+    const dayMap: { [key: number]: string } = {
+      0: 'DOM',
+      1: 'SEG',
+      2: 'TER',
+      3: 'QUA',
+      4: 'QUI',
+      5: 'SEX',
+      6: 'SAB',
+    };
+    const now = new Date();
+    const currentDayCode = dayMap[now.getDay()];
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const isViewingToday = this.selectedDay === currentDayCode;
 
     const blocks: ScheduleBlock[] = [];
 
-    // Add driver blocks
     this.selectedVeiculo.drivers
-      .filter((d) => d.days.includes(this.selectedDay))
+      .filter((d) => d.days && d.days.includes(this.selectedDay))
       .forEach((driver) => {
-        const start = parseInt(driver.startTime.split(':')[0]);
-        const end = parseInt(driver.endTime.split(':')[0]);
+        const start = parseInt(driver.startTime.split(':')[0], 10);
+        const end = parseInt(driver.endTime.split(':')[0], 10);
+        const duration = Math.max(1, end - start);
+
+        const startMin = start * 60;
+        const endMin = end * 60;
+        const isActiveNow =
+          isViewingToday &&
+          currentMinutes >= startMin &&
+          currentMinutes < endMin &&
+          !!driver.name &&
+          driver.name !== 'Desconhecido';
+
+        const driverName =
+          driver.name && driver.name !== 'Desconhecido'
+            ? driver.name
+            : 'Vago / Aguardando Motorista';
+
+        const tooltip = isActiveNow
+          ? `${driverName} — Dirigindo este veículo no momento (${driver.startTime} - ${driver.endTime})`
+          : `${driverName} — Não está dirigindo esse veículo no momento (${driver.startTime} - ${driver.endTime})`;
+
         blocks.push({
           type: 'driver',
           name: driver.name,
           start,
           end,
-          duration: end - start,
-        });
-      });
-
-    // Add route blocks
-    this.selectedVeiculo.routes
-      .filter((r) => r.days.includes(this.selectedDay))
-      .forEach((route) => {
-        const start = parseInt(route.startTime.split(':')[0]);
-        const end = parseInt(route.endTime.split(':')[0]);
-        blocks.push({
-          type: 'route',
-          name: route.routeName,
-          start,
-          end,
-          duration: end - start,
+          duration,
+          isActiveNow,
+          tooltip,
         });
       });
 
     return blocks;
+  }
+
+  getRouteScheduleBlocks(): ScheduleBlock[] {
+    if (!this.selectedVeiculo || !this.selectedVeiculo.routes) return [];
+
+    const dayMap: { [key: number]: string } = {
+      0: 'DOM',
+      1: 'SEG',
+      2: 'TER',
+      3: 'QUA',
+      4: 'QUI',
+      5: 'SEX',
+      6: 'SAB',
+    };
+    const now = new Date();
+    const currentDayCode = dayMap[now.getDay()];
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const isViewingToday = this.selectedDay === currentDayCode;
+
+    // 1. Filter routes for the selected day
+    const rawBlocks: { name: string; start: number; end: number }[] = [];
+    this.selectedVeiculo.routes
+      .filter((r) => r.days && r.days.includes(this.selectedDay))
+      .forEach((route) => {
+        const start = parseInt(route.startTime.split(':')[0], 10);
+        const end = parseInt(route.endTime.split(':')[0], 10);
+        rawBlocks.push({
+          name: route.routeName,
+          start,
+          end,
+        });
+      });
+
+    // 2. Sort by start time
+    rawBlocks.sort((a, b) => a.start - b.start);
+
+    // 3. Merge contiguous / adjacent segments with the same route name into one continuous line
+    const merged: { name: string; start: number; end: number }[] = [];
+    for (const b of rawBlocks) {
+      if (merged.length === 0) {
+        merged.push({ ...b });
+      } else {
+        const prev = merged[merged.length - 1];
+        if (prev.name.trim() === b.name.trim() && b.start <= prev.end) {
+          prev.end = Math.max(prev.end, b.end);
+        } else {
+          merged.push({ ...b });
+        }
+      }
+    }
+
+    // 4. Check if any route is active right now on this day
+    const hasAnyActiveRoute =
+      isViewingToday &&
+      merged.some((m) => currentMinutes >= m.start * 60 && currentMinutes < m.end * 60);
+
+    // 5. Map to ScheduleBlock with active status and tooltips
+    return merged.map((m) => {
+      const duration = Math.max(1, m.end - m.start);
+      const isActiveNow =
+        isViewingToday &&
+        currentMinutes >= m.start * 60 &&
+        currentMinutes < m.end * 60;
+
+      let tooltip = '';
+      if (isActiveNow) {
+        tooltip = `${m.name} — Operando nesta linha no momento (${m.start}:00 - ${m.end}:00)`;
+      } else if (hasAnyActiveRoute) {
+        tooltip = `${m.name} — Operando em outra linha no momento (${m.start}:00 - ${m.end}:00)`;
+      } else {
+        tooltip = `${m.name} — Não está operando nesta linha no momento (${m.start}:00 - ${m.end}:00)`;
+      }
+
+      return {
+        type: 'route',
+        name: m.name,
+        start: m.start,
+        end: m.end,
+        duration,
+        isActiveNow,
+        tooltip,
+      };
+    });
+  }
+
+  getScheduleBlocks(type?: 'driver' | 'route'): ScheduleBlock[] {
+    if (type === 'driver') return this.getDriverScheduleBlocks();
+    if (type === 'route') return this.getRouteScheduleBlocks();
+    return [...this.getDriverScheduleBlocks(), ...this.getRouteScheduleBlocks()];
   }
 
   getBlockPosition(start: number): string {

@@ -153,6 +153,18 @@ export class LoginService {
     return !!token && !this.isTokenExpired();
   }
 
+  /** Check if current user is Admin or Regulator */
+  isAdmin(): boolean {
+    const user = this.currentUserValue;
+    if (!user) return false;
+    const role = (user.role || '').toUpperCase();
+    return (
+      role === 'ROLE_ADMIN' ||
+      role === 'ADMIN' ||
+      user.operador?.flagRegulador === 'S'
+    );
+  }
+
   /** Get current user snapshot */
   get currentUserValue(): User | null {
     return this.currentUserSubject.value;

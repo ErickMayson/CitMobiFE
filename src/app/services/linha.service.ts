@@ -53,12 +53,16 @@ export interface LinhaDetails {
   rotas: {
     ida?: {
       id?: number;
+      rotaId?: number;
+      itinerarioId?: number;
       prefixo: string;
       sentido: 'IDA';
       enderecos: Endereco[];
     };
     volta?: {
       id?: number;
+      rotaId?: number;
+      itinerarioId?: number;
       prefixo: string;
       sentido: 'VOLTA';
       enderecos: Endereco[];
@@ -194,30 +198,41 @@ export class LinhaService {
                 ? `${parsed.partida} - ${parsed.chegada}`
                 : `${parsed.chegada} - ${parsed.partida}`;
 
+              const currentRotaId = r.id ? Number(r.id) : undefined;
+              const currentItinerarioId = r.itinerario?.itinerarioId ? Number(r.itinerario.itinerarioId) : undefined;
+
               if (isIda) {
                 rotasObj.ida = {
-                  id: r.itinerario?.itinerarioId || r.id || 0,
+                  id: currentRotaId || currentItinerarioId || 0,
+                  rotaId: currentRotaId,
+                  itinerarioId: currentItinerarioId,
                   prefixo: r.prefixo || defaultPrefixo,
                   sentido: 'IDA',
                   enderecos: paradasList,
                 };
               } else if (isVolta) {
                 rotasObj.volta = {
-                  id: r.itinerario?.itinerarioId || r.id || 0,
+                  id: currentRotaId || currentItinerarioId || 0,
+                  rotaId: currentRotaId,
+                  itinerarioId: currentItinerarioId,
                   prefixo: r.prefixo || defaultPrefixo,
                   sentido: 'VOLTA',
                   enderecos: paradasList,
                 };
               } else if (!rotasObj.ida) {
                 rotasObj.ida = {
-                  id: r.itinerario?.itinerarioId || r.id || 0,
+                  id: currentRotaId || currentItinerarioId || 0,
+                  rotaId: currentRotaId,
+                  itinerarioId: currentItinerarioId,
                   prefixo: r.prefixo || defaultPrefixo,
                   sentido: 'IDA',
                   enderecos: paradasList,
                 };
               } else if (!rotasObj.volta) {
                 rotasObj.volta = {
-                  id: r.itinerario?.itinerarioId || r.id || 0,
+                  id: currentRotaId || currentItinerarioId || 0,
+                  rotaId: currentRotaId,
+                  itinerarioId: currentItinerarioId,
                   prefixo: r.prefixo || defaultPrefixo,
                   sentido: 'VOLTA',
                   enderecos: paradasList,
@@ -395,13 +410,15 @@ export class LinhaService {
     );
   }
 
-  /** Saves/Links a Rota (itinerary) to a specific Linha in backend DB */
+  /** Saves/Links a Rota (itinerary) to a specific Linha in backend DB (supports PUT update and POST create) */
   saveRotaItinerario(
     linhaId: string,
     atendimento: string,
     sentido: 'IDA' | 'VOLTA',
     prefixo: string,
-    enderecos: Endereco[]
+    enderecos: Endereco[],
+    rotaId?: number,
+    itinerarioId?: number
   ): Observable<any> {
     const headers = this.loginService.getAuthHeaders();
 
@@ -435,30 +452,55 @@ export class LinhaService {
       };
     });
 
-    const rotaRecord = {
+    const rotaRecord: any = {
       linhaId: linhaId.trim(),
       linhaAtendimento: atendimento.trim(),
       prefixo: prefixo.trim(),
       municipio: 3550308,
       linhaSentido: sentido,
       itinerario: {
-        itinerarioId: 0,
+        itinerarioId: itinerarioId || 0,
         paradas: paradasList,
       },
     };
 
-    return this.http
-      .post<any>(`${this.apiUrl}/v1/api/rotas`, rotaRecord, {
+    if (rotaId && rotaId > 0) {
+      rotaRecord.id = rotaId;
+    }
+
+    let request$: Observable<any>;
+    if (rotaId && rotaId > 0) {
+      // Calls new PUT /v1/api/rotas/{id} endpoint with fallback to query params
+      request$ = this.http
+        .put<any>(`${this.apiUrl}/v1/api/rotas/${rotaId}`, rotaRecord, { headers })
+        .pipe(
+          catchError((err) => {
+            console.warn('[LinhaService] PUT /v1/api/rotas/{id} fallback to PUT /v1/api/rotas:', err);
+            return this.http.put<any>(`${this.apiUrl}/v1/api/rotas`, rotaRecord, {
+              headers,
+              params: {
+                linha: linhaId.trim(),
+                atendimento: atendimento.trim(),
+                municipio: '3550308',
+              },
+            });
+          })
+        );
+    } else {
+      // New rota creation via POST /v1/api/rotas
+      request$ = this.http.post<any>(`${this.apiUrl}/v1/api/rotas`, rotaRecord, {
         headers,
         params: {
           linha: linhaId.trim(),
           atendimento: atendimento.trim(),
           municipio: '3550308',
         },
-      })
-      .pipe(
-        tap(() => this.clearCache())
-      );
+      });
+    }
+
+    return request$.pipe(
+      tap(() => this.clearCache())
+    );
   }
 
   /** Fetch all registered stops for a municipality from backend, optionally filtering by logradouro */

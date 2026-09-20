@@ -44,26 +44,123 @@
 
       <!-- Active Lines Section -->
       <div class="rotas-section" *ngIf="!isLoadingLinhas">
-        <h2 class="section-title">Linhas em Operação</h2>
-        <div class="rotas-grid">
+        <div class="section-header-row">
+          <div class="section-title-wrap">
+            <h2 class="section-title">Linhas em Operação</h2>
+            <span class="section-count-pill" *ngIf="linhasAtivas.length">{{ filteredLinhasAtivas.length }}</span>
+          </div>
+
+          <div class="section-search-box" [class.is-open]="isSearchAtivasOpen">
+            <!-- Search Trigger Button -->
+            <button 
+              type="button" 
+              class="btn-search-toggle" 
+              [class.active]="isSearchAtivasOpen"
+              (click)="toggleSearchAtivas()"
+              [title]="isSearchAtivasOpen ? 'Fechar busca' : 'Buscar linhas em operação'"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+
+            <!-- Search Input Field (animated expanding) -->
+            <div class="search-input-group" *ngIf="isSearchAtivasOpen">
+              <input
+                id="search-ativas-input"
+                type="text"
+                class="search-input"
+                placeholder="Buscar por prefixo (ex: 1178), nome (ex: Term Pinheiros) ou tags..."
+                [(ngModel)]="searchQueryAtivas"
+              />
+              <button
+                type="button"
+                class="btn-clear-search"
+                *ngIf="searchQueryAtivas || selectedTagAtivas"
+                (click)="clearSearchAtivas()"
+                title="Limpar busca"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Filter Tags -->
+        <div class="section-filter-tags" *ngIf="isSearchAtivasOpen">
+          <span class="tag-label">Filtros rápidos:</span>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedTagAtivas === ''"
+            (click)="setTagAtivas('')"
+          >
+            Todas ({{ linhasAtivas.length }})
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedTagAtivas === 'ida'"
+            (click)="setTagAtivas('ida')"
+          >
+            💛 Com Ida
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedTagAtivas === 'volta'"
+            (click)="setTagAtivas('volta')"
+          >
+            💛 Com Volta
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedTagAtivas === 'sem_itinerario'"
+            (click)="setTagAtivas('sem_itinerario')"
+          >
+            Sem Itinerário
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedTagAtivas === 'com_veiculos'"
+            (click)="setTagAtivas('com_veiculos')"
+          >
+            🚌 Com Veículos
+          </button>
+        </div>
+
+        <!-- Empty search results state -->
+        <div class="search-empty-results" *ngIf="filteredLinhasAtivas.length === 0 && linhasAtivas.length > 0">
+          <span class="empty-search-icon">🔍</span>
+          <p class="empty-search-text">Nenhuma linha em operação encontrada para "{{ searchQueryAtivas }}".</p>
+          <button type="button" class="btn-reset-search" (click)="clearSearchAtivas()">
+            Limpar busca e ver todas
+          </button>
+        </div>
+
+        <div class="rotas-grid" *ngIf="filteredLinhasAtivas.length > 0">
           <div
             class="rota-card active"
-            *ngFor="let linha of linhasAtivas"
+            *ngFor="let linha of filteredLinhasAtivas"
             (click)="selectLinhaCard(linha)"
           >
             <div class="rota-header">
-              <div class="rota-info">
-                <span class="rota-codigo">{{ linha.codigo }}-{{ linha.atendimento }}</span>
-                <h3 class="rota-nome">{{ linha.partida }} ➔ {{ linha.chegada }}</h3>
-              </div>
+              <span class="rota-codigo">{{ linha.codigo }}-{{ linha.atendimento }}</span>
               <span class="rota-status" [ngClass]="getLinhaStatusClass(linha)">
                 {{ getLinhaStatusLabel(linha) }}
               </span>
             </div>
-            
-            <p class="rota-descricao">
-              <strong>Obs:</strong> {{ linha.descricao || 'Sem observações' }}
-            </p>
+
+            <div class="rota-title-wrap">
+              <h3 class="rota-nome" [title]="linha.partida + ' ⇄ ' + linha.chegada">
+                <span class="terminal-partida">{{ linha.partida }}</span>
+                <span class="route-arrow">⇄</span>
+                <span class="terminal-chegada">{{ linha.chegada }}</span>
+              </h3>
+            </div>
 
             <!-- Yellow Route Itineraries Container -->
             <div class="route-tags-container">
@@ -131,26 +228,115 @@
 
       <!-- Inactive Lines Section -->
       <div class="rotas-section">
-        <h2 class="section-title">Linhas Inativas</h2>
-        <div class="rotas-grid">
+        <div class="section-header-row">
+          <div class="section-title-wrap">
+            <h2 class="section-title">Linhas Inativas</h2>
+            <span class="section-count-pill" *ngIf="linhasInativas.length">{{ filteredLinhasInativas.length }}</span>
+          </div>
+
+          <div class="section-search-box" [class.is-open]="isSearchInativasOpen">
+            <!-- Search Trigger Button -->
+            <button 
+              type="button" 
+              class="btn-search-toggle" 
+              [class.active]="isSearchInativasOpen"
+              (click)="toggleSearchInativas()"
+              [title]="isSearchInativasOpen ? 'Fechar busca' : 'Buscar linhas inativas'"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+
+            <!-- Search Input Field (animated expanding) -->
+            <div class="search-input-group" *ngIf="isSearchInativasOpen">
+              <input
+                id="search-inativas-input"
+                type="text"
+                class="search-input"
+                placeholder="Buscar por prefixo (ex: 1178), nome ou tags..."
+                [(ngModel)]="searchQueryInativas"
+              />
+              <button
+                type="button"
+                class="btn-clear-search"
+                *ngIf="searchQueryInativas || selectedTagInativas"
+                (click)="clearSearchInativas()"
+                title="Limpar busca"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Filter Tags -->
+        <div class="section-filter-tags" *ngIf="isSearchInativasOpen">
+          <span class="tag-label">Filtros rápidos:</span>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedTagInativas === ''"
+            (click)="setTagInativas('')"
+          >
+            Todas ({{ linhasInativas.length }})
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedTagInativas === 'ida'"
+            (click)="setTagInativas('ida')"
+          >
+            💛 Com Ida
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedTagInativas === 'volta'"
+            (click)="setTagInativas('volta')"
+          >
+            💛 Com Volta
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedTagInativas === 'sem_itinerario'"
+            (click)="setTagInativas('sem_itinerario')"
+          >
+            Sem Itinerário
+          </button>
+        </div>
+
+        <!-- Empty search results state -->
+        <div class="search-empty-results" *ngIf="filteredLinhasInativas.length === 0 && linhasInativas.length > 0">
+          <span class="empty-search-icon">🔍</span>
+          <p class="empty-search-text">Nenhuma linha inativa encontrada para "{{ searchQueryInativas }}".</p>
+          <button type="button" class="btn-reset-search" (click)="clearSearchInativas()">
+            Limpar busca e ver todas
+          </button>
+        </div>
+
+        <div class="rotas-grid" *ngIf="filteredLinhasInativas.length > 0">
           <div
             class="rota-card inactive"
-            *ngFor="let linha of linhasInativas"
+            *ngFor="let linha of filteredLinhasInativas"
             (click)="selectLinhaCard(linha)"
           >
             <div class="rota-header">
-              <div class="rota-info">
-                <span class="rota-codigo">{{ linha.codigo }}-{{ linha.atendimento }}</span>
-                <h3 class="rota-nome">{{ linha.partida }} ➔ {{ linha.chegada }}</h3>
-              </div>
+              <span class="rota-codigo">{{ linha.codigo }}-{{ linha.atendimento }}</span>
               <span class="rota-status" [ngClass]="getLinhaStatusClass(linha)">
                 {{ getLinhaStatusLabel(linha) }}
               </span>
             </div>
 
-            <p class="rota-descricao">
-              <strong>Obs:</strong> {{ linha.descricao || 'Sem observações' }}
-            </p>
+            <div class="rota-title-wrap">
+              <h3 class="rota-nome" [title]="linha.partida + ' ⇄ ' + linha.chegada">
+                <span class="terminal-partida">{{ linha.partida }}</span>
+                <span class="route-arrow">⇄</span>
+                <span class="terminal-chegada">{{ linha.chegada }}</span>
+              </h3>
+            </div>
 
             <div class="route-tags-container">
               <span 
@@ -284,8 +470,12 @@
           </div>
         </div>
         <div class="edit-actions">
-          <button class="btn-save" (click)="saveItinerary()">
-            Salvar Itinerário
+          <button class="btn-save" (click)="openSaveModal()" [disabled]="isSavingItinerary" [class.has-changes]="hasUnsavedChanges()">
+            <span class="btn-save-icon">💾</span>
+            <span>Salvar Itinerário</span>
+            <span class="badge-changes-pill" *ngIf="hasUnsavedChanges()">
+              {{ calculateSessionChecklog().length }}
+            </span>
           </button>
         </div>
       </div>
@@ -497,9 +687,16 @@
             <div id="google-map-canvas" class="google-map-canvas"></div>
 
             <!-- Floating map instructions hint -->
-            <div class="map-hint-floating" *ngIf="isMapInitialized">
+            <div class="map-hint-floating" *ngIf="isMapInitialized && !hasSelectedElementOnMap">
               <span class="hint-icon">💡</span>
               <span>Clique nas ruas do mapa para adicionar paradas</span>
+            </div>
+
+            <!-- Floating selection tipbar when an element is selected on map -->
+            <div class="map-hint-floating map-selection-tipbar" *ngIf="isMapInitialized && hasSelectedElementOnMap">
+              <span class="hint-icon">🖱️</span>
+              <span class="tipbar-text">Use o botao direito para deselecionar elementos no mapa.</span>
+              <button type="button" class="btn-tipbar-close" (click)="unselectMapElement()" title="Deselecionar">✕</button>
             </div>
 
             <!-- Placeholder overlay if API key is not set or map loading -->
@@ -791,6 +988,183 @@
       <div class="dialog-footer border-top-none">
         <button class="btn-dialog secondary" (click)="closeDetailsModal()">
           Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Save Confirmation Modal with Checklog and Animations -->
+  <div class="modal-backdrop checklog-backdrop" *ngIf="showSaveModal" (click)="closeSaveModal()">
+    <div class="dialog-card checklog-dialog" (click)="$event.stopPropagation()">
+      <!-- Normal / Review State -->
+      <ng-container *ngIf="!saveSuccessState">
+        <div class="dialog-header">
+          <div class="header-title-group">
+            <span class="dialog-header-icon save-icon">💾</span>
+            <div>
+              <h2>Confirmar Salvamento do Itinerário</h2>
+              <p class="dialog-header-sub">
+                Linha <strong>{{ selectedLinha?.codigo }}-{{ selectedLinha?.atendimento }}</strong> &bull; Sentido <strong>{{ itineraryForm.sentido }}</strong>
+              </p>
+            </div>
+          </div>
+          <button class="btn-close-dlg" [disabled]="isSavingItinerary" (click)="closeSaveModal()">×</button>
+        </div>
+
+        <div class="dialog-body checklog-body">
+          <!-- Session Alterations Summary Stats -->
+          <div class="checklog-summary-card">
+            <div class="summary-top">
+              <span class="summary-title">Registro de Alterações desta Sessão (Checklog)</span>
+              <span class="summary-count-badge" [class.has-mods]="totalAlterationsCount > 0">
+                {{ totalAlterationsCount }} {{ totalAlterationsCount === 1 ? 'alteração' : 'alterações' }}
+              </span>
+            </div>
+
+            <div class="summary-pills-row">
+              <span class="stat-pill add" [class.active]="addedStopsCount > 0">
+                <span class="pill-icon">+</span>
+                <strong>{{ addedStopsCount }}</strong> {{ addedStopsCount === 1 ? 'adicionada' : 'adicionadas' }}
+              </span>
+              <span class="stat-pill rem" [class.active]="removedStopsCount > 0">
+                <span class="pill-icon">-</span>
+                <strong>{{ removedStopsCount }}</strong> {{ removedStopsCount === 1 ? 'removida' : 'removidas' }}
+              </span>
+              <span class="stat-pill reorder" [class.active]="reorderedStopsCount > 0">
+                <span class="pill-icon">⇄</span>
+                <strong>{{ reorderedStopsCount }}</strong> {{ reorderedStopsCount === 1 ? 'reordenada' : 'reordenadas' }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Checklog Items List -->
+          <div class="checklog-items-container">
+            <div class="checklog-list" *ngIf="currentChecklog.length > 0">
+              <div 
+                class="checklog-item" 
+                *ngFor="let item of currentChecklog" 
+                [ngClass]="'item-' + item.color"
+              >
+                <div class="item-badge" [ngClass]="'badge-' + item.color">
+                  {{ item.badge }}
+                </div>
+                <div class="item-content">
+                  <div class="item-title">{{ item.title }}</div>
+                  <div class="item-detail">{{ item.detail }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty Alterations Notice -->
+            <div class="checklog-empty-state" *ngIf="currentChecklog.length === 0">
+              <span class="empty-icon">ℹ️</span>
+              <p class="empty-title">Nenhuma alteração foi realizada nas paradas.</p>
+              <p class="empty-desc">O salvamento confirmará a sequência atual do itinerário no servidor.</p>
+            </div>
+          </div>
+
+          <!-- Error Alert if Save Failed -->
+          <div class="save-error-banner" *ngIf="saveErrorMessage">
+            <span class="error-icon">⚠️</span>
+            <span>{{ saveErrorMessage }}</span>
+          </div>
+        </div>
+
+        <div class="dialog-footer">
+          <button 
+            class="btn-dialog secondary" 
+            [disabled]="isSavingItinerary" 
+            (click)="closeSaveModal()"
+          >
+            Continuar Editando
+          </button>
+          <button 
+            class="btn-dialog primary btn-confirm-save" 
+            [disabled]="isSavingItinerary" 
+            (click)="confirmSaveItinerary()"
+          >
+            <span class="saving-spinner" *ngIf="isSavingItinerary"></span>
+            <span *ngIf="isSavingItinerary">Salvando no Servidor...</span>
+            <span *ngIf="!isSavingItinerary">Confirmar e Salvar</span>
+          </button>
+        </div>
+      </ng-container>
+
+      <!-- Animated Success State -->
+      <div class="save-success-panel" *ngIf="saveSuccessState">
+        <div class="success-animation-wrap">
+          <div class="animated-checkmark-circle">
+            <svg class="checkmark-svg" viewBox="0 0 52 52">
+              <circle class="checkmark-circle-outline" cx="26" cy="26" r="24" fill="none"/>
+              <path class="checkmark-check-stem" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+            </svg>
+          </div>
+          <h3 class="success-headline">Itinerário Salvo com Sucesso!</h3>
+          <p class="success-subtext">Todas as paradas e alterações foram registradas e persistidas.</p>
+          <div class="success-progress-bar">
+            <div class="progress-fill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Unsaved Changes Warning Modal -->
+  <div class="modal-backdrop warning-backdrop" *ngIf="showUnsavedWarningModal" (click)="cancelUnsavedWarning()">
+    <div class="dialog-card warning-dialog" (click)="$event.stopPropagation()">
+      <div class="dialog-header warning-header">
+        <div class="header-title-group">
+          <span class="dialog-header-icon warning-icon">⚠️</span>
+          <div>
+            <h2>Alterações Não Salvas</h2>
+            <p class="dialog-header-sub">Você possui modificações pendentes no itinerário</p>
+          </div>
+        </div>
+        <button class="btn-close-dlg" (click)="cancelUnsavedWarning()">×</button>
+      </div>
+
+      <div class="dialog-body warning-body">
+        <div class="warning-alert-box">
+          <p>
+            Você realizou modificações neste itinerário durante esta sessão. 
+            Se sair sem salvar, <strong>todas as alterações abaixo serão descartadas</strong>:
+          </p>
+        </div>
+
+        <!-- Warning Checklog List -->
+        <div class="warning-checklog-container">
+          <div class="checklog-summary-bar">
+            <span>Alterações que serão perdidas:</span>
+            <span class="warning-pill-count">{{ totalAlterationsCount }} pendentes</span>
+          </div>
+
+          <div class="checklog-list">
+            <div 
+              class="checklog-item" 
+              *ngFor="let item of currentChecklog" 
+              [ngClass]="'item-' + item.color"
+            >
+              <div class="item-badge" [ngClass]="'badge-' + item.color">
+                {{ item.badge }}
+              </div>
+              <div class="item-content">
+                <div class="item-title">{{ item.title }}</div>
+                <div class="item-detail">{{ item.detail }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dialog-footer warning-footer">
+        <button class="btn-dialog danger" (click)="discardAndExit()">
+          Descartar e Sair
+        </button>
+        <button class="btn-dialog secondary" (click)="cancelUnsavedWarning()">
+          Continuar Editando
+        </button>
+        <button class="btn-dialog primary" (click)="saveFromWarning()">
+          Salvar Alterações
         </button>
       </div>
     </div>

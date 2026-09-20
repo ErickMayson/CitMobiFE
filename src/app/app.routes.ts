@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { AuthGuard } from './guards/auth.guard';
+import { PendingChangesGuard } from './guards/pending-changes.guard';
 
 export const routes: Routes = [
   {
@@ -28,6 +29,7 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./screens/rotas/rotas.component').then((m) => m.RotasComponent),
     canActivate: [AuthGuard],
+    canDeactivate: [PendingChangesGuard],
   },
   {
     path: 'veiculos',

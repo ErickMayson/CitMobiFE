@@ -86,10 +86,13 @@ export class LoginService {
   /** Get authorization headers */
   getAuthHeaders(): HttpHeaders {
     const token = this.getToken();
-    return new HttpHeaders({
+    let headers = new HttpHeaders({
       'Content-Type': 'application/json',
-      Authorization: token ? `Bearer ${token}` : '',
     });
+    if (token && token.trim().length > 0) {
+      headers = headers.set('Authorization', `Bearer ${token.trim()}`);
+    }
+    return headers;
   }
 
   /** Get token safely */

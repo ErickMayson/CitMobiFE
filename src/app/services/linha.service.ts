@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, forkJoin } from 'rxjs';
+import { Observable, of, forkJoin, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { LoginService } from './login.service';
 import { VeiculoService } from './veiculo.service';
@@ -98,11 +98,23 @@ export class LinhaService {
     }
 
     const headers = this.loginService.getAuthHeaders();
+    const currentUser = this.loginService.currentUserValue;
+
+    const params: any = {};
+    if (currentUser?.role !== 'ADMIN' && currentUser?.operador?.id) {
+      params.operadorId = currentUser.operador.id.toString();
+    }
 
     return forkJoin({
-      linhasRes: this.http.get<any>(`${this.apiUrl}/v1/api/linhas`, { headers, params: { municipio: '3550308' } }).pipe(
-        catchError(() => of({ data: [] }))
-      ),
+      linhasRes: this.http
+        .get<any>(`${this.apiUrl}/v1/api/linhas/detalhes`, { headers, params })
+        .pipe(
+          tap((res) => console.log('[LinhaService] /v1/api/linhas/detalhes response:', res)),
+          catchError((err) => {
+            console.error('[LinhaService] ❌ ERRO ao chamar /v1/api/linhas/detalhes:', err.status, err.statusText, err);
+            return throwError(() => err);
+          })
+        ),
       veiculos: this.veiculoService.getVeiculos(forceRefresh).pipe(
         catchError(() => of([] as Veiculo[]))
       ),
@@ -126,28 +138,50 @@ export class LinhaService {
           const parsed = this.parsePartidaChegada(descricao);
           const flagAtiva = l.flagAtiva === 'S';
 
-          const rotasData = l.rotas || [];
+          // Extract rotas from any possible container
+          const rotasData =
+            l.rotas ||
+            item.rotas ||
+            (l.linha && l.linha.rotas) ||
+            (item.linha && item.linha.rotas) ||
+            l.rotaRecords ||
+            item.rotaRecords ||
+            [];
+
           const rotasObj: LinhaDetails['rotas'] = {};
 
           if (Array.isArray(rotasData)) {
             rotasData.forEach((r: any) => {
-              const sentido = String(r.linhaSentido || r.sentido || '').toUpperCase();
+              const rawSentido = String(r.linhaSentido || r.sentido || r.tipo || '').toUpperCase().trim();
+              const isIda = rawSentido === 'IDA' || rawSentido === 'I' || rawSentido === '1' || rawSentido.startsWith('IDA');
+              const isVolta = rawSentido === 'VOLTA' || rawSentido === 'V' || rawSentido === '2' || rawSentido.startsWith('VOLTA');
+
               const paradasList: Endereco[] = [];
 
-              const itinParadas = r.itinerario?.paradas || r.paradas || [];
+              let itinParadas: any[] = [];
+              if (Array.isArray(r.itinerario)) {
+                itinParadas = r.itinerario;
+              } else if (r.itinerario && Array.isArray(r.itinerario.paradas)) {
+                itinParadas = r.itinerario.paradas;
+              } else if (Array.isArray(r.paradas)) {
+                itinParadas = r.paradas;
+              } else if (Array.isArray(r.itinerarioParadas)) {
+                itinParadas = r.itinerarioParadas;
+              }
+
               if (Array.isArray(itinParadas)) {
                 itinParadas.forEach((p: any, idx: number) => {
                   const lat = Array.isArray(p.latLong) && p.latLong.length >= 2
                     ? Number(p.latLong[0])
-                    : Number(p.latitude || 0);
+                    : Number(p.latitude || p.lat || 0);
                   const lng = Array.isArray(p.latLong) && p.latLong.length >= 2
                     ? Number(p.latLong[1])
-                    : Number(p.longitude || 0);
+                    : Number(p.longitude || p.lng || 0);
 
                   paradasList.push({
                     id: p.paradaId || p.id || idx,
-                    nome: p.logradouro || `Parada ${idx + 1}`,
-                    endereco: `${p.logradouro || ''}, ${p.numero || 'S/N'}`,
+                    nome: p.logradouro || p.nome || p.name || `Parada ${idx + 1}`,
+                    endereco: `${p.logradouro || p.nome || p.name || ''}, ${p.numero || 'S/N'}`,
                     cep: p.cep || '',
                     lat,
                     lng,
@@ -156,17 +190,35 @@ export class LinhaService {
                 });
               }
 
-              if (sentido === 'IDA') {
+              const defaultPrefixo = isIda
+                ? `${parsed.partida} - ${parsed.chegada}`
+                : `${parsed.chegada} - ${parsed.partida}`;
+
+              if (isIda) {
                 rotasObj.ida = {
                   id: r.itinerario?.itinerarioId || r.id || 0,
-                  prefixo: r.prefixo || `${parsed.partida} - ${parsed.chegada}`,
+                  prefixo: r.prefixo || defaultPrefixo,
                   sentido: 'IDA',
                   enderecos: paradasList,
                 };
-              } else if (sentido === 'VOLTA') {
+              } else if (isVolta) {
                 rotasObj.volta = {
                   id: r.itinerario?.itinerarioId || r.id || 0,
-                  prefixo: r.prefixo || `${parsed.chegada} - ${parsed.partida}`,
+                  prefixo: r.prefixo || defaultPrefixo,
+                  sentido: 'VOLTA',
+                  enderecos: paradasList,
+                };
+              } else if (!rotasObj.ida) {
+                rotasObj.ida = {
+                  id: r.itinerario?.itinerarioId || r.id || 0,
+                  prefixo: r.prefixo || defaultPrefixo,
+                  sentido: 'IDA',
+                  enderecos: paradasList,
+                };
+              } else if (!rotasObj.volta) {
+                rotasObj.volta = {
+                  id: r.itinerario?.itinerarioId || r.id || 0,
+                  prefixo: r.prefixo || defaultPrefixo,
                   sentido: 'VOLTA',
                   enderecos: paradasList,
                 };

@@ -191,10 +191,10 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
       return 'AGUARDANDO ITINERARIOS';
     }
     if (!hasIda && hasVolta) {
-      return 'AGUARDANDO ITINERARIO(IDA)';
+      return 'AGUARDANDO ITINERARIO (IDA)';
     }
     if (hasIda && !hasVolta) {
-      return 'AGUARDANDO ITINERARIO(VOLTA)';
+      return 'AGUARDANDO ITINERARIO (VOLTA)';
     }
 
     // 2. Check Vehicles
@@ -220,7 +220,9 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
     switch (label) {
       case 'AGUARDANDO ITINERARIOS':
         return 'status-danger';
+      case 'AGUARDANDO ITINERARIO (IDA)':
       case 'AGUARDANDO ITINERARIO(IDA)':
+      case 'AGUARDANDO ITINERARIO (VOLTA)':
       case 'AGUARDANDO ITINERARIO(VOLTA)':
         return 'status-warning';
       case 'AGUARDANDO VEICULOS':
@@ -322,9 +324,11 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
           this.linhasInativas = data.filter((l) => l.status === 'inativa');
         }
         this.isLoadingLinhas = false;
+        this.cdr.detectChanges();
       },
       error: () => {
         this.isLoadingLinhas = false;
+        this.cdr.detectChanges();
       },
     });
   }
@@ -835,6 +839,7 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
               this.pendingDeactivateResolver(true);
               this.pendingDeactivateResolver = null;
             }
+            this.cdr.detectChanges();
           }, 1400);
         },
         error: (err) => {
@@ -1197,6 +1202,10 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
     if (this.autocomplete && typeof google !== 'undefined') {
       google.maps.event.clearInstanceListeners(this.autocomplete);
       this.autocomplete = null;
+    }
+
+    if (isPlatformBrowser(this.platformId)) {
+      document.querySelectorAll('.pac-container').forEach((el) => el.remove());
     }
 
     if (this.currentInfoWindow) {

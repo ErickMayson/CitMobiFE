@@ -7,3 +7,18 @@
 body {
   font-family: 'Inter', sans-serif;
 }
+
+/* Hide and remove any ghost borders or lines from Google Places Autocomplete dropdown */
+.pac-container {
+  z-index: 10000;
+  &:empty {
+    display: none !important;
+    border: none !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    box-shadow: none !important;
+  }
+}

@@ -1,12 +1,17 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, Inject, PLATFORM_ID, OnDestroy } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subject, Subscription } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { User } from '../../models/userLiteResponse.model';
 import { LoginService } from '../../services/login.service';
 import { LinhaService, LinhaDetails, LinhaAssignedVehicle } from '../../services/linha.service';
 import { Endereco } from '../../models/endereco.model';
+import { GoogleMapsService, RouteCalculationResult } from '../../services/google-maps.service';
+
+declare const google: any;
 
 export interface LinhaTag {
   label: string;
@@ -22,12 +27,25 @@ export interface LinhaTag {
   templateUrl: './rotas.component.html',
   styleUrls: ['./rotas.component.scss'],
 })
-export class RotasComponent implements OnInit {
+export class RotasComponent implements OnInit, OnDestroy {
   // Sidebar
   sidebarOpen: boolean = true;
   showSidebarContent: boolean = true;
   currentUser: User | null = null;
   companyLogo: string = 'assets/viacaoGatoPreto.png';
+
+  // Google Maps State
+  isMapLoading: boolean = false;
+  isMapInitialized: boolean = false;
+  isCalculatingRoute: boolean = false;
+  hasGoogleMapsApiKey: boolean = false;
+  routeMetrics: RouteCalculationResult | null = null;
+  private map: any = null;
+  private routePolyline: any = null;
+  private mapMarkers: any[] = [];
+  private autocomplete: any = null;
+  private routeUpdateSubject = new Subject<boolean>();
+  private routeSubscription?: Subscription;
 
   // Loading States
   isLoadingLinhas: boolean = false;
@@ -59,14 +77,19 @@ export class RotasComponent implements OnInit {
   enderecos: Endereco[] = [];
   searchQuery: string = '';
   filteredParadas: any[] = [];
+  googlePredictions: any[] = [];
+  isLoadingPredictions: boolean = false;
   todasAsParadas: any[] = [];
   showParadasDropdown: boolean = false;
   draggedIndex: number | null = null;
+  private searchDebounceTimeout: any = null;
 
   constructor(
     private loginService: LoginService,
     private linhaService: LinhaService,
-    private router: Router
+    private router: Router,
+    private googleMapsService: GoogleMapsService,
+    @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
   ngOnInit(): void {
@@ -74,8 +97,23 @@ export class RotasComponent implements OnInit {
       this.currentUser = user;
     });
 
+    this.hasGoogleMapsApiKey = this.googleMapsService.hasApiKey();
     this.loadLinhas();
     setTimeout(() => (this.showSidebarContent = true), 100);
+
+    // Setup debounced route calculation to prevent excessive Google Directions API calls
+    this.routeSubscription = this.routeUpdateSubject
+      .pipe(debounceTime(800))
+      .subscribe(() => {
+        this.executeRouteCalculation();
+      });
+  }
+
+  ngOnDestroy(): void {
+    if (this.routeSubscription) {
+      this.routeSubscription.unsubscribe();
+    }
+    this.cleanupMap();
   }
 
   getLinhaStatusLabel(linha: LinhaDetails): string {
@@ -376,6 +414,7 @@ export class RotasComponent implements OnInit {
     this.filteredParadas = [];
     this.activeStep = 'edit_itinerary';
     this.ensureTodasAsParadasLoaded();
+    setTimeout(() => this.initMapAndPlaces(), 120);
   }
 
   addNewItinerary(linha: LinhaDetails, sentido: 'IDA' | 'VOLTA'): void {
@@ -402,6 +441,7 @@ export class RotasComponent implements OnInit {
     this.filteredParadas = [];
     this.activeStep = 'edit_itinerary';
     this.ensureTodasAsParadasLoaded();
+    setTimeout(() => this.initMapAndPlaces(), 120);
   }
 
   // --- Step 3: Itinerary Editing Logic ---
@@ -417,17 +457,301 @@ export class RotasComponent implements OnInit {
         this.enderecos
       )
       .subscribe(() => {
+        this.cleanupMap();
         this.activeStep = 'list';
         this.loadLinhas(true);
       });
   }
 
   cancelItineraryEdit(): void {
+    this.cleanupMap();
     this.activeStep = 'list';
     this.refreshStoredLinhas();
   }
 
-  addCustomEndereco(): void {
+  // --- Google Maps Platform Integration ---
+
+  async initMapAndPlaces(): Promise<void> {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    this.hasGoogleMapsApiKey = this.googleMapsService.hasApiKey();
+    if (!this.hasGoogleMapsApiKey) {
+      console.warn('[RotasComponent] Google Maps API key is not configured in enviroment.ts.');
+      return;
+    }
+
+    this.isMapLoading = true;
+    const loaded = await this.googleMapsService.load();
+    this.isMapLoading = false;
+
+    if (!loaded || typeof google === 'undefined' || !google.maps) {
+      console.warn('[RotasComponent] Google Maps API failed to load.');
+      return;
+    }
+
+    const mapCanvas = document.getElementById('google-map-canvas');
+    if (!mapCanvas) {
+      // Retry in case DOM was rendering
+      setTimeout(() => this.initMapAndPlaces(), 150);
+      return;
+    }
+
+    // Determine initial center
+    let center = { lat: -23.5505, lng: -46.6333 }; // Default São Paulo
+    const firstWithCoords = this.enderecos.find(
+      (e) => e.lat && e.lng && (Math.abs(e.lat) > 0.0001 || Math.abs(e.lng) > 0.0001)
+    );
+    if (firstWithCoords) {
+      center = { lat: Number(firstWithCoords.lat), lng: Number(firstWithCoords.lng) };
+    }
+
+    this.map = new google.maps.Map(mapCanvas, {
+      center,
+      zoom: 13,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: true,
+      zoomControl: true,
+      styles: [
+        {
+          featureType: 'poi.business',
+          stylers: [{ visibility: 'off' }],
+        },
+        {
+          featureType: 'transit',
+          elementType: 'labels.icon',
+          stylers: [{ visibility: 'on' }],
+        },
+      ],
+    });
+
+    this.routePolyline = new google.maps.Polyline({
+      map: this.map,
+      path: [],
+      strokeColor: '#00b4d8',
+      strokeWeight: 5,
+      strokeOpacity: 0.9,
+    });
+
+    this.isMapInitialized = true;
+    this.setupPlacesAutocomplete();
+    this.setupMapClickListener();
+    this.refreshMapAndRoute(true);
+  }
+
+  setupPlacesAutocomplete(): void {
+    if (!isPlatformBrowser(this.platformId) || typeof google === 'undefined' || !google.maps?.places) {
+      return;
+    }
+
+    const input = document.getElementById('search-parada-input') as HTMLInputElement;
+    if (!input) return;
+
+    this.autocomplete = new google.maps.places.Autocomplete(input, {
+      componentRestrictions: { country: 'br' },
+      fields: ['formatted_address', 'geometry', 'name', 'address_components'],
+    });
+
+    this.autocomplete.addListener('place_changed', () => {
+      const place = this.autocomplete.getPlace();
+      if (!place || !place.geometry || !place.geometry.location) {
+        return;
+      }
+
+      let cep = '';
+      for (const comp of place.address_components || []) {
+        if (comp.types?.includes('postal_code')) {
+          cep = comp.long_name;
+          break;
+        }
+      }
+
+      const newEndereco: Endereco = {
+        id: Date.now(),
+        nome: place.name || place.formatted_address || 'Nova Parada',
+        endereco: place.formatted_address || place.name || '',
+        cep,
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng(),
+        ordem: this.enderecos.length,
+      };
+
+      this.enderecos.push(newEndereco);
+      this.searchQuery = '';
+      input.value = '';
+      this.showParadasDropdown = false;
+      this.refreshMapAndRoute(false);
+    });
+  }
+
+  setupMapClickListener(): void {
+    if (!this.map) return;
+
+    this.map.addListener('click', async (event: any) => {
+      if (!event.latLng) return;
+      const lat = event.latLng.lat();
+      const lng = event.latLng.lng();
+
+      const geo = await this.googleMapsService.reverseGeocode(lat, lng);
+      const newEndereco: Endereco = {
+        id: Date.now(),
+        nome: geo?.name || `Parada ${this.enderecos.length + 1}`,
+        endereco: geo?.formattedAddress || `Coord: ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+        cep: geo?.cep || '',
+        lat,
+        lng,
+        ordem: this.enderecos.length,
+      };
+
+      this.enderecos.push(newEndereco);
+      this.refreshMapAndRoute(false);
+    });
+  }
+
+  refreshMapAndRoute(immediate: boolean = false): void {
+    if (!this.map || !isPlatformBrowser(this.platformId)) return;
+    this.renderMarkers();
+    if (immediate) {
+      this.executeRouteCalculation();
+    } else {
+      this.routeUpdateSubject.next(true);
+    }
+  }
+
+  async executeRouteCalculation(): Promise<void> {
+    if (!this.map || !isPlatformBrowser(this.platformId) || typeof google === 'undefined') {
+      return;
+    }
+
+    const validStops = this.enderecos
+      .filter((e) => e.lat && e.lng && (Math.abs(e.lat) > 0.0001 || Math.abs(e.lng) > 0.0001))
+      .map((e) => ({ lat: Number(e.lat), lng: Number(e.lng) }));
+
+    if (validStops.length >= 2) {
+      this.isCalculatingRoute = true;
+      try {
+        const result = await this.googleMapsService.calculateDirections(validStops);
+        if (result && this.routePolyline) {
+          this.routePolyline.setPath(result.fullPath);
+          this.routeMetrics = result;
+        }
+      } catch (err) {
+        console.warn('[RotasComponent] Error calculating multi-chunk route:', err);
+      } finally {
+        this.isCalculatingRoute = false;
+      }
+    } else {
+      if (this.routePolyline) {
+        this.routePolyline.setPath([]);
+      }
+      this.routeMetrics = null;
+      this.isCalculatingRoute = false;
+    }
+  }
+
+  renderMarkers(): void {
+    if (!this.map || typeof google === 'undefined') return;
+
+    for (const m of this.mapMarkers) {
+      m.setMap(null);
+    }
+    this.mapMarkers = [];
+
+    const bounds = new google.maps.LatLngBounds();
+    let countValid = 0;
+
+    this.enderecos.forEach((end, idx) => {
+      if (end.lat && end.lng && (Math.abs(end.lat) > 0.0001 || Math.abs(end.lng) > 0.0001)) {
+        countValid++;
+        const pos = { lat: Number(end.lat), lng: Number(end.lng) };
+        bounds.extend(pos);
+
+        const isOrigin = idx === 0;
+        const isDestination = idx === this.enderecos.length - 1 && this.enderecos.length > 1;
+        const pinColor = isOrigin ? '#10b981' : isDestination ? '#ef4444' : '#00b4d8';
+
+        const marker = new google.maps.Marker({
+          position: pos,
+          map: this.map,
+          title: `${idx + 1}. ${end.nome || end.endereco}`,
+          label: {
+            text: (idx + 1).toString(),
+            color: '#ffffff',
+            fontWeight: 'bold',
+            fontSize: '11px',
+          },
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 13,
+            fillColor: pinColor,
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2,
+          },
+        });
+
+        const infoWindow = new google.maps.InfoWindow({
+          content: `<div style="font-family: sans-serif; font-size: 12px; color: #1e293b; padding: 4px;">
+            <strong style="color: ${pinColor}">#${idx + 1} ${isOrigin ? '(Partida)' : isDestination ? '(Chegada)' : 'Parada'}</strong><br/>
+            <strong>${end.nome}</strong><br/>
+            <span style="color: #64748b;">${end.endereco}</span>
+          </div>`,
+        });
+
+        marker.addListener('click', () => {
+          infoWindow.open(this.map, marker);
+        });
+
+        this.mapMarkers.push(marker);
+      }
+    });
+
+    if (countValid > 0) {
+      if (countValid === 1) {
+        this.map.setCenter(bounds.getCenter());
+        this.map.setZoom(15);
+      } else {
+        this.map.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+      }
+    }
+  }
+
+  focusStopOnMap(index: number): void {
+    const end = this.enderecos[index];
+    if (end && end.lat && end.lng && this.map) {
+      this.map.panTo({ lat: Number(end.lat), lng: Number(end.lng) });
+      this.map.setZoom(16);
+      if (this.mapMarkers[index]) {
+        google.maps.event.trigger(this.mapMarkers[index], 'click');
+      }
+    }
+  }
+
+  cleanupMap(): void {
+    for (const m of this.mapMarkers) {
+      m.setMap(null);
+    }
+    this.mapMarkers = [];
+
+    if (this.routePolyline) {
+      this.routePolyline.setMap(null);
+      this.routePolyline = null;
+    }
+
+    if (this.autocomplete && typeof google !== 'undefined') {
+      google.maps.event.clearInstanceListeners(this.autocomplete);
+      this.autocomplete = null;
+    }
+
+    this.map = null;
+    this.isMapInitialized = false;
+    this.isCalculatingRoute = false;
+    this.routeMetrics = null;
+  }
+
+  // --- Paradas Manipulation & Search ---
+
+  async addCustomEndereco(): Promise<void> {
     const raw = this.searchQuery.trim() || 'Nova Parada';
     let nome = raw;
     let endereco = raw;
@@ -439,19 +763,51 @@ export class RotasComponent implements OnInit {
       endereco = `${nome}, ${resto}`;
     }
 
+    let lat = 0;
+    let lng = 0;
+    let cep = '';
+
+    if (this.googleMapsService.isApiLoaded() && typeof google !== 'undefined') {
+      try {
+        const geocoder = new google.maps.Geocoder();
+        const geoResult = await new Promise<any>((resolve) => {
+          geocoder.geocode({ address: raw + ', São Paulo, SP, Brasil' }, (res: any, status: string) => {
+            if (status === 'OK' && res && res.length > 0) resolve(res[0]);
+            else resolve(null);
+          });
+        });
+
+        if (geoResult) {
+          lat = geoResult.geometry.location.lat();
+          lng = geoResult.geometry.location.lng();
+          endereco = geoResult.formatted_address || endereco;
+          for (const comp of geoResult.address_components || []) {
+            if (comp.types?.includes('postal_code')) {
+              cep = comp.long_name;
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Geocoding lookup error:', err);
+      }
+    }
+
     const newEndereco: Endereco = {
       id: Date.now(),
       nome,
       endereco,
-      cep: '',
-      lat: 0,
-      lng: 0,
+      cep,
+      lat,
+      lng,
       ordem: this.enderecos.length,
     };
+
     this.enderecos.push(newEndereco);
     this.searchQuery = '';
     this.filteredParadas = [];
     this.showParadasDropdown = false;
+    this.refreshMapAndRoute(false);
   }
 
   selectAndAddParada(p: any): void {
@@ -470,15 +826,18 @@ export class RotasComponent implements OnInit {
       lng: Number(lng),
       ordem: this.enderecos.length,
     };
+
     this.enderecos.push(newEndereco);
     this.searchQuery = '';
     this.filteredParadas = [];
     this.showParadasDropdown = false;
+    this.refreshMapAndRoute(false);
   }
 
   removeEndereco(index: number): void {
     this.enderecos.splice(index, 1);
     this.updateOrdem();
+    this.refreshMapAndRoute(false);
   }
 
   onDragStart(index: number): void {
@@ -496,6 +855,7 @@ export class RotasComponent implements OnInit {
       this.enderecos.splice(this.draggedIndex, 1);
       this.enderecos.splice(dropIndex, 0, draggedItem);
       this.updateOrdem();
+      this.refreshMapAndRoute(false);
     }
     this.draggedIndex = null;
   }
@@ -507,8 +867,11 @@ export class RotasComponent implements OnInit {
   }
 
   filterParadas(): void {
+    this.showParadasDropdown = true;
     const q = this.searchQuery.trim();
     if (!q) {
+      this.googlePredictions = [];
+      this.googleMapsService.resetSessionToken();
       if (this.todasAsParadas.length === 0) {
         this.linhaService.getParadas(3550308).subscribe((paradas) => {
           this.todasAsParadas = paradas || [];
@@ -519,9 +882,79 @@ export class RotasComponent implements OnInit {
       }
       return;
     }
+
+    // 1. Filter local registered stops from database
     this.linhaService.getParadas(3550308, q).subscribe((paradas) => {
       this.filteredParadas = paradas || [];
     });
+
+    // 2. Query Google Maps Places Autocomplete predictions (300ms debounce)
+    clearTimeout(this.searchDebounceTimeout);
+    this.searchDebounceTimeout = setTimeout(async () => {
+      if (q.length >= 2 && this.googleMapsService.hasApiKey()) {
+        this.isLoadingPredictions = true;
+        try {
+          this.googlePredictions = await this.googleMapsService.getPlacePredictions(q);
+        } catch (err) {
+          console.warn('Google autocomplete predictions error:', err);
+          this.googlePredictions = [];
+        } finally {
+          this.isLoadingPredictions = false;
+        }
+      } else {
+        this.googlePredictions = [];
+      }
+    }, 300);
+  }
+
+  async selectGooglePrediction(pred: any): Promise<void> {
+    this.showParadasDropdown = false;
+    this.searchQuery = '';
+    this.googlePredictions = [];
+
+    try {
+      const place = await this.googleMapsService.getPlaceDetails(pred.place_id);
+      if (!place || !place.geometry || !place.geometry.location) {
+        return;
+      }
+
+      let routeName = '';
+      let streetNumber = '';
+      let cep = '';
+
+      for (const comp of place.address_components || []) {
+        if (comp.types?.includes('route')) {
+          routeName = comp.long_name;
+        } else if (comp.types?.includes('street_number')) {
+          streetNumber = comp.long_name;
+        } else if (comp.types?.includes('postal_code')) {
+          cep = comp.long_name;
+        }
+      }
+
+      const mainText = pred.structured_formatting?.main_text || place.name || routeName || 'Parada';
+      const displayName = routeName ? (streetNumber ? `${routeName}, ${streetNumber}` : routeName) : mainText;
+      const fullAddress = place.formatted_address || displayName;
+
+      const loc = place.geometry.location;
+      const latVal = typeof loc.lat === 'function' ? loc.lat() : Number(loc.lat);
+      const lngVal = typeof loc.lng === 'function' ? loc.lng() : Number(loc.lng);
+
+      const newEndereco: Endereco = {
+        id: Date.now(), // Numeric ID > 1,000,000,000 signals backend to insert new T_PARADA
+        nome: displayName,
+        endereco: fullAddress,
+        cep,
+        lat: latVal,
+        lng: lngVal,
+        ordem: this.enderecos.length,
+      };
+
+      this.enderecos.push(newEndereco);
+      this.refreshMapAndRoute(false);
+    } catch (err) {
+      console.warn('[RotasComponent] Error selecting Google Place prediction:', err);
+    }
   }
 
   openParadasDropdown(): void {
@@ -540,6 +973,6 @@ export class RotasComponent implements OnInit {
   closeParadasDropdown(): void {
     setTimeout(() => {
       this.showParadasDropdown = false;
-    }, 150);
+    }, 250);
   }
 }

@@ -260,6 +260,28 @@
           <div class="itinerary-line-badge">{{ selectedLinha?.codigo }}-{{ selectedLinha?.atendimento }}</div>
           <div class="itinerary-direction">Sentido: <strong>{{ itineraryForm.sentido }}</strong></div>
           <h1 class="edit-title itinerary-name">{{ itineraryForm.prefixo }}</h1>
+
+          <!-- Live Route Metrics -->
+          <div class="route-metrics-bar" *ngIf="routeMetrics && !isCalculatingRoute">
+            <span class="metric-chip">
+              🛣️ <strong>{{ routeMetrics.distanceText }}</strong>
+            </span>
+            <span class="metric-chip">
+              ⏱️ <strong>{{ routeMetrics.durationText }}</strong>
+            </span>
+            <span class="metric-chip">
+              🚏 <strong>{{ enderecos.length }}</strong> paradas
+            </span>
+            <span class="metric-chip chunk-chip" *ngIf="routeMetrics.chunksCount > 1" title="Trajeto contínuo calculado em múltiplos segmentos">
+              🔗 {{ routeMetrics.chunksCount }} trechos unidos
+            </span>
+          </div>
+
+          <div class="route-metrics-bar calculating" *ngIf="isCalculatingRoute">
+            <span class="metric-chip calculating-chip">
+              <span class="chip-spinner"></span> Otimizando trajeto...
+            </span>
+          </div>
         </div>
         <div class="edit-actions">
           <button class="btn-save" (click)="saveItinerary()">
@@ -289,12 +311,14 @@
                 <path d="m21 21-4.35-4.35"></path>
               </svg>
               <input
+                id="search-parada-input"
                 type="text"
-                placeholder="Buscar parada..."
+                placeholder="Buscar parada ou digitar endereço..."
                 [(ngModel)]="searchQuery"
                 (focus)="openParadasDropdown()"
                 (blur)="closeParadasDropdown()"
                 (input)="filterParadas()"
+                (keydown.enter)="$event.preventDefault(); addCustomEndereco()"
                 class="search-input"
               />
             </div>
@@ -302,35 +326,67 @@
             <!-- Dropdown autocomplete results -->
             <div class="search-results-dropdown" *ngIf="showParadasDropdown">
               <div class="results-list">
-                <div 
-                  class="result-item" 
-                  *ngFor="let p of filteredParadas" 
-                  (click)="selectAndAddParada(p)"
-                >
-                  <span class="pin-icon">📍</span>
-                  <div class="result-info">
-                    <div class="result-name">{{ p.logradouro }}, {{ p.numero }}</div>
-                    <div class="result-sub">ID: {{ p.paradaId }} | Lat: {{ p.latLong[0] | number:'1.4-4' }} Lng: {{ p.latLong[1] | number:'1.4-4' }}</div>
+                <!-- 1. Google Maps Autocomplete Predictions -->
+                <div class="dropdown-section" *ngIf="googlePredictions.length > 0">
+                  <div class="dropdown-section-title">
+                    <span>📍 Lugares e Endereços (Google Maps)</span>
+                  </div>
+
+                  <div 
+                    class="result-item google-prediction-item" 
+                    *ngFor="let pred of googlePredictions" 
+                    (mousedown)="$event.preventDefault(); selectGooglePrediction(pred)"
+                  >
+                    <span class="pin-icon google-pin">📍</span>
+                    <div class="result-info">
+                      <div class="result-name">{{ pred.structured_formatting?.main_text || pred.description }}</div>
+                      <div class="result-sub">{{ pred.structured_formatting?.secondary_text || '' }}</div>
+                    </div>
                   </div>
                 </div>
 
-                <div class="result-item no-hover" *ngIf="filteredParadas.length === 0 && searchQuery.trim() === ''">
-                  <span class="pin-icon">📋</span>
-                  <div class="result-info">
-                    <div class="result-name">Digite um endereço para buscar</div>
-                    <div class="result-sub">Use nome da rua e número (ex: Av. Paulista, 1000)</div>
+                <!-- 2. Registered Municipal Database Paradas -->
+                <div class="dropdown-section" *ngIf="filteredParadas.length > 0">
+                  <div class="dropdown-section-title">
+                    <span>🚏 Paradas já cadastradas no Sistema</span>
+                  </div>
+
+                  <div 
+                    class="result-item" 
+                    *ngFor="let p of filteredParadas" 
+                    (mousedown)="$event.preventDefault(); selectAndAddParada(p)"
+                  >
+                    <span class="pin-icon">🚏</span>
+                    <div class="result-info">
+                      <div class="result-name">{{ p.logradouro }}, {{ p.numero }}</div>
+                      <div class="result-sub">ID: {{ p.paradaId }} | Lat: {{ p.latLong[0] | number:'1.4-4' }} Lng: {{ p.latLong[1] | number:'1.4-4' }}</div>
+                    </div>
                   </div>
                 </div>
 
-                <div 
-                  class="result-item add-new" 
-                  *ngIf="searchQuery.trim() !== ''"
-                  (click)="addCustomEndereco()"
-                >
-                  <span class="pin-icon">➕</span>
+                <!-- Loading State -->
+                <div class="result-item no-hover" *ngIf="isLoadingPredictions">
+                  <span class="pin-icon">🔍</span>
                   <div class="result-info">
-                    <div class="result-name">Criar nova parada: "{{ searchQuery }}"</div>
-                    <div class="result-sub">As coordenadas serão preenchidas via Maps API</div>
+                    <div class="result-name">Buscando no Google Maps...</div>
+                  </div>
+                </div>
+
+                <!-- Empty Initial State -->
+                <div class="result-item no-hover" *ngIf="googlePredictions.length === 0 && filteredParadas.length === 0 && searchQuery.trim() === ''">
+                  <span class="pin-icon">🗺️</span>
+                  <div class="result-info">
+                    <div class="result-name">Digite um endereço ou ponto de ônibus</div>
+                    <div class="result-sub">Ex: Av. Paulista, 1000 ou Terminal Lapa</div>
+                  </div>
+                </div>
+
+                <!-- No Results State -->
+                <div class="result-item no-hover" *ngIf="googlePredictions.length === 0 && filteredParadas.length === 0 && searchQuery.trim() !== '' && !isLoadingPredictions">
+                  <span class="pin-icon">❓</span>
+                  <div class="result-info">
+                    <div class="result-name">Nenhum resultado para "{{ searchQuery }}"</div>
+                    <div class="result-sub">Tente digitar o nome da rua ou avenida</div>
                   </div>
                 </div>
               </div>
@@ -344,6 +400,8 @@
               *ngFor="let endereco of enderecos; let i = index"
               (dragover)="onDragOver($event)"
               (drop)="onDrop($event, i)"
+              (click)="focusStopOnMap(i)"
+              title="Clique para centralizar no mapa"
             >
               <div
                 class="address-drag-handle"
@@ -354,11 +412,14 @@
               
               <div class="address-content-edit">
                 <span class="stop-display stop-title">{{ endereco.endereco || endereco.nome }}</span>
+                <span class="stop-coords" *ngIf="endereco.lat && endereco.lng">
+                  Lat: {{ endereco.lat | number:'1.4-4' }} | Lng: {{ endereco.lng | number:'1.4-4' }}
+                </span>
               </div>
 
               <button
                 class="btn-remove"
-                (click)="removeEndereco(i)"
+                (click)="$event.stopPropagation(); removeEndereco(i)"
                 title="Remover parada"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -372,7 +433,7 @@
             <div class="empty-state" *ngIf="enderecos.length === 0">
               <p>Nenhuma parada adicionada</p>
               <p class="empty-hint">
-                Pesquise uma parada existente acima ou digite um novo endereço para criar uma nova.
+                Pesquise uma parada acima ou clique no mapa para marcar pontos.
               </p>
             </div>
           </div>
@@ -381,9 +442,40 @@
         <!-- Right Side - Maps -->
         <div class="map-panel">
           <div class="map-container">
-            <div class="map-placeholder">
-              <p>Visualização do Mapa</p>
-              <p class="map-hint">Coordenadas das paradas serão ligadas para mostrar o trajeto.</p>
+            <!-- Google Maps Canvas -->
+            <div id="google-map-canvas" class="google-map-canvas"></div>
+
+            <!-- Floating map instructions hint -->
+            <div class="map-hint-floating" *ngIf="isMapInitialized">
+              <span class="hint-icon">💡</span>
+              <span>Clique nas ruas do mapa para adicionar paradas</span>
+            </div>
+
+            <!-- Placeholder overlay if API key is not set or map loading -->
+            <div class="map-placeholder" *ngIf="!isMapInitialized">
+              <div class="map-icon-wrap" *ngIf="isMapLoading">
+                <div class="map-spinner"></div>
+                <p class="map-hint">Carregando Google Maps...</p>
+              </div>
+
+              <div class="map-icon-wrap" *ngIf="!isMapLoading && !hasGoogleMapsApiKey">
+                <span class="icon-geo">🗺️</span>
+                <p class="map-title">Google Maps Platform</p>
+                <p class="map-hint">
+                  Para ativar o mapa interativo e busca de endereços ao vivo, configure sua chave da API em <code>environments/enviroment.ts</code>.
+                </p>
+                <div class="map-fallback-badges">
+                  <span class="fallback-badge">Maps JavaScript API</span>
+                  <span class="fallback-badge">Places API</span>
+                  <span class="fallback-badge">Directions API</span>
+                </div>
+              </div>
+
+              <div class="map-icon-wrap" *ngIf="!isMapLoading && hasGoogleMapsApiKey">
+                <span class="icon-geo">📍</span>
+                <p class="map-title">Carregando visualização do mapa...</p>
+                <p class="map-hint">Conectando aos serviços do Google...</p>
+              </div>
             </div>
           </div>
         </div>

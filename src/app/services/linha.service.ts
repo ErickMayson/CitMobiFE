@@ -357,10 +357,23 @@ export class LinhaService {
       const lat = end.lat ? parseFloat(end.lat.toString()) : 0;
       const lng = end.lng ? parseFloat(end.lng.toString()) : 0;
 
+      let logradouro = end.nome?.trim() || 'Parada';
+      let numero = 'S/N';
+
+      if (end.endereco && end.endereco.includes(',')) {
+        const parts = end.endereco.split(',');
+        logradouro = parts[0].trim();
+        numero = parts[1].trim() || 'S/N';
+      } else if (end.nome && end.nome.includes(',')) {
+        const parts = end.nome.split(',');
+        logradouro = parts[0].trim();
+        numero = parts[1].trim() || 'S/N';
+      }
+
       return {
         paradaId: typeof end.id === 'number' && end.id > 1000000000 ? null : end.id,
-        logradouro: end.nome.trim(),
-        numero: end.endereco.trim() || 'S/N',
+        logradouro,
+        numero,
         obs: '',
         latLong: [lat, lng],
         municipio: 3550308,

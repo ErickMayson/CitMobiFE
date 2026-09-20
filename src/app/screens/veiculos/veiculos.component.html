@@ -725,18 +725,53 @@
 
         <!-- Form content -->
         <div *ngIf="!isLoadingRoutes">
-          <div class="form-group">
+          <div class="form-group autocomplete-container">
             <label>Nome da Linha</label>
-            <input
-              type="text"
-              placeholder="Digite ou selecione..."
-              [(ngModel)]="routeForm.routeName"
-              list="routes-list"
-              class="form-control"
-            />
-            <datalist id="routes-list">
-              <option *ngFor="let route of mockRoutes" [value]="route"></option>
-            </datalist>
+            <div class="input-with-icon">
+              <input
+                type="text"
+                placeholder="Digite para buscar linha..."
+                [(ngModel)]="routeForm.routeName"
+                (focus)="onRouteInputFocus()"
+                (input)="onRouteInputChange($event)"
+                (blur)="onRouteInputBlur()"
+                class="form-control"
+                autocomplete="off"
+              />
+              <span class="search-spinner" *ngIf="isLoadingRoutes">⏳</span>
+            </div>
+
+            <!-- Dynamic Autocomplete Dropdown List -->
+            <div class="autocomplete-dropdown" *ngIf="isRouteDropdownOpen && !isLoadingRoutes">
+              <div
+                class="autocomplete-item"
+                *ngFor="let route of filteredRoutes"
+                (mousedown)="selectRoute(route)"
+              >
+                <div class="item-avatar item-avatar-route">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="15" rx="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <circle cx="7" cy="14" r="1"></circle>
+                    <circle cx="17" cy="14" r="1"></circle>
+                    <line x1="6" y1="18" x2="6" y2="21"></line>
+                    <line x1="18" y1="18" x2="18" y2="21"></line>
+                  </svg>
+                </div>
+                <div class="item-details">
+                  <span class="item-name">{{ route.descricao || route.nome }}</span>
+                  <span class="item-sub" *ngIf="route.partida && route.chegada">
+                    {{ route.partida }} ➔ {{ route.chegada }}
+                  </span>
+                </div>
+                <span class="item-status" [ngClass]="route.status.toLowerCase()">
+                  {{ route.status === 'ativa' ? 'Ativa' : (route.status === 'inativa' ? 'Inativa' : route.status) }}
+                </span>
+              </div>
+              <div class="autocomplete-empty" *ngIf="filteredRoutes.length === 0">
+                <span>Nenhuma linha encontrada</span>
+              </div>
+            </div>
           </div>
 
           <div class="form-group intervals-form-group" style="margin-top: 16px;">
@@ -849,18 +884,53 @@
 
         <!-- Form content -->
         <div *ngIf="!isLoadingRoutes">
-          <div class="form-group">
+          <div class="form-group autocomplete-container">
             <label>Nome da Linha</label>
-            <input
-              type="text"
-              placeholder="Digite ou selecione..."
-              [(ngModel)]="routeForm.routeName"
-              list="routes-list-edit"
-              class="form-control"
-            />
-            <datalist id="routes-list-edit">
-              <option *ngFor="let route of mockRoutes" [value]="route"></option>
-            </datalist>
+            <div class="input-with-icon">
+              <input
+                type="text"
+                placeholder="Digite para buscar linha..."
+                [(ngModel)]="routeForm.routeName"
+                (focus)="onRouteInputFocus()"
+                (input)="onRouteInputChange($event)"
+                (blur)="onRouteInputBlur()"
+                class="form-control"
+                autocomplete="off"
+              />
+              <span class="search-spinner" *ngIf="isLoadingRoutes">⏳</span>
+            </div>
+
+            <!-- Dynamic Autocomplete Dropdown List -->
+            <div class="autocomplete-dropdown" *ngIf="isRouteDropdownOpen && !isLoadingRoutes">
+              <div
+                class="autocomplete-item"
+                *ngFor="let route of filteredRoutes"
+                (mousedown)="selectRoute(route)"
+              >
+                <div class="item-avatar item-avatar-route">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="15" rx="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <circle cx="7" cy="14" r="1"></circle>
+                    <circle cx="17" cy="14" r="1"></circle>
+                    <line x1="6" y1="18" x2="6" y2="21"></line>
+                    <line x1="18" y1="18" x2="18" y2="21"></line>
+                  </svg>
+                </div>
+                <div class="item-details">
+                  <span class="item-name">{{ route.descricao || route.nome }}</span>
+                  <span class="item-sub" *ngIf="route.partida && route.chegada">
+                    {{ route.partida }} ➔ {{ route.chegada }}
+                  </span>
+                </div>
+                <span class="item-status" [ngClass]="route.status.toLowerCase()">
+                  {{ route.status === 'ativa' ? 'Ativa' : (route.status === 'inativa' ? 'Inativa' : route.status) }}
+                </span>
+              </div>
+              <div class="autocomplete-empty" *ngIf="filteredRoutes.length === 0">
+                <span>Nenhuma linha encontrada</span>
+              </div>
+            </div>
           </div>
 
           <div class="form-group intervals-form-group" style="margin-top: 16px;">

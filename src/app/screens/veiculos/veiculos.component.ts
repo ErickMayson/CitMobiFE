@@ -15,7 +15,7 @@ import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { VeiculoService } from '../../services/veiculo.service';
 import { LoginService } from '../../services/login.service';
 import { MotoristaService } from '../../services/motorista.service';
-import { LinhaService } from '../../services/linha.service';
+import { LinhaService, LinhaDetails } from '../../services/linha.service';
 import { formatPlate, formatOnlyNumbers, abbreviateName, formatCpf } from '../../utils/mask.utils';
 import { AbbreviateNamePipe } from '../../pipes/abbreviate-name.pipe';
 
@@ -100,6 +100,10 @@ export class VeiculosComponent implements OnInit {
   availableDrivers: MotoristaEntity[] = [];
   filteredDrivers: MotoristaEntity[] = [];
   isDriverDropdownOpen: boolean = false;
+
+  availableRoutes: LinhaDetails[] = [];
+  filteredRoutes: LinhaDetails[] = [];
+  isRouteDropdownOpen: boolean = false;
 
   daysOfWeek = [
     { code: 'SEG', label: 'Seg' },
@@ -220,24 +224,87 @@ export class VeiculosComponent implements OnInit {
   }
 
   ensureRoutesLoaded(): void {
-    if (this.routesLoaded) return;
+    if (this.routesLoaded && this.availableRoutes.length > 0) {
+      this.filterRoutes(this.routeForm.routeName);
+      return;
+    }
     this.isLoadingRoutes = true;
     this.linhaService.getLinhas().subscribe({
       next: (linhas) => {
         if (linhas && linhas.length > 0) {
+          this.availableRoutes = linhas;
           this.mockRoutes = linhas.map(
             (l) => l.descricao || `${l.codigo} - ${l.partida} / ${l.chegada}`
           );
         } else {
+          this.availableRoutes = [];
           this.mockRoutes = [];
         }
+        this.filterRoutes(this.routeForm.routeName);
         this.routesLoaded = true;
         this.isLoadingRoutes = false;
       },
       error: () => {
+        this.availableRoutes = [];
+        this.mockRoutes = [];
+        this.filterRoutes(this.routeForm.routeName);
         this.routesLoaded = true;
         this.isLoadingRoutes = false;
       },
+    });
+  }
+
+  onRouteInputFocus(): void {
+    this.ensureRoutesLoaded();
+    this.isRouteDropdownOpen = true;
+    this.filterRoutes(this.routeForm.routeName);
+  }
+
+  onRouteInputChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.routeForm.routeName = input.value;
+    this.ensureRoutesLoaded();
+    this.isRouteDropdownOpen = true;
+    this.filterRoutes(input.value);
+  }
+
+  onRouteInputBlur(): void {
+    setTimeout(() => {
+      this.isRouteDropdownOpen = false;
+    }, 200);
+  }
+
+  selectRoute(route: LinhaDetails): void {
+    this.routeForm.routeName = route.descricao || `${route.codigo} - ${route.partida} / ${route.chegada}`;
+    this.isRouteDropdownOpen = false;
+  }
+
+  filterRoutes(term?: string): void {
+    const query = (term !== undefined ? term : this.routeForm.routeName || '').trim().toLowerCase();
+    if (!query) {
+      this.filteredRoutes = [...this.availableRoutes];
+      return;
+    }
+
+    const normalizedQuery = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const cleanDigits = query.replace(/\D/g, '');
+
+    this.filteredRoutes = this.availableRoutes.filter((route) => {
+      const normDesc = (route.descricao || route.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const normCodigo = (route.codigo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const normPartida = (route.partida || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const normChegada = (route.chegada || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const cleanCodigoDigits = (route.codigo || '').replace(/\D/g, '');
+
+      const matchesText =
+        normDesc.includes(normalizedQuery) ||
+        normCodigo.includes(normalizedQuery) ||
+        normPartida.includes(normalizedQuery) ||
+        normChegada.includes(normalizedQuery);
+
+      const matchesDigits = cleanDigits.length > 0 && cleanCodigoDigits.includes(cleanDigits);
+
+      return matchesText || matchesDigits;
     });
   }
 
@@ -662,12 +729,14 @@ export class VeiculosComponent implements OnInit {
       days: [],
       intervals: [{ startTime: '06:00', endTime: '22:00' }],
     };
+    this.isRouteDropdownOpen = false;
     this.showAddRouteModal = true;
     this.ensureRoutesLoaded();
   }
 
   closeAddRouteModal(): void {
     this.showAddRouteModal = false;
+    this.isRouteDropdownOpen = false;
   }
 
   openEditRouteModal(index: number): void {
@@ -687,6 +756,7 @@ export class VeiculosComponent implements OnInit {
         intervals: intervals,
       };
       this.editingRouteIndex = index;
+      this.isRouteDropdownOpen = false;
       this.showEditRouteModal = true;
       this.ensureRoutesLoaded();
     }
@@ -694,6 +764,7 @@ export class VeiculosComponent implements OnInit {
 
   closeEditRouteModal(): void {
     this.showEditRouteModal = false;
+    this.isRouteDropdownOpen = false;
     this.editingRouteIndex = -1;
   }
 

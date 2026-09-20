@@ -394,20 +394,55 @@
           </div>
 
           <!-- Stop list -->
-          <div class="addresses-list">
+          <div class="addresses-list" [class.is-reordering]="draggedIndex !== null">
+            <!-- Informative drag helper banner when dragging -->
+            <div class="drag-instruction-banner" *ngIf="draggedIndex !== null">
+              <span class="banner-icon">⇅</span>
+              <span>Solte a parada na linha indicada para reposicionar</span>
+            </div>
+
             <div
               class="address-card editing-card"
               *ngFor="let endereco of enderecos; let i = index"
-              (dragover)="onDragOver($event)"
+              [class.is-dragging]="draggedIndex === i"
+              [class.is-drop-target]="dragOverIndex === i && draggedIndex !== i"
+              [class.drop-target-above]="dragOverIndex === i && draggedIndex !== i && dropPosition === 'above'"
+              [class.drop-target-below]="dragOverIndex === i && draggedIndex !== i && dropPosition === 'below'"
+              draggable="true"
+              (dragstart)="onDragStart($event, i)"
+              (dragover)="onDragOver($event, i)"
+              (dragleave)="onDragLeave($event, i)"
               (drop)="onDrop($event, i)"
+              (dragend)="onDragEnd()"
               (click)="focusStopOnMap(i)"
-              title="Clique para centralizar no mapa"
+              title="Arraste para reordenar ou clique para centralizar no mapa"
             >
+              <!-- Drop indicator line ABOVE -->
+              <div
+                class="drop-indicator-line drop-above"
+                *ngIf="dragOverIndex === i && draggedIndex !== i && dropPosition === 'above'"
+              >
+                <div class="indicator-arrow">▶</div>
+                <div class="indicator-line"></div>
+                <div class="indicator-badge">
+                  <span class="badge-dot">●</span>
+                  Posição #{{ getTargetDisplayOrder(i, 'above') }}
+                </div>
+              </div>
+
               <div
                 class="address-drag-handle"
-                draggable="true"
-                (dragstart)="onDragStart(i)"
-              >⋮⋮</div>
+                title="Arraste para mover"
+              >
+                <svg viewBox="0 0 20 20" fill="currentColor" class="drag-grip-icon">
+                  <circle cx="7" cy="5" r="1.75" />
+                  <circle cx="13" cy="5" r="1.75" />
+                  <circle cx="7" cy="10" r="1.75" />
+                  <circle cx="13" cy="10" r="1.75" />
+                  <circle cx="7" cy="15" r="1.75" />
+                  <circle cx="13" cy="15" r="1.75" />
+                </svg>
+              </div>
               <div class="address-order">{{ i + 1 }}</div>
               
               <div class="address-content-edit">
@@ -418,7 +453,10 @@
               </div>
 
               <button
+                type="button"
                 class="btn-remove"
+                draggable="false"
+                (mousedown)="$event.stopPropagation()"
                 (click)="$event.stopPropagation(); removeEndereco(i)"
                 title="Remover parada"
               >
@@ -427,6 +465,19 @@
                   <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
               </button>
+
+              <!-- Drop indicator line BELOW -->
+              <div
+                class="drop-indicator-line drop-below"
+                *ngIf="dragOverIndex === i && draggedIndex !== i && dropPosition === 'below'"
+              >
+                <div class="indicator-arrow">▶</div>
+                <div class="indicator-line"></div>
+                <div class="indicator-badge">
+                  <span class="badge-dot">●</span>
+                  Posição #{{ getTargetDisplayOrder(i, 'below') }}
+                </div>
+              </div>
             </div>
 
             <!-- Empty State -->

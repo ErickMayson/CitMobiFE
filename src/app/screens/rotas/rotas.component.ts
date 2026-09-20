@@ -82,6 +82,8 @@ export class RotasComponent implements OnInit, OnDestroy {
   todasAsParadas: any[] = [];
   showParadasDropdown: boolean = false;
   draggedIndex: number | null = null;
+  dragOverIndex: number | null = null;
+  dropPosition: 'above' | 'below' | null = null;
   private searchDebounceTimeout: any = null;
 
   constructor(
@@ -840,24 +842,81 @@ export class RotasComponent implements OnInit, OnDestroy {
     this.refreshMapAndRoute(false);
   }
 
-  onDragStart(index: number): void {
+  onDragStart(event: DragEvent, index: number): void {
     this.draggedIndex = index;
+    this.dragOverIndex = null;
+    this.dropPosition = null;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', index.toString());
+    }
   }
 
-  onDragOver(event: DragEvent): void {
+  onDragOver(event: DragEvent, index: number): void {
     event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+
+    if (this.draggedIndex === null || this.draggedIndex === index) {
+      this.dragOverIndex = null;
+      this.dropPosition = null;
+      return;
+    }
+
+    const targetElement = event.currentTarget as HTMLElement;
+    const rect = targetElement.getBoundingClientRect();
+    const offsetY = event.clientY - rect.top;
+    const position: 'above' | 'below' = offsetY < rect.height / 2 ? 'above' : 'below';
+
+    this.dragOverIndex = index;
+    this.dropPosition = position;
+  }
+
+  onDragLeave(event: DragEvent, index: number): void {
+    const targetElement = event.currentTarget as HTMLElement;
+    if (!targetElement.contains(event.relatedTarget as Node)) {
+      if (this.dragOverIndex === index) {
+        this.dragOverIndex = null;
+        this.dropPosition = null;
+      }
+    }
+  }
+
+  onDragEnd(): void {
+    this.draggedIndex = null;
+    this.dragOverIndex = null;
+    this.dropPosition = null;
+  }
+
+  getTargetDisplayOrder(hoverIndex: number, position: 'above' | 'below' | null): number {
+    if (this.draggedIndex === null) return hoverIndex + 1;
+    let targetIndex = position === 'below' ? hoverIndex + 1 : hoverIndex;
+    if (this.draggedIndex < targetIndex) {
+      targetIndex--;
+    }
+    return targetIndex + 1;
   }
 
   onDrop(event: DragEvent, dropIndex: number): void {
     event.preventDefault();
     if (this.draggedIndex !== null && this.draggedIndex !== dropIndex) {
-      const draggedItem = this.enderecos[this.draggedIndex];
-      this.enderecos.splice(this.draggedIndex, 1);
-      this.enderecos.splice(dropIndex, 0, draggedItem);
-      this.updateOrdem();
-      this.refreshMapAndRoute(false);
+      let targetIndex = this.dropPosition === 'below' ? dropIndex + 1 : dropIndex;
+      if (this.draggedIndex < targetIndex) {
+        targetIndex--;
+      }
+
+      if (this.draggedIndex !== targetIndex) {
+        const draggedItem = this.enderecos[this.draggedIndex];
+        this.enderecos.splice(this.draggedIndex, 1);
+        this.enderecos.splice(targetIndex, 0, draggedItem);
+        this.updateOrdem();
+        this.refreshMapAndRoute(false);
+      }
     }
     this.draggedIndex = null;
+    this.dragOverIndex = null;
+    this.dropPosition = null;
   }
 
   updateOrdem(): void {

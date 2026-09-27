@@ -756,35 +756,65 @@
   </div>
 
   <!-- Modal 2: Linha Details Modal (IDA / VOLTA selection) -->
-  <div class="modal-backdrop" *ngIf="showLinhaDetailsModal" (click)="closeDetailsModal()">
-    <div class="dialog-card large-dialog" (click)="$event.stopPropagation()">
+  <div
+    class="modal-backdrop details-modal-backdrop"
+    *ngIf="showLinhaDetailsModal"
+    [class.closing]="isClosingDetailsModal"
+    (dblclick)="closeDetailsModal()"
+  >
+    <div class="dialog-card large-dialog" (click)="$event.stopPropagation()" (dblclick)="$event.stopPropagation()">
       <div class="dialog-header">
-        <h2>Linha {{ selectedLinha?.codigo }}-{{ selectedLinha?.atendimento }}</h2>
-        <button class="btn-close-dlg" (click)="closeDetailsModal()">×</button>
+        <h2>Detalhes da Linha</h2>
+        <button class="btn-close-dlg" (click)="closeDetailsModal()" title="Fechar">✕</button>
       </div>
       <div class="dialog-body">
         <div class="line-summary-info">
-          <p><strong>Descrição:</strong> {{ selectedLinha?.descricao }}</p>
-          <p><strong>Local Partida:</strong> {{ selectedLinha?.partida }}</p>
-          <p><strong>Local Chegada:</strong> {{ selectedLinha?.chegada }}</p>
-          <p>
-            <strong>Status:</strong> 
+          <div class="line-data-grid">
+            <div class="line-data-item highlight">
+              <span class="data-label">Prefixo:</span>
+              <span class="data-val prefixo-val">{{ selectedLinha?.codigo }}</span>
+            </div>
+            <div class="line-data-item highlight">
+              <span class="data-label">Operação:</span>
+              <span class="data-val operacao-val">{{ selectedLinha?.atendimento || '10' }}</span>
+            </div>
+          </div>
+
+          <div class="line-data-item full">
+            <span class="data-label">Descrição:</span>
+            <span class="data-val">{{ selectedLinha?.descricao }}</span>
+          </div>
+
+          <div class="line-data-item full">
+            <span class="data-label">Local Partida:</span>
+            <span class="data-val route-endpoint">{{ selectedLinha?.partida }}</span>
+          </div>
+
+          <div class="line-data-item full">
+            <span class="data-label">Local Chegada:</span>
+            <span class="data-val route-endpoint">{{ selectedLinha?.chegada }}</span>
+          </div>
+
+          <div class="line-data-item full status-row">
+            <span class="data-label">Status:</span>
             <span class="status-indicator" [class.active]="selectedLinha?.status === 'ativa'">
               {{ selectedLinha?.status === 'ativa' ? 'Ativa' : 'Inativa' }}
             </span>
+            <!-- Inativar/Ativar button commented out for now
             <button
               class="btn-toggle-status"
               (click)="toggleLinhaStatus(selectedLinha!)"
             >
               {{ selectedLinha?.status === 'ativa' ? 'Inativar' : 'Ativar' }}
             </button>
-          </p>
+            -->
+          </div>
 
           <!-- Ver Mais Dropdown: Informações da Frota -->
           <div class="ver-mais-section">
             <button class="btn-toggle-ver-mais" (click)="toggleGeneralFleet()">
               <span class="chevron">{{ showGeneralFleetDetails ? '▼' : '▶' }}</span>
-              <strong>{{ showGeneralFleetDetails ? 'Ocultar Detalhes da Frota' : 'Ver Mais: Frota Alocada & Tipos de Veículo' }}</strong>
+              <strong>{{ showGeneralFleetDetails ? 'Ocultar Detalhes da Frota' : 'Ver Detalhes da Frota' }}</strong>
             </button>
 
             <div class="ver-mais-content" *ngIf="showGeneralFleetDetails">
@@ -984,11 +1014,6 @@
             </div>
           </div>
         </div>
-      </div>
-      <div class="dialog-footer border-top-none">
-        <button class="btn-dialog secondary" (click)="closeDetailsModal()">
-          Fechar
-        </button>
       </div>
     </div>
   </div>

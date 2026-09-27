@@ -546,11 +546,14 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   }
 
   // --- Modal View Details ---
+  isClosingDetailsModal = false;
+
   openLinhaDetails(linha: LinhaDetails): void {
     this.selectedLinha = linha;
     this.showGeneralFleetDetails = false;
     this.showIdaFleetDetails = false;
     this.showVoltaFleetDetails = false;
+    this.isClosingDetailsModal = false;
     this.showLinhaDetailsModal = true;
   }
 
@@ -558,12 +561,22 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
     this.openLinhaDetails(linha);
   }
 
-  closeDetailsModal(): void {
-    this.showLinhaDetailsModal = false;
+  closeDetailsModal(immediate: boolean = false): void {
+    if (immediate) {
+      this.showLinhaDetailsModal = false;
+      this.isClosingDetailsModal = false;
+      return;
+    }
+    if (this.isClosingDetailsModal) return;
+    this.isClosingDetailsModal = true;
+    setTimeout(() => {
+      this.showLinhaDetailsModal = false;
+      this.isClosingDetailsModal = false;
+    }, 200);
   }
 
   editExistingItinerary(linha: LinhaDetails, sentido: 'IDA' | 'VOLTA'): void {
-    this.closeDetailsModal();
+    this.closeDetailsModal(true);
     this.selectedLinha = linha;
     this.itineraryForm.sentido = sentido;
 
@@ -594,7 +607,7 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   }
 
   addNewItinerary(linha: LinhaDetails, sentido: 'IDA' | 'VOLTA'): void {
-    this.closeDetailsModal();
+    this.closeDetailsModal(true);
     this.selectedLinha = linha;
     this.itineraryForm.sentido = sentido;
 

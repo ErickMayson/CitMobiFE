@@ -8,8 +8,15 @@ import { Motorista, HorarioMotorista } from '../../models/motorista.model';
 import { LoginService } from '../../services/login.service';
 import { MotoristaService } from '../../services/motorista.service';
 import { VeiculoService } from '../../services/veiculo.service';
-import { LinhaService } from '../../services/linha.service';
+import { LinhaService, LinhaDetails } from '../../services/linha.service';
+import { TelemetriaService } from '../../services/telemetria.service';
+import { TelemetriaVeiculo, ViagemAtiva } from '../../models/telemetria.model';
 import { formatCpf, formatPhone, formatOnlyNumbers, abbreviateName } from '../../utils/mask.utils';
+import {
+  formatTransitLocation,
+  abbreviateTransitLocation,
+  expandTransitLocation,
+} from '../../utils/transit.utils';
 import { AbbreviateNamePipe } from '../../pipes/abbreviate-name.pipe';
 import { Operador } from '../../models/operador.model';
 import { OperadorService } from '../../services/operador.service';
@@ -33,12 +40,17 @@ interface ScheduleBlock {
   start: number;
   end: number;
   duration: number;
+  tooltip?: string;
+  isGoing?: boolean;
+  isActiveNow?: boolean;
 }
+
+import { TransitLocationPipe, AbbreviateTransitPipe } from '../../pipes/transit-location.pipe';
 
 @Component({
   selector: 'app-motorista',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidebarComponent, AbbreviateNamePipe],
+  imports: [CommonModule, FormsModule, SidebarComponent, AbbreviateNamePipe, TransitLocationPipe, AbbreviateTransitPipe],
   templateUrl: './motorista.component.html',
   styleUrls: ['./motorista.component.scss'],
 })
@@ -56,6 +68,9 @@ export class MotoristaComponent implements OnInit {
   veiculosDisponiveis: VeiculoItem[] = [];
   linhasDisponiveis: LinhaItem[] = [];
   operadoresDisponiveis: Operador[] = [];
+  linhasList: LinhaDetails[] = [];
+  veiculosAtivosList: TelemetriaVeiculo[] = [];
+  viagensAtivasList: ViagemAtiva[] = [];
 
   showAddModal = false;
   showEditModal = false;
@@ -131,6 +146,7 @@ export class MotoristaComponent implements OnInit {
     private veiculoService: VeiculoService,
     private linhaService: LinhaService,
     private operadorService: OperadorService,
+    private telemetriaService: TelemetriaService,
     private router: Router,
     private route: ActivatedRoute
   ) {}
@@ -141,6 +157,7 @@ export class MotoristaComponent implements OnInit {
     });
     this.loadMotoristas();
     this.loadOperadores();
+    this.ensureVeiculosAndLinhasLoaded();
     setTimeout(() => (this.showSidebarContent = true), 100);
   }
 
@@ -156,7 +173,10 @@ export class MotoristaComponent implements OnInit {
   }
 
   ensureVeiculosAndLinhasLoaded(): void {
-    if (this.veiculosLinhasLoaded) return;
+    if (this.veiculosLinhasLoaded) {
+      this.refreshTelemetry();
+      return;
+    }
     this.isLoadingVeiculosLinhas = true;
 
     this.veiculoService.getVeiculos().subscribe({
@@ -174,10 +194,11 @@ export class MotoristaComponent implements OnInit {
 
     this.linhaService.getLinhas().subscribe({
       next: (linhas) => {
+        this.linhasList = linhas || [];
         if (linhas && linhas.length > 0) {
           this.linhasDisponiveis = linhas.map((l) => ({
             id: `${l.codigo}-${l.atendimento}`,
-            nome: l.descricao || `${l.codigo} - ${l.partida} / ${l.chegada}`,
+            nome: this.formatLinhaFullName(l),
           }));
         }
         this.veiculosLinhasLoaded = true;
@@ -187,6 +208,20 @@ export class MotoristaComponent implements OnInit {
         this.veiculosLinhasLoaded = true;
         this.isLoadingVeiculosLinhas = false;
       },
+    });
+
+    this.refreshTelemetry();
+  }
+
+  refreshTelemetry(): void {
+    this.telemetriaService.getVeiculosAtivos().subscribe({
+      next: (veiculos) => (this.veiculosAtivosList = veiculos || []),
+      error: () => {},
+    });
+
+    this.telemetriaService.getViagensAtivas().subscribe({
+      next: (viagens) => (this.viagensAtivasList = viagens || []),
+      error: () => {},
     });
   }
 
@@ -378,6 +413,8 @@ export class MotoristaComponent implements OnInit {
     this.selectedMotorista = JSON.parse(JSON.stringify(motorista));
     this.showEditModal = true;
     this.selectedDay = this.getCurrentDayCode();
+    this.ensureVeiculosAndLinhasLoaded();
+    this.refreshTelemetry();
   }
 
   closeEditModal(): void {
@@ -671,6 +708,204 @@ export class MotoristaComponent implements OnInit {
     }
   }
 
+  findLinha(horario: HorarioMotorista): LinhaDetails | undefined {
+    if (!this.linhasList || this.linhasList.length === 0) return undefined;
+
+    const rotaIdStr = String(horario.rotaId || '').trim();
+    const rotaNomeStr = String(horario.rotaNome || '').trim();
+    const cleanPlaca = String(horario.veiculoPlaca || '').replace(/\D/g, '').toUpperCase();
+
+    // 1. Direct match by id or codigo-atendimento
+    let found = this.linhasList.find((l) =>
+      String(l.id) === rotaIdStr ||
+      `${l.codigo}-${l.atendimento}`.toLowerCase() === rotaIdStr.toLowerCase() ||
+      l.codigo.toLowerCase() === rotaIdStr.toLowerCase()
+    );
+    if (found) return found;
+
+    // 2. Match by route name containing line code
+    found = this.linhasList.find((l) => {
+      const cleanCode = l.codigo.replace(/\D/g, '');
+      if (!cleanCode) return false;
+      const regex = new RegExp(`(^|\\D)${cleanCode}(\\D|$)`, 'i');
+      return regex.test(rotaNomeStr) || rotaNomeStr.includes(l.codigo);
+    });
+    if (found) return found;
+
+    // 3. Match by vehicle plate assigned to line
+    if (cleanPlaca) {
+      found = this.linhasList.find((l) =>
+        l.assignedVehicles?.some((v) => v.plate.replace(/\D/g, '').toUpperCase() === cleanPlaca)
+      );
+      if (found) return found;
+    }
+
+    return undefined;
+  }
+
+  formatLocationName(name: string, mode: 'full' | 'short' | 'standard' = 'standard'): string {
+    return formatTransitLocation(name, { mode });
+  }
+
+  abbreviateLocationName(name: string): string {
+    return abbreviateTransitLocation(name);
+  }
+
+  private getShortLocationName(name: string): string {
+    if (!name) return '';
+    return name
+      .replace(/^(Term\.|Terminal|Praça|Praca|Pça\.|Pca\.|Metrô|Metro)\s+/i, '')
+      .trim();
+  }
+
+  private extractDestination(prefixo: string): string {
+    if (!prefixo) return '';
+    if (prefixo.includes(' - ')) {
+      const parts = prefixo.split(' - ');
+      return parts[parts.length - 1].trim();
+    }
+    if (prefixo.includes('/')) {
+      const parts = prefixo.split('/');
+      return parts[parts.length - 1].trim();
+    }
+    return prefixo.trim();
+  }
+
+  formatLinhaFullName(l: LinhaDetails): string {
+    const code = `${l.codigo}-${l.atendimento || '10'}`;
+
+    if (l.partida && l.chegada) {
+      const part = this.formatLocationName(l.partida);
+      const cheg = this.formatLocationName(l.chegada);
+      return `${code} - ${part} - ${cheg}`;
+    }
+
+    if (l.descricao) {
+      if (l.descricao.includes('-')) {
+        const parts = l.descricao.split('-');
+        const part = this.formatLocationName(parts[0]);
+        const cheg = this.formatLocationName(parts[1]);
+        return `${code} - ${part} - ${cheg}`;
+      }
+      if (l.descricao.toLowerCase().startsWith(l.codigo.toLowerCase())) {
+        return l.descricao;
+      }
+      return `${code} - ${this.formatLocationName(l.descricao)}`;
+    }
+
+    return `Linha ${code}`;
+  }
+
+  getCurrentDirectionInfo(horario: HorarioMotorista): {
+    isGoing: boolean;
+    sentido?: 'IDA' | 'VOLTA';
+    destination?: string;
+    shortDestination?: string;
+    displayLabel?: string;
+    englishLabel?: string;
+  } {
+    const linha = this.findLinha(horario);
+    if (!linha) {
+      return { isGoing: false };
+    }
+
+    const status = this.selectedMotorista?.status;
+    const isDriverActiveStatus = status === 'EM ATENDIMENTO' || status === 'ATIVO';
+
+    const todayCode = this.getCurrentDayCode();
+    const isToday = horario.days && horario.days.includes(todayCode);
+
+    const now = new Date();
+    const curMin = now.getHours() * 60 + now.getMinutes();
+    const [sh, sm] = (horario.startTime || '00:00').split(':').map(Number);
+    const [eh, em] = (horario.endTime || '23:59').split(':').map(Number);
+    const startMin = sh * 60 + (sm || 0);
+    const endMin = eh * 60 + (em || 0);
+    const isWithinShift = isToday && curMin >= startMin && curMin <= endMin;
+
+    let sentido: 'IDA' | 'VOLTA' | undefined;
+    const cleanPlaca = (horario.veiculoPlaca || '').replace(/\D/g, '').toUpperCase();
+    const driverId = this.selectedMotorista?.id;
+    const driverName = (this.selectedMotorista?.nome || '').toLowerCase().trim();
+
+    // 1. Check active trip
+    const activeTrip = this.viagensAtivasList.find((v) => {
+      const vPlaca = (v.veiculoPlaca || '').replace(/\D/g, '').toUpperCase();
+      const vMotorista = (v.motoristaNome || '').toLowerCase().trim();
+      const matchDriver = (driverId && v.usuarioId === driverId) || (driverName && vMotorista.includes(driverName));
+      const matchPlate = cleanPlaca && vPlaca === cleanPlaca;
+      return v.status === 'EM_ANDAMENTO' && (matchDriver || matchPlate);
+    });
+
+    if (activeTrip?.sentido) {
+      sentido = activeTrip.sentido;
+    }
+
+    // 2. Check live telemetry
+    if (!sentido) {
+      const liveTel = this.veiculosAtivosList.find((t) => {
+        const tPlaca = (t.placa || '').replace(/\D/g, '').toUpperCase();
+        const tMotorista = (t.motoristaNome || '').toLowerCase().trim();
+        const matchPlate = cleanPlaca && tPlaca === cleanPlaca;
+        const matchDriver = driverName && tMotorista.includes(driverName);
+        return matchPlate || matchDriver;
+      });
+      if (liveTel?.sentido) {
+        sentido = liveTel.sentido;
+      }
+    }
+
+    // Only pinpoint direction if verified from telemetry or active trips. Do NOT guess direction.
+    if (!sentido) {
+      return { isGoing: false };
+    }
+
+    // Destination determination
+    let destRaw = '';
+    if (sentido === 'IDA') {
+      destRaw = linha.chegada || (linha.rotas?.ida?.prefixo ? this.extractDestination(linha.rotas.ida.prefixo) : '') || '';
+      if (!destRaw && linha.descricao?.includes('-')) {
+        destRaw = linha.descricao.split('-')[1]?.trim() || '';
+      }
+    } else {
+      destRaw = linha.partida || (linha.rotas?.volta?.prefixo ? this.extractDestination(linha.rotas.volta.prefixo) : '') || '';
+      if (!destRaw && linha.descricao?.includes('-')) {
+        destRaw = linha.descricao.split('-')[0]?.trim() || '';
+      }
+    }
+
+    const destination = this.formatLocationName(destRaw || (sentido === 'IDA' ? 'Ida' : 'Volta'));
+    const shortDestination = this.getShortLocationName(destination);
+    const lineCode = `${linha.codigo}-${linha.atendimento || '10'}`;
+
+    return {
+      isGoing: true,
+      sentido,
+      destination,
+      shortDestination,
+      displayLabel: `${lineCode} - ${destination}`,
+      englishLabel: `${lineCode} - ${destination}`,
+    };
+  }
+
+  getFormattedHorarioRota(horario: HorarioMotorista): string {
+    const linha = this.findLinha(horario);
+    if (linha) {
+      return this.formatLinhaFullName(linha);
+    }
+    const raw = horario.rotaNome || '';
+    if (raw.startsWith('Linha ') && raw.includes('-')) {
+      return raw.replace('Linha ', '').trim();
+    }
+    return raw || 'Linha Operacional';
+  }
+
+  getHorarioDirectionBadge(horario: HorarioMotorista): string | null {
+    const dirInfo = this.getCurrentDirectionInfo(horario);
+    if (!dirInfo.isGoing || !dirInfo.destination) return null;
+    return `Indo para: ${dirInfo.destination}`;
+  }
+
   // Schedule visualization
   selectDay(day: string): void {
     this.selectedDay = day;
@@ -680,20 +915,66 @@ export class MotoristaComponent implements OnInit {
     if (!this.selectedMotorista || !this.selectedMotorista.horarios) return [];
 
     const blocks: ScheduleBlock[] = [];
+    const isViewingToday = this.selectedDay === this.getCurrentDayCode();
 
     this.selectedMotorista.horarios
       .filter((h) => h.days && h.days.includes(this.selectedDay))
       .forEach((horario) => {
-        const start = parseInt(horario.startTime.split(':')[0]);
-        const end = parseInt(horario.endTime.split(':')[0]);
+        const start = parseInt(horario.startTime.split(':')[0], 10);
+        const end = parseInt(horario.endTime.split(':')[0], 10);
+        const duration = Math.max(1, end - start);
+        const fullLineName = this.getFormattedHorarioRota(horario);
+        const dirInfo = isViewingToday ? this.getCurrentDirectionInfo(horario) : { isGoing: false };
+
+        let displayRoute = fullLineName;
+        if (dirInfo.isGoing && dirInfo.displayLabel) {
+          displayRoute = dirInfo.displayLabel;
+        }
+
+        // If timeline block is narrow (duration <= 3 hours), abbreviate transit terms
+        // (e.g. "Praça" -> "Pça.", "Avenida" -> "Av.", "Hospital" -> "Hosp.") so it fits cleanly
+        if (duration <= 3) {
+          displayRoute = abbreviateTransitLocation(displayRoute);
+        }
+
+        const now = new Date();
+        const curMin = now.getHours() * 60 + now.getMinutes();
+        const [sh, sm] = (horario.startTime || '00:00').split(':').map(Number);
+        const [eh, em] = (horario.endTime || '23:59').split(':').map(Number);
+        const startMin = sh * 60 + (sm || 0);
+        const endMin = eh * 60 + (em || 0);
+        const isWithinShift = isViewingToday && curMin >= startMin && curMin <= endMin;
+
+        const cleanPlaca = (horario.veiculoPlaca || '').replace(/\D/g, '').toUpperCase();
+        const driverId = this.selectedMotorista?.id;
+        const driverName = (this.selectedMotorista?.nome || '').toLowerCase().trim();
+
+        const hasActiveTrip = this.viagensAtivasList.some((v) => {
+          const vPlaca = (v.veiculoPlaca || '').replace(/\D/g, '').toUpperCase();
+          const vMotorista = (v.motoristaNome || '').toLowerCase().trim();
+          const matchDriver = (driverId && v.usuarioId === driverId) || (driverName && vMotorista.includes(driverName));
+          const matchPlate = cleanPlaca && vPlaca === cleanPlaca;
+          return v.status === 'EM_ANDAMENTO' && (matchDriver || matchPlate);
+        });
+
+        const status = this.selectedMotorista?.status;
+        const isDriverActiveStatus = status === 'EM ATENDIMENTO' || status === 'ATIVO';
+
+        const isActiveNow = isViewingToday && (hasActiveTrip || (isDriverActiveStatus && isWithinShift));
+
+        const tooltip = `${horario.veiculoPlaca} (${horario.veiculoModelo || 'Padrão'}) • ${fullLineName} (${horario.startTime} - ${horario.endTime})${dirInfo.isGoing ? ' • Indo para: ' + dirInfo.destination : ''} [${isActiveNow ? 'Ativo' : 'Inativo'}]`;
+
         blocks.push({
           type: 'schedule',
           veiculoPlaca: horario.veiculoPlaca,
           veiculoModelo: horario.veiculoModelo,
-          rotaNome: horario.rotaNome,
+          rotaNome: displayRoute,
           start,
           end,
-          duration: end - start,
+          duration,
+          tooltip,
+          isGoing: dirInfo.isGoing,
+          isActiveNow,
         });
       });
 

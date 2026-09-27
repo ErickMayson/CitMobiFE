@@ -397,17 +397,20 @@
                   <div
                     *ngFor="let block of getScheduleBlocks()"
                     class="time-block schedule-block"
+                    [class.is-active-now]="block.isActiveNow"
+                    [class.is-inactive-now]="!block.isActiveNow"
                     [style.left]="getBlockPosition(block.start)"
                     [style.width]="getBlockWidth(block.duration)"
                     [title]="
-                      block.veiculoPlaca +
+                      block.tooltip ||
+                      (block.veiculoPlaca +
                       ' - ' +
                       block.rotaNome +
                       ' (' +
                       block.start +
                       ':00 - ' +
                       block.end +
-                      ':00)'
+                      ':00)')
                     "
                   >
                     <span class="block-content">
@@ -445,7 +448,12 @@
                       🚌 {{ horario.veiculoPlaca }} -
                       {{ horario.veiculoModelo }}
                     </span>
-                    <span class="item-route"> 📍 {{ horario.rotaNome }} </span>
+                    <div class="route-line-badge-wrap">
+                      <span class="item-route"> 📍 {{ getFormattedHorarioRota(horario) }} </span>
+                      <span class="item-direction-badge" *ngIf="getHorarioDirectionBadge(horario)">
+                        {{ getHorarioDirectionBadge(horario) }}
+                      </span>
+                    </div>
                   </div>
                   <span class="item-time">
                     {{ horario.startTime }} - {{ horario.endTime }}

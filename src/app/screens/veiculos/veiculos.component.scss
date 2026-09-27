@@ -394,7 +394,7 @@ $amber: #f59e0b;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 2rem 1.5rem;
   z-index: 1000;
   overflow-y: auto;
 }
@@ -405,7 +405,8 @@ $amber: #f59e0b;
   width: 100%;
   max-width: 540px;
   padding: 0;
-  max-height: 90vh;
+  max-height: min(88vh, calc(100vh - 4rem));
+  margin: auto;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -414,7 +415,7 @@ $amber: #f59e0b;
 
   &.modal-large {
     max-width: 1200px;
-    max-height: 95vh;
+    max-height: min(88vh, calc(100vh - 4rem));
   }
 
   .modal-header {

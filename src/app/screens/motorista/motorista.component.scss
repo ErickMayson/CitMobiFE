@@ -463,7 +463,7 @@ $amber: #f59e0b;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 2rem 1.5rem;
   z-index: 1000;
   overflow-y: auto;
 }
@@ -474,7 +474,8 @@ $amber: #f59e0b;
   width: 100%;
   max-width: 520px;
   padding: 0;
-  max-height: 90vh;
+  max-height: min(88vh, calc(100vh - 4rem));
+  margin: auto;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -483,7 +484,7 @@ $amber: #f59e0b;
 
   &.modal-large {
     max-width: 1200px;
-    max-height: 95vh;
+    max-height: min(88vh, calc(100vh - 4rem));
   }
 
   .modal-header {
@@ -903,9 +904,54 @@ $amber: #f59e0b;
         }
 
         .schedule-block {
-          background: linear-gradient(135deg, $green 0%, #059669 100%);
-          color: white;
-          border: 2px solid #047857;
+          background: #e2e8f0;
+          color: #475569;
+          border: 2px solid #cbd5e1;
+
+          .block-content {
+            strong {
+              color: #1e293b;
+            }
+            .block-route {
+              color: #64748b;
+            }
+          }
+
+          &.is-active-now {
+            background: linear-gradient(135deg, $green 0%, #059669 100%);
+            color: white;
+            border: 2px solid #047857;
+            box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4);
+
+            .block-content {
+              strong {
+                color: white;
+              }
+              .block-route {
+                color: rgba(255, 255, 255, 0.95);
+              }
+            }
+          }
+
+          &.is-inactive-now {
+            background: #e2e8f0;
+            color: #475569;
+            border: 2px solid #cbd5e1;
+
+            .block-content {
+              strong {
+                color: #1e293b;
+              }
+              .block-route {
+                color: #64748b;
+              }
+            }
+
+            &:hover {
+              background: #cbd5e1;
+              color: #1e293b;
+            }
+          }
         }
       }
     }
@@ -964,18 +1010,38 @@ $amber: #f59e0b;
             display: flex;
             flex-direction: column;
             gap: 4px;
+
+            .route-line-badge-wrap {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              flex-wrap: wrap;
+
+              .item-route {
+                font-size: 13px;
+                font-weight: 600;
+                color: $primary-blue;
+              }
+
+              .item-direction-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                background-color: #eff6ff;
+                color: #1d4ed8;
+                border: 1px solid #bfdbfe;
+                border-radius: 9999px;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 2px 8px;
+              }
+            }
           }
 
           .item-name {
             font-size: 14px;
             font-weight: 600;
             color: $text-dark;
-          }
-
-          .item-route {
-            font-size: 13px;
-            font-weight: 500;
-            color: $primary-blue;
           }
 
           .item-time {

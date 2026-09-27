@@ -28,6 +28,7 @@ export class LoginService {
 
   /** Login user */
   login(login: string, senha: string): Observable<User> {
+    this.logout();
     const loginData: LoginRequest = { login, senha };
 
     return this.http
@@ -56,10 +57,22 @@ export class LoginService {
 
   /** Fetch user data from API */
   private getUserData(login: string): Observable<User> {
-    return this.http.get<User>(`${this.apiUrl}/v1/api/usuarios`, {
-      headers: this.getAuthHeaders(),
-      params: { login },
-    });
+    return this.http
+      .get<any>(`${this.apiUrl}/v1/api/usuarios`, {
+        headers: this.getAuthHeaders(),
+        params: { login },
+      })
+      .pipe(
+        map((res) => {
+          if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+            return res.data[0] as User;
+          }
+          if (res?.data && !Array.isArray(res.data)) {
+            return res.data as User;
+          }
+          return res as User;
+        })
+      );
   }
 
   /** Decode JWT token */

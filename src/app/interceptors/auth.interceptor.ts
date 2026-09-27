@@ -24,9 +24,13 @@ export class AuthInterceptor implements HttpInterceptor {
     request: HttpRequest<any>,
     next: HttpHandler
   ): Observable<HttpEvent<any>> {
+    const isAuthEndpoint =
+      request.url.includes('/v1/auth/login') ||
+      request.url.includes('/v1/auth/refresh');
+
     const token = this.loginService.getToken();
     let authReq = request;
-    if (token && !request.headers.has('Authorization')) {
+    if (!isAuthEndpoint && token && !request.headers.has('Authorization')) {
       authReq = request.clone({
         setHeaders: { Authorization: `Bearer ${token}` },
       });
@@ -34,6 +38,11 @@ export class AuthInterceptor implements HttpInterceptor {
 
     return next.handle(authReq).pipe(
       catchError((error: HttpErrorResponse) => {
+        // If login itself fails (e.g. invalid credentials), let it propagate directly to LoginComponent
+        if (request.url.includes('/v1/auth/login')) {
+          return throwError(() => error);
+        }
+
         if (error.status === 401 || error.status === 403) {
           const hasRefreshToken = !!this.loginService.getRefreshToken();
 

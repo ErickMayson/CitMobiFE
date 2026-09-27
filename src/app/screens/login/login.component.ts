@@ -21,11 +21,9 @@ export class LoginComponent {
   errorMessage: string = '';
 
   constructor(private loginService: LoginService, private router: Router) {
-    this.loginService.currentUser.subscribe((user: User | null) => {
-      if (user) {
-        this.router.navigate(['/home'], { replaceUrl: true });
-      }
-    });
+    if (this.loginService.isAuthenticated() && this.loginService.currentUserValue) {
+      this.router.navigate(['/home'], { replaceUrl: true });
+    }
   }
 
   togglePasswordVisibility(): void {

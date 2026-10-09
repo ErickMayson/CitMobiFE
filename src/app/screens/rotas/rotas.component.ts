@@ -1,7 +1,7 @@
 import { Component, OnInit, Inject, PLATFORM_ID, OnDestroy, NgZone, ChangeDetectorRef, HostListener } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
@@ -148,6 +148,7 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
     private loginService: LoginService,
     private linhaService: LinhaService,
     private router: Router,
+    private route: ActivatedRoute,
     private googleMapsService: GoogleMapsService,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef,
@@ -325,11 +326,47 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
         }
         this.isLoadingLinhas = false;
         this.cdr.detectChanges();
+        this.checkQueryParamsForSelection();
       },
       error: () => {
         this.isLoadingLinhas = false;
         this.cdr.detectChanges();
       },
+    });
+  }
+
+  checkQueryParamsForSelection(): void {
+    this.route.queryParams.subscribe((params) => {
+      const target = params['search'] || params['codigo'] || params['linha'];
+      if (target && (this.linhasAtivas.length > 0 || this.linhasInativas.length > 0)) {
+        this.searchQueryAtivas = target;
+        this.isSearchAtivasOpen = true;
+
+        const allLinhas = [...this.linhasAtivas, ...this.linhasInativas];
+        const normalizedTarget = this.normalizeSearchText(target);
+        const cleanDigits = target.replace(/\D/g, '');
+
+        const found = allLinhas.find((l) => {
+          const lCodigo = (l.codigo || '').toLowerCase().trim();
+          const lFull = `${l.codigo}-${l.atendimento || '10'}`.toLowerCase();
+          const lPartida = this.normalizeSearchText(l.partida || '');
+          const lChegada = this.normalizeSearchText(l.chegada || '');
+          const lNome = this.normalizeSearchText(l.nome || l.descricao || '');
+
+          return (
+            lCodigo === target.toLowerCase().trim() ||
+            lFull === target.toLowerCase().trim() ||
+            (cleanDigits.length > 0 && lCodigo === cleanDigits) ||
+            lNome.includes(normalizedTarget) ||
+            lPartida.includes(normalizedTarget) ||
+            lChegada.includes(normalizedTarget)
+          );
+        });
+
+        if (found) {
+          setTimeout(() => this.openLinhaDetails(found), 150);
+        }
+      }
     });
   }
 

@@ -1218,6 +1218,18 @@ $amber: #f59e0b;
             font-size: 14px;
             font-weight: 600;
             color: #1f2937;
+
+            &.clickable-item {
+              cursor: pointer;
+              transition: all 0.2s ease;
+              display: inline-block;
+
+              &:hover {
+                color: $primary-blue;
+                transform: translateX(2px);
+                text-decoration: underline;
+              }
+            }
           }
 
           .driver-slot-vacant {

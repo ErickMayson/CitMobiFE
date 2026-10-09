@@ -137,6 +137,7 @@ export class VeiculosComponent implements OnInit {
     });
 
     this.loadVeiculos();
+    this.ensureRoutesLoaded();
     setTimeout(() => (this.showSidebarContent = true), 100);
   }
 
@@ -602,11 +603,72 @@ export class VeiculosComponent implements OnInit {
     }
     this.showEditModal = true;
     this.selectedDay = this.getCurrentDayCode();
+    this.ensureRoutesLoaded();
   }
 
   closeEditModal(): void {
     this.showEditModal = false;
     this.selectedVeiculo = null;
+  }
+
+  goToLinha(linhaNameOrCode?: string, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    if (!linhaNameOrCode) return;
+    this.closeEditModal();
+    // Extract route code digits if possible (e.g. "Linha 2076 - 10" -> "2076")
+    const match = linhaNameOrCode.match(/\b\d{3,5}(?:-\d{1,2})?\b/) || linhaNameOrCode.match(/\b\d+\b/);
+    const searchTarget = match ? match[0] : linhaNameOrCode.trim();
+    this.router.navigate(['/linhas'], { queryParams: { search: searchTarget } });
+  }
+
+  goToMotorista(driverName?: string, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    if (!driverName || driverName === 'Desconhecido' || driverName === '[ Vago ]' || driverName.includes('Vago')) return;
+    this.closeEditModal();
+    this.router.navigate(['/motoristas'], { queryParams: { search: driverName.trim() } });
+  }
+
+  formatFullLinhaName(rawNameOrCode?: string): string {
+    if (!rawNameOrCode) return '';
+    const clean = rawNameOrCode.trim();
+
+    // Try finding match in availableRoutes
+    const found = this.availableRoutes.find((l) => {
+      if (!l) return false;
+      const fullCode = `${l.codigo}-${l.atendimento || '10'}`;
+      const codeWithSpace = `${l.codigo} - ${l.atendimento || '10'}`;
+      return (
+        l.codigo === clean ||
+        fullCode === clean ||
+        codeWithSpace === clean ||
+        `Linha ${fullCode}` === clean ||
+        `Linha ${codeWithSpace}` === clean ||
+        (l.descricao && l.descricao.toLowerCase() === clean.toLowerCase()) ||
+        (l.codigo && clean.includes(l.codigo))
+      );
+    });
+
+    if (found) {
+      const codePart = `Linha ${found.codigo} - ${found.atendimento || '10'}`;
+      if (found.partida && found.chegada) {
+        return `${codePart} - ${found.partida} ↔ ${found.chegada}`;
+      }
+      if (found.descricao) {
+        return `${codePart} - ${found.descricao}`;
+      }
+      return codePart;
+    }
+
+    if (!clean.toLowerCase().startsWith('linha')) {
+      return `Linha ${clean}`;
+    }
+    return clean;
   }
 
   handleSaveEdit(): void {
@@ -1024,12 +1086,13 @@ export class VeiculosComponent implements OnInit {
     this.selectedVeiculo.routes
       .filter((r) => r.days && r.days.includes(this.selectedDay))
       .forEach((route) => {
+        const fullRouteName = this.formatFullLinhaName(route.routeName);
         if (route.intervals && route.intervals.length > 0) {
           route.intervals.forEach((interval) => {
             const start = parseInt(interval.startTime.split(':')[0], 10);
             const end = parseInt(interval.endTime.split(':')[0], 10);
             rawBlocks.push({
-              name: route.routeName,
+              name: fullRouteName,
               start,
               end,
               rawStart: interval.startTime,
@@ -1040,7 +1103,7 @@ export class VeiculosComponent implements OnInit {
           const start = parseInt(route.startTime.split(':')[0], 10);
           const end = parseInt(route.endTime.split(':')[0], 10);
           rawBlocks.push({
-            name: route.routeName,
+            name: fullRouteName,
             start,
             end,
             rawStart: route.startTime,

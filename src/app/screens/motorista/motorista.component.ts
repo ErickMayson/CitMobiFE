@@ -498,6 +498,16 @@ export class MotoristaComponent implements OnInit {
     this.selectedMotorista = null;
   }
 
+  goToVeiculo(plate?: string, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    if (!plate || plate === 'Desconhecido') return;
+    this.closeEditModal();
+    this.router.navigate(['/veiculos'], { queryParams: { plate: plate.trim() } });
+  }
+
   handleSaveEdit(): void {
     if (this.selectedMotorista) {
       if (!this.selectedMotorista.nome || !this.selectedMotorista.cnhNumero || !this.selectedMotorista.cnhValidade) {

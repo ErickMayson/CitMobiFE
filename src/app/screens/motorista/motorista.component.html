@@ -512,13 +512,15 @@
                 <div class="track-timeline">
                   <div
                     *ngFor="let block of getScheduleBlocks()"
-                    class="time-block schedule-block"
+                    class="time-block schedule-block clickable-block"
                     [class.is-active-now]="block.isActiveNow"
                     [class.is-inactive-now]="!block.isActiveNow"
                     [style.left]="getBlockPosition(block.start)"
                     [style.width]="getBlockWidth(block.duration)"
+                    (click)="goToVeiculo(block.veiculoPlaca, $event)"
                     [title]="
-                      block.tooltip ||
+                      'Clique para ver o veículo ' + block.veiculoPlaca + ' • ' +
+                      (block.tooltip ||
                       (block.veiculoPlaca +
                       ' - ' +
                       block.rotaNome +
@@ -526,7 +528,7 @@
                       block.start +
                       ':00 - ' +
                       block.end +
-                      ':00)')
+                      ':00)'))
                     "
                   >
                     <span class="block-content">
@@ -560,7 +562,11 @@
               >
                 <div class="item-content">
                   <div class="horario-main-info">
-                    <span class="item-name">
+                    <span
+                      class="item-name clickable-vehicle"
+                      (click)="goToVeiculo(horario.veiculoPlaca, $event)"
+                      title="Clique para ir até o veículo {{ horario.veiculoPlaca }}"
+                    >
                       🚌 {{ horario.veiculoPlaca }} -
                       {{ horario.veiculoModelo }}
                     </span>

@@ -415,11 +415,17 @@
                   <div
                     *ngFor="let block of getDriverScheduleBlocks()"
                     class="time-block driver-block"
+                    [class.clickable-block]="block.name && block.name !== 'Desconhecido' && block.name !== '[ Vago ]'"
                     [class.is-active-now]="block.isActiveNow"
                     [class.is-inactive-now]="!block.isActiveNow"
                     [style.left]="getBlockPosition(block.start)"
                     [style.width]="getBlockWidth(block.duration)"
-                    [title]="block.tooltip || ''"
+                    (click)="goToMotorista(block.name, $event)"
+                    [title]="
+                      (block.name && block.name !== 'Desconhecido')
+                        ? ('Clique para ver o motorista ' + block.name + ' • ' + (block.tooltip || ''))
+                        : (block.tooltip || '')
+                    "
                   >
                     <span class="block-content">
                       {{ (block.name && block.name !== 'Desconhecido') ? block.name : '[ Vago ]' }}
@@ -433,12 +439,13 @@
                 <div class="track-timeline">
                   <div
                     *ngFor="let block of getRouteScheduleBlocks()"
-                    class="time-block route-block"
+                    class="time-block route-block clickable-block"
                     [class.is-active-now]="block.isActiveNow"
                     [class.is-inactive-now]="!block.isActiveNow"
                     [style.left]="getBlockPosition(block.start)"
                     [style.width]="getBlockWidth(block.duration)"
-                    [title]="block.tooltip || ''"
+                    (click)="goToLinha(block.name, $event)"
+                    [title]="'Clique para ver a linha • ' + (block.tooltip || '')"
                   >
                     <span class="block-content">{{ block.name }}</span>
                   </div>
@@ -464,9 +471,10 @@
                 <div class="item-content">
                   <div class="driver-slot-header">
                     <span
-                      class="item-name"
+                      class="item-name clickable-item"
                       *ngIf="driver.name && driver.name !== 'Desconhecido'"
-                      [title]="driver.name"
+                      [title]="'Clique para ver o motorista ' + driver.name"
+                      (click)="goToMotorista(driver.name, $event)"
                     >
                       👤 {{ driver.name | abbreviateName }}
                     </span>
@@ -513,7 +521,13 @@
                 *ngFor="let route of selectedVeiculo.routes; let i = index"
               >
                 <div class="item-content">
-                  <span class="item-name">{{ route.routeName }}</span>
+                  <span
+                    class="item-name clickable-item"
+                    (click)="goToLinha(route.routeName, $event)"
+                    [title]="'Clique para ver a linha ' + route.routeName"
+                  >
+                    🚌 {{ formatFullLinhaName(route.routeName) }}
+                  </span>
                   <span class="item-time"
                     >{{ formatRouteIntervals(route) }}</span
                   >

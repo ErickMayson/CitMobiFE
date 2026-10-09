@@ -168,7 +168,7 @@
                 class="route-tag" 
                 *ngIf="linha.rotas.ida"
                 (click)="$event.stopPropagation(); editExistingItinerary(linha, 'IDA')"
-                title="Editar itinerário de Ida"
+                title="Visualizar itinerário de Ida"
               >
                 💛 Itinerário de IDA ({{ linha.rotas.ida.enderecos.length || 0 }} paradas)
               </span>
@@ -176,7 +176,7 @@
                 class="route-tag" 
                 *ngIf="linha.rotas.volta"
                 (click)="$event.stopPropagation(); editExistingItinerary(linha, 'VOLTA')"
-                title="Editar itinerário de Volta"
+                title="Visualizar itinerário de Volta"
               >
                 💛 Itinerário de VOLTA ({{ linha.rotas.volta.enderecos.length || 0 }} paradas)
               </span>
@@ -439,12 +439,20 @@
     <!-- Step 3: Itinerary Edit / Stop Sequence View -->
     <div class="rotas-edit-view" *ngIf="activeStep === 'edit_itinerary'">
       <div class="edit-header itinerary-hdr">
-        <button class="btn-back" (click)="cancelItineraryEdit()">
-          Cancelar
+        <button class="btn-back" *ngIf="itineraryMode === 'view'" (click)="exitItineraryView()">
+          ← Voltar
         </button>
+        <button class="btn-back btn-cancel-edit" *ngIf="itineraryMode === 'edit'" (click)="cancelItineraryEdit()">
+          ✕ Cancelar
+        </button>
+
         <div class="itinerary-header-info">
-          <div class="itinerary-line-badge">{{ selectedLinha?.codigo }}-{{ selectedLinha?.atendimento }}</div>
-          <div class="itinerary-direction">Sentido: <strong>{{ itineraryForm.sentido }}</strong></div>
+          <div class="itinerary-badges-row">
+            <span class="itinerary-line-badge">{{ selectedLinha?.codigo }}-{{ selectedLinha?.atendimento }}</span>
+            <span class="mode-badge view-mode-pill" *ngIf="itineraryMode === 'view'">👁️ Modo Visualização</span>
+            <span class="mode-badge edit-mode-pill" *ngIf="itineraryMode === 'edit'">✏️ Modo Edição</span>
+          </div>
+          <div class="itinerary-direction">Destino: <strong>{{ getDestinoLabel() }}</strong> <span class="sentido-chip">{{ itineraryForm.sentido }}</span></div>
           <h1 class="edit-title itinerary-name">{{ itineraryForm.prefixo }}</h1>
 
           <!-- Live Route Metrics -->
@@ -461,6 +469,25 @@
             <span class="metric-chip chunk-chip" *ngIf="routeMetrics.chunksCount > 1" title="Trajeto contínuo calculado em múltiplos segmentos">
               🔗 {{ routeMetrics.chunksCount }} trechos unidos
             </span>
+            <span class="metric-chip vehicle-chip clickable-chip" *ngIf="trackedVehicles.length > 0" (click)="focusVehicleOnMap(trackedVehicles[0])" title="Clique para focar no primeiro veículo rastreado">
+              🚍 <strong>{{ trackedVehicles.length }}</strong> {{ trackedVehicles.length === 1 ? 'veículo rastreado' : 'veículos rastreados' }}
+            </span>
+          </div>
+
+          <!-- Live Tracked Drivers Row (e.g. Renato Dias) -->
+          <div class="tracked-drivers-row" *ngIf="trackedVehicles.length > 0">
+            <span class="drivers-row-label">Em tempo real:</span>
+            <button 
+              type="button" 
+              class="driver-focus-pill" 
+              *ngFor="let tv of trackedVehicles" 
+              (click)="focusVehicleOnMap(tv)"
+              title="Centralizar mapa em {{ tv.motoristaNome || tv.placa }}"
+            >
+              <span class="pulse-dot"></span>
+              <span>🚍 {{ tv.motoristaNome || tv.placa }} ({{ tv.placa }})</span>
+              <span class="locate-icon">📍 Focar</span>
+            </button>
           </div>
 
           <div class="route-metrics-bar calculating" *ngIf="isCalculatingRoute">
@@ -469,8 +496,29 @@
             </span>
           </div>
         </div>
+
         <div class="edit-actions">
-          <button class="btn-save" (click)="openSaveModal()" [disabled]="isSavingItinerary" [class.has-changes]="hasUnsavedChanges()">
+          <!-- Button in View Mode: Editar Itinerário -->
+          <button 
+            type="button" 
+            class="btn-edit-mode" 
+            *ngIf="itineraryMode === 'view'"
+            (click)="switchToEditMode()"
+            title="Editar paradas e trajeto do itinerário"
+          >
+            <span class="btn-icon">✏️</span>
+            <span>Editar Itinerário</span>
+          </button>
+
+          <!-- Button in Edit Mode: Salvar Itinerário -->
+          <button 
+            type="button"
+            class="btn-save" 
+            *ngIf="itineraryMode === 'edit'"
+            (click)="openSaveModal()" 
+            [disabled]="isSavingItinerary" 
+            [class.has-changes]="hasUnsavedChanges()"
+          >
             <span class="btn-save-icon">💾</span>
             <span>Salvar Itinerário</span>
             <span class="badge-changes-pill" *ngIf="hasUnsavedChanges()">
@@ -503,7 +551,7 @@
               <input
                 id="search-parada-input"
                 type="text"
-                placeholder="Buscar parada ou digitar endereço..."
+                [placeholder]="itineraryMode === 'view' ? 'Localizar parada ou ônibus no itinerário...' : 'Buscar parada ou digitar endereço...'"
                 [(ngModel)]="searchQuery"
                 (focus)="openParadasDropdown()"
                 (blur)="closeParadasDropdown()"
@@ -516,101 +564,156 @@
             <!-- Dropdown autocomplete results -->
             <div class="search-results-dropdown" *ngIf="showParadasDropdown">
               <div class="results-list">
-                <!-- 1. Google Maps Autocomplete Predictions -->
-                <div class="dropdown-section" *ngIf="googlePredictions.length > 0">
-                  <div class="dropdown-section-title">
-                    <span>📍 Lugares e Endereços (Google Maps)</span>
-                  </div>
-
-                  <div 
-                    class="result-item google-prediction-item" 
-                    *ngFor="let pred of googlePredictions" 
-                    (mousedown)="$event.preventDefault(); selectGooglePrediction(pred)"
-                  >
-                    <span class="pin-icon google-pin">📍</span>
-                    <div class="result-info">
-                      <div class="result-name">{{ pred.structured_formatting?.main_text || pred.description }}</div>
-                      <div class="result-sub">{{ pred.structured_formatting?.secondary_text || '' }}</div>
+                <!-- VIEW MODE: Paradas do Itinerário Atual & Veículos Rastreados -->
+                <ng-container *ngIf="itineraryMode === 'view'">
+                  <!-- Live Tracked Vehicles Section in Dropdown -->
+                  <div class="dropdown-section" *ngIf="trackedVehicles.length > 0">
+                    <div class="dropdown-section-title">
+                      <span>🚍 Veículos com Telemetria ao Vivo</span>
+                    </div>
+                    <div 
+                      class="result-item" 
+                      *ngFor="let tv of trackedVehicles" 
+                      (mousedown)="$event.preventDefault(); focusVehicleOnMap(tv); showParadasDropdown = false;"
+                    >
+                      <span class="pin-icon">🚍</span>
+                      <div class="result-info">
+                        <div class="result-name">{{ tv.motoristaNome || tv.placa }} ({{ tv.placa }})</div>
+                        <div class="result-sub">Destino: {{ getDestinoLabel(tv.sentido) }} | Velocidade: {{ tv.velocidade || 0 }} km/h</div>
+                      </div>
+                      <span class="focus-action-pill">Localizar Ônibus 📍</span>
                     </div>
                   </div>
-                </div>
 
-                <!-- 2. Registered Municipal Database Paradas -->
-                <div class="dropdown-section" *ngIf="filteredParadas.length > 0">
-                  <div class="dropdown-section-title">
-                    <span>🚏 Paradas já cadastradas no Sistema</span>
-                  </div>
+                  <div class="dropdown-section" *ngIf="filteredItineraryStops.length > 0">
+                    <div class="dropdown-section-title">
+                      <span>🚏 Paradas deste Itinerário (Clique para localizar no mapa)</span>
+                    </div>
 
-                  <div 
-                    class="result-item" 
-                    *ngFor="let p of filteredParadas" 
-                    (mousedown)="$event.preventDefault(); selectAndAddParada(p)"
-                  >
-                    <span class="pin-icon">🚏</span>
-                    <div class="result-info">
-                      <div class="result-name">{{ p.logradouro }}, {{ p.numero }}</div>
-                      <div class="result-sub">ID: {{ p.paradaId }} | Lat: {{ p.latLong[0] | number:'1.4-4' }} Lng: {{ p.latLong[1] | number:'1.4-4' }}</div>
+                    <div 
+                      class="result-item itinerary-stop-result" 
+                      *ngFor="let item of filteredItineraryStops" 
+                      (mousedown)="$event.preventDefault(); selectAndFocusItineraryStop(item)"
+                    >
+                      <span class="pin-order-badge">#{{ item.index + 1 }}</span>
+                      <div class="result-info">
+                        <div class="result-name">{{ item.endereco.nome || item.endereco.endereco }}</div>
+                        <div class="result-sub">{{ item.endereco.endereco }}</div>
+                      </div>
+                      <span class="focus-action-pill">Ver no mapa 📍</span>
                     </div>
                   </div>
-                </div>
 
-                <!-- Loading State -->
-                <div class="result-item no-hover" *ngIf="isLoadingPredictions">
-                  <span class="pin-icon">🔍</span>
-                  <div class="result-info">
-                    <div class="result-name">Buscando no Google Maps...</div>
+                  <div class="result-item no-hover" *ngIf="filteredItineraryStops.length === 0">
+                    <span class="pin-icon">❓</span>
+                    <div class="result-info">
+                      <div class="result-name">Nenhuma parada encontrada para "{{ searchQuery }}"</div>
+                      <div class="result-sub">Verifique o nome ou número da parada no trajeto</div>
+                    </div>
                   </div>
-                </div>
+                </ng-container>
 
-                <!-- Empty Initial State -->
-                <div class="result-item no-hover" *ngIf="googlePredictions.length === 0 && filteredParadas.length === 0 && searchQuery.trim() === ''">
-                  <span class="pin-icon">🗺️</span>
-                  <div class="result-info">
-                    <div class="result-name">Digite um endereço ou ponto de ônibus</div>
-                    <div class="result-sub">Ex: Av. Paulista, 1000 ou Terminal Lapa</div>
-                  </div>
-                </div>
+                <!-- EDIT MODE: Google Predictions & Municipal Database Paradas -->
+                <ng-container *ngIf="itineraryMode === 'edit'">
+                  <!-- 1. Google Maps Autocomplete Predictions -->
+                  <div class="dropdown-section" *ngIf="googlePredictions.length > 0">
+                    <div class="dropdown-section-title">
+                      <span>📍 Lugares e Endereços (Google Maps)</span>
+                    </div>
 
-                <!-- No Results State -->
-                <div class="result-item no-hover" *ngIf="googlePredictions.length === 0 && filteredParadas.length === 0 && searchQuery.trim() !== '' && !isLoadingPredictions">
-                  <span class="pin-icon">❓</span>
-                  <div class="result-info">
-                    <div class="result-name">Nenhum resultado para "{{ searchQuery }}"</div>
-                    <div class="result-sub">Tente digitar o nome da rua ou avenida</div>
+                    <div 
+                      class="result-item google-prediction-item" 
+                      *ngFor="let pred of googlePredictions" 
+                      (mousedown)="$event.preventDefault(); selectGooglePrediction(pred)"
+                    >
+                      <span class="pin-icon google-pin">📍</span>
+                      <div class="result-info">
+                        <div class="result-name">{{ pred.structured_formatting?.main_text || pred.description }}</div>
+                        <div class="result-sub">{{ pred.structured_formatting?.secondary_text || '' }}</div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+
+                  <!-- 2. Registered Municipal Database Paradas -->
+                  <div class="dropdown-section" *ngIf="filteredParadas.length > 0">
+                    <div class="dropdown-section-title">
+                      <span>🚏 Paradas já cadastradas no Sistema</span>
+                    </div>
+
+                    <div 
+                      class="result-item" 
+                      *ngFor="let p of filteredParadas" 
+                      (mousedown)="$event.preventDefault(); selectAndAddParada(p)"
+                    >
+                      <span class="pin-icon">🚏</span>
+                      <div class="result-info">
+                        <div class="result-name">{{ p.logradouro }}, {{ p.numero }}</div>
+                        <div class="result-sub">ID: {{ p.paradaId }} | Lat: {{ p.latLong[0] | number:'1.4-4' }} Lng: {{ p.latLong[1] | number:'1.4-4' }}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Loading State -->
+                  <div class="result-item no-hover" *ngIf="isLoadingPredictions">
+                    <span class="pin-icon">🔍</span>
+                    <div class="result-info">
+                      <div class="result-name">Buscando no Google Maps...</div>
+                    </div>
+                  </div>
+
+                  <!-- Empty Initial State -->
+                  <div class="result-item no-hover" *ngIf="googlePredictions.length === 0 && filteredParadas.length === 0 && searchQuery.trim() === ''">
+                    <span class="pin-icon">🗺️</span>
+                    <div class="result-info">
+                      <div class="result-name">Digite um endereço ou ponto de ônibus</div>
+                      <div class="result-sub">Ex: Av. Paulista, 1000 ou Terminal Lapa</div>
+                    </div>
+                  </div>
+
+                  <!-- No Results State -->
+                  <div class="result-item no-hover" *ngIf="googlePredictions.length === 0 && filteredParadas.length === 0 && searchQuery.trim() !== '' && !isLoadingPredictions">
+                    <span class="pin-icon">❓</span>
+                    <div class="result-info">
+                      <div class="result-name">Nenhum resultado para "{{ searchQuery }}"</div>
+                      <div class="result-sub">Tente digitar o nome da rua ou avenida</div>
+                    </div>
+                  </div>
+                </ng-container>
               </div>
             </div>
           </div>
 
           <!-- Stop list -->
-          <div class="addresses-list" [class.is-reordering]="draggedIndex !== null">
-            <!-- Informative drag helper banner when dragging -->
-            <div class="drag-instruction-banner" *ngIf="draggedIndex !== null">
+          <div class="addresses-list" [class.is-reordering]="draggedIndex !== null && itineraryMode === 'edit'">
+            <!-- Informative drag helper banner when dragging in edit mode -->
+            <div class="drag-instruction-banner" *ngIf="draggedIndex !== null && itineraryMode === 'edit'">
               <span class="banner-icon">⇅</span>
               <span>Solte a parada na linha indicada para reposicionar</span>
             </div>
 
             <div
-              class="address-card editing-card"
+              class="address-card"
+              [class.editing-card]="itineraryMode === 'edit'"
+              [class.view-card]="itineraryMode === 'view'"
+              [class.is-match]="itineraryMode === 'view' && isStopMatch(endereco, i)"
               *ngFor="let endereco of enderecos; let i = index"
-              [class.is-dragging]="draggedIndex === i"
-              [class.is-drop-target]="dragOverIndex === i && draggedIndex !== i"
-              [class.drop-target-above]="dragOverIndex === i && draggedIndex !== i && dropPosition === 'above'"
-              [class.drop-target-below]="dragOverIndex === i && draggedIndex !== i && dropPosition === 'below'"
-              draggable="true"
-              (dragstart)="onDragStart($event, i)"
-              (dragover)="onDragOver($event, i)"
-              (dragleave)="onDragLeave($event, i)"
-              (drop)="onDrop($event, i)"
-              (dragend)="onDragEnd()"
+              [class.is-dragging]="itineraryMode === 'edit' && draggedIndex === i"
+              [class.is-drop-target]="itineraryMode === 'edit' && dragOverIndex === i && draggedIndex !== i"
+              [class.drop-target-above]="itineraryMode === 'edit' && dragOverIndex === i && draggedIndex !== i && dropPosition === 'above'"
+              [class.drop-target-below]="itineraryMode === 'edit' && dragOverIndex === i && draggedIndex !== i && dropPosition === 'below'"
+              [draggable]="itineraryMode === 'edit'"
+              (dragstart)="itineraryMode === 'edit' ? onDragStart($event, i) : null"
+              (dragover)="itineraryMode === 'edit' ? onDragOver($event, i) : null"
+              (dragleave)="itineraryMode === 'edit' ? onDragLeave($event, i) : null"
+              (drop)="itineraryMode === 'edit' ? onDrop($event, i) : null"
+              (dragend)="itineraryMode === 'edit' ? onDragEnd() : null"
               (click)="focusStopOnMap(i)"
-              title="Arraste para reordenar ou clique para centralizar no mapa"
+              [title]="itineraryMode === 'edit' ? 'Arraste para reordenar ou clique para centralizar no mapa' : 'Clique para centralizar no mapa'"
             >
               <!-- Drop indicator line ABOVE -->
               <div
                 class="drop-indicator-line drop-above"
-                *ngIf="dragOverIndex === i && draggedIndex !== i && dropPosition === 'above'"
+                *ngIf="itineraryMode === 'edit' && dragOverIndex === i && draggedIndex !== i && dropPosition === 'above'"
               >
                 <div class="indicator-arrow">▶</div>
                 <div class="indicator-line"></div>
@@ -620,9 +723,11 @@
                 </div>
               </div>
 
+              <!-- Drag grip handle ONLY IN EDIT MODE -->
               <div
                 class="address-drag-handle"
                 title="Arraste para mover"
+                *ngIf="itineraryMode === 'edit'"
               >
                 <svg viewBox="0 0 20 20" fill="currentColor" class="drag-grip-icon">
                   <circle cx="7" cy="5" r="1.75" />
@@ -642,7 +747,9 @@
                 </span>
               </div>
 
+              <!-- Remove button ONLY IN EDIT MODE -->
               <button
+                *ngIf="itineraryMode === 'edit'"
                 type="button"
                 class="btn-remove"
                 draggable="false"
@@ -659,7 +766,7 @@
               <!-- Drop indicator line BELOW -->
               <div
                 class="drop-indicator-line drop-below"
-                *ngIf="dragOverIndex === i && draggedIndex !== i && dropPosition === 'below'"
+                *ngIf="itineraryMode === 'edit' && dragOverIndex === i && draggedIndex !== i && dropPosition === 'below'"
               >
                 <div class="indicator-arrow">▶</div>
                 <div class="indicator-line"></div>
@@ -686,10 +793,24 @@
             <!-- Google Maps Canvas -->
             <div id="google-map-canvas" class="google-map-canvas"></div>
 
+            <!-- Floating Toggle for Paradas Markers -->
+            <button
+              type="button"
+              class="map-paradas-toggle-btn"
+              [class.active-hidden]="!showParadasMarkers"
+              *ngIf="isMapInitialized && enderecos.length > 0"
+              (click)="toggleParadasMarkersVisibility()"
+              [title]="showParadasMarkers ? 'Ocultar marcadores de paradas para visualizar apenas o trajeto' : 'Mostrar marcadores de paradas no mapa'"
+            >
+              <span class="toggle-icon">{{ showParadasMarkers ? '🚏' : '🛣️' }}</span>
+              <span>{{ showParadasMarkers ? 'Ocultar Paradas' : 'Mostrar Paradas' }}</span>
+            </button>
+
             <!-- Floating map instructions hint -->
             <div class="map-hint-floating" *ngIf="isMapInitialized && !hasSelectedElementOnMap">
               <span class="hint-icon">💡</span>
-              <span>Clique nas ruas do mapa para adicionar paradas</span>
+              <span *ngIf="itineraryMode === 'edit'">Clique nas ruas do mapa para adicionar paradas</span>
+              <span *ngIf="itineraryMode === 'view'">Clique nas paradas ou nos veículos para ver detalhes</span>
             </div>
 
             <!-- Floating selection tipbar when an element is selected on map -->
@@ -899,23 +1020,23 @@
           <div class="itinerary-selector-grid">
             <!-- IDA Card -->
             <div class="itinerary-box">
-              <h4>Sentido IDA</h4>
+              <h4>Destino: {{ selectedLinha?.chegada || 'IDA' }}</h4>
               <p class="itinerary-path">{{ selectedLinha?.partida }} ➔ {{ selectedLinha?.chegada }}</p>
               
               <div class="itinerary-actions-row">
                 <button 
                   *ngIf="selectedLinha?.rotas?.ida" 
-                  class="btn-itinerary edit"
+                  class="btn-itinerary view"
                   (click)="editExistingItinerary(selectedLinha!, 'IDA')"
                 >
-                  ✏️ Editar Itinerário ({{ selectedLinha?.rotas?.ida?.enderecos?.length || 0 }} paradas)
+                  👁️ Visualizar Itinerário ({{ selectedLinha?.rotas?.ida?.enderecos?.length || 0 }} paradas)
                 </button>
                 <button 
                   *ngIf="!selectedLinha?.rotas?.ida" 
                   class="btn-itinerary add"
                   (click)="addNewItinerary(selectedLinha!, 'IDA')"
                 >
-                  ➕ Cadastrar Itinerário de IDA
+                  ➕ Cadastrar Itinerário para {{ selectedLinha?.chegada || 'IDA' }}
                 </button>
               </div>
 
@@ -949,7 +1070,7 @@
                     </div>
                   </div>
                   <p class="empty-sub-fleet" *ngIf="getVehiclesBySentido(selectedLinha, 'IDA').length === 0">
-                    Nenhum veículo operando no sentido IDA no momento.
+                    Nenhum veículo com destino a {{ selectedLinha?.chegada || 'IDA' }} no momento.
                   </p>
                 </div>
               </div>
@@ -957,23 +1078,23 @@
 
             <!-- VOLTA Card -->
             <div class="itinerary-box">
-              <h4>Sentido VOLTA</h4>
+              <h4>Destino: {{ selectedLinha?.partida || 'VOLTA' }}</h4>
               <p class="itinerary-path">{{ selectedLinha?.chegada }} ➔ {{ selectedLinha?.partida }}</p>
               
               <div class="itinerary-actions-row">
                 <button 
                   *ngIf="selectedLinha?.rotas?.volta" 
-                  class="btn-itinerary edit"
+                  class="btn-itinerary view"
                   (click)="editExistingItinerary(selectedLinha!, 'VOLTA')"
                 >
-                  ✏️ Editar Itinerário ({{ selectedLinha?.rotas?.volta?.enderecos?.length || 0 }} paradas)
+                  👁️ Visualizar Itinerário ({{ selectedLinha?.rotas?.volta?.enderecos?.length || 0 }} paradas)
                 </button>
                 <button 
                   *ngIf="!selectedLinha?.rotas?.volta" 
                   class="btn-itinerary add"
                   (click)="addNewItinerary(selectedLinha!, 'VOLTA')"
                 >
-                  ➕ Cadastrar Itinerário de VOLTA
+                  ➕ Cadastrar Itinerário para {{ selectedLinha?.partida || 'VOLTA' }}
                 </button>
               </div>
 
@@ -1007,7 +1128,7 @@
                     </div>
                   </div>
                   <p class="empty-sub-fleet" *ngIf="getVehiclesBySentido(selectedLinha, 'VOLTA').length === 0">
-                    Nenhum veículo operando no sentido VOLTA no momento.
+                    Nenhum veículo com destino a {{ selectedLinha?.partida || 'VOLTA' }} no momento.
                   </p>
                 </div>
               </div>
@@ -1029,7 +1150,7 @@
             <div>
               <h2>Confirmar Salvamento do Itinerário</h2>
               <p class="dialog-header-sub">
-                Linha <strong>{{ selectedLinha?.codigo }}-{{ selectedLinha?.atendimento }}</strong> &bull; Sentido <strong>{{ itineraryForm.sentido }}</strong>
+                Linha <strong>{{ selectedLinha?.codigo }}-{{ selectedLinha?.atendimento }}</strong> &bull; Destino <strong>{{ getDestinoLabel() }}</strong>
               </p>
             </div>
           </div>

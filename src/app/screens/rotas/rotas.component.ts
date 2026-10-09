@@ -11,6 +11,8 @@ import { LinhaService, LinhaDetails, LinhaAssignedVehicle } from '../../services
 import { Endereco } from '../../models/endereco.model';
 import { GoogleMapsService, RouteCalculationResult } from '../../services/google-maps.service';
 import { ComponentCanDeactivate } from '../../guards/pending-changes.guard';
+import { TelemetriaService } from '../../services/telemetria.service';
+import { TelemetriaVeiculo } from '../../models/telemetria.model';
 
 declare const google: any;
 
@@ -58,6 +60,7 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   private autocomplete: any = null;
   private routeUpdateSubject = new Subject<boolean>();
   private routeSubscription?: Subscription;
+  showParadasMarkers: boolean = true;
 
   // Loading States
   isLoadingLinhas: boolean = false;
@@ -65,6 +68,7 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
 
   // Wizard and View Navigation State
   activeStep: 'list' | 'create_linha' | 'edit_itinerary' = 'list';
+  itineraryMode: 'view' | 'edit' = 'view';
   showLinhaDetailsModal: boolean = false;
   showConfirmationModal: boolean = false;
 
@@ -98,6 +102,7 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   enderecos: Endereco[] = [];
   searchQuery: string = '';
   filteredParadas: any[] = [];
+  filteredItineraryStops: { endereco: Endereco; index: number }[] = [];
   googlePredictions: any[] = [];
   isLoadingPredictions: boolean = false;
   todasAsParadas: any[] = [];
@@ -108,6 +113,11 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   hasSelectedElementOnMap: boolean = false;
   currentInfoWindow: any = null;
   private searchDebounceTimeout: any = null;
+
+  // Tracked Vehicles Telemetry State
+  trackedVehicles: TelemetriaVeiculo[] = [];
+  private vehicleMarkers: any[] = [];
+  private telemetryInterval: any = null;
 
   // Checklog and Session Snapshot State
   initialSessionSnapshot: {
@@ -147,6 +157,7 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   constructor(
     private loginService: LoginService,
     private linhaService: LinhaService,
+    private telemetriaService: TelemetriaService,
     private router: Router,
     private route: ActivatedRoute,
     private googleMapsService: GoogleMapsService,
@@ -176,6 +187,8 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
     if (this.routeSubscription) {
       this.routeSubscription.unsubscribe();
     }
+    this.stopTelemetryPolling();
+    this.cleanupVehicleMarkers();
     this.cleanupMap();
   }
 
@@ -637,9 +650,12 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
     this.enderecos = rota?.enderecos ? [...rota.enderecos] : [];
     this.searchQuery = '';
     this.filteredParadas = [];
+    this.filteredItineraryStops = this.enderecos.map((endereco, index) => ({ endereco, index }));
+    this.itineraryMode = 'view';
     this.activeStep = 'edit_itinerary';
     this.ensureTodasAsParadasLoaded();
     this.takeSessionSnapshot(rota?.rotaId || rota?.id, rota?.itinerarioId);
+    this.startTelemetryPolling();
     setTimeout(() => this.initMapAndPlaces(), 120);
   }
 
@@ -665,10 +681,30 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
     this.enderecos = [];
     this.searchQuery = '';
     this.filteredParadas = [];
+    this.filteredItineraryStops = [];
+    this.itineraryMode = 'edit';
     this.activeStep = 'edit_itinerary';
     this.ensureTodasAsParadasLoaded();
     this.takeSessionSnapshot();
+    this.startTelemetryPolling();
     setTimeout(() => this.initMapAndPlaces(), 120);
+  }
+
+  switchToEditMode(): void {
+    this.itineraryMode = 'edit';
+    const rota = this.itineraryForm.sentido === 'IDA' ? this.selectedLinha?.rotas?.ida : this.selectedLinha?.rotas?.volta;
+    this.takeSessionSnapshot(rota?.rotaId || rota?.id, rota?.itinerarioId);
+    this.searchQuery = '';
+    this.showParadasDropdown = false;
+    this.cdr.detectChanges();
+  }
+
+  exitItineraryView(): void {
+    this.stopTelemetryPolling();
+    this.cleanupVehicleMarkers();
+    this.cleanupMap();
+    this.activeStep = 'list';
+    this.refreshStoredLinhas();
   }
 
   // --- Step 3: Itinerary Session Snapshot & Checklog Engine ---
@@ -799,12 +835,41 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   }
 
   cancelItineraryEdit(): void {
-    if (this.hasUnsavedChanges()) {
-      this.openUnsavedWarningModal();
+    const isNewItinerary = !this.initialSessionSnapshot?.rotaId &&
+      !(this.itineraryForm.sentido === 'IDA' ? this.selectedLinha?.rotas?.ida : this.selectedLinha?.rotas?.volta);
+
+    if (this.itineraryMode === 'edit') {
+      if (this.hasUnsavedChanges()) {
+        if (confirm('Deseja descartar as alterações e voltar ao modo de visualização?')) {
+          if (this.initialSessionSnapshot) {
+            this.enderecos = JSON.parse(JSON.stringify(this.initialSessionSnapshot.enderecos || []));
+            this.itineraryForm.prefixo = this.initialSessionSnapshot.prefixo || this.itineraryForm.prefixo;
+            this.currentChecklog = [];
+            this.refreshMapAndRoute(false);
+          }
+          if (isNewItinerary) {
+            this.exitItineraryView();
+            return;
+          }
+          this.itineraryMode = 'view';
+          this.searchQuery = '';
+          this.showParadasDropdown = false;
+          this.filteredItineraryStops = this.enderecos.map((endereco, index) => ({ endereco, index }));
+          this.cdr.detectChanges();
+        }
+      } else {
+        if (isNewItinerary) {
+          this.exitItineraryView();
+          return;
+        }
+        this.itineraryMode = 'view';
+        this.searchQuery = '';
+        this.showParadasDropdown = false;
+        this.filteredItineraryStops = this.enderecos.map((endereco, index) => ({ endereco, index }));
+        this.cdr.detectChanges();
+      }
     } else {
-      this.cleanupMap();
-      this.activeStep = 'list';
-      this.refreshStoredLinhas();
+      this.exitItineraryView();
     }
   }
 
@@ -824,6 +889,8 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   discardAndExit(): void {
     this.initialSessionSnapshot = null;
     this.showUnsavedWarningModal = false;
+    this.stopTelemetryPolling();
+    this.cleanupVehicleMarkers();
     this.cleanupMap();
     this.activeStep = 'list';
     this.refreshStoredLinhas();
@@ -969,10 +1036,81 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
     this.isMapInitialized = true;
     this.setupPlacesAutocomplete();
     this.setupMapClickListener();
+    this.setupZoomListener();
     this.refreshMapAndRoute(true);
+    this.renderVehicleMarkers();
+  }
+
+  setupZoomListener(): void {
+    if (!this.map) return;
+    this.map.addListener('zoom_changed', () => {
+      this.updateWaypointVisibilityByZoom();
+    });
+    this.map.addListener('idle', () => {
+      this.updateWaypointVisibilityByZoom();
+    });
+  }
+
+  updateWaypointVisibilityByZoom(): void {
+    if (!this.map || !this.mapMarkers || this.mapMarkers.length === 0) return;
+    const zoom = this.map.getZoom();
+    if (typeof zoom !== 'number') return;
+
+    // When zooming out (< 14), remove ALL waypoints for the paradas so the route polyline is completely clear and unobstructed.
+    // At zoom >= 15, show all paradas. At zoom 14, show only terminals (start and end).
+    const showAll = this.showParadasMarkers && zoom >= 15;
+    const showTerminals = this.showParadasMarkers && zoom >= 14;
+
+    this.mapMarkers.forEach((m, idx) => {
+      const isTerminal = idx === 0 || idx === this.mapMarkers.length - 1;
+      let visible = false;
+
+      if (!this.showParadasMarkers || zoom < 14) {
+        visible = false;
+      } else if (showAll) {
+        visible = true;
+      } else if (isTerminal && showTerminals) {
+        visible = true;
+      } else {
+        visible = false;
+      }
+
+      m.setVisible(visible);
+    });
+
+    // Close any floating info window if waypoints are currently hidden
+    if (this.currentInfoWindow && (!this.showParadasMarkers || zoom < 14)) {
+      this.currentInfoWindow.close();
+      this.currentInfoWindow = null;
+      this.hasSelectedElementOnMap = false;
+    }
+  }
+
+  toggleParadasMarkersVisibility(): void {
+    this.showParadasMarkers = !this.showParadasMarkers;
+    this.updateWaypointVisibilityByZoom();
+    this.cdr.detectChanges();
+  }
+
+  getDestinoLabel(sentido?: string): string {
+    const s = (sentido || this.itineraryForm.sentido || '').toUpperCase();
+    if (!this.selectedLinha) return s;
+    const isIda = s === 'IDA';
+    const dest = isIda ? this.selectedLinha.chegada : this.selectedLinha.partida;
+    if (dest && dest.trim()) {
+      return dest.trim();
+    }
+    const rota = isIda ? this.selectedLinha.rotas?.ida : this.selectedLinha.rotas?.volta;
+    if (rota?.prefixo && rota.prefixo.trim()) {
+      return rota.prefixo.trim();
+    }
+    return s;
   }
 
   setupPlacesAutocomplete(): void {
+    if (this.itineraryMode !== 'edit') {
+      return;
+    }
     if (!isPlatformBrowser(this.platformId) || typeof google === 'undefined' || !google.maps?.places) {
       return;
     }
@@ -995,7 +1133,6 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
       for (const comp of place.address_components || []) {
         if (comp.types?.includes('postal_code')) {
           cep = comp.long_name;
-          break;
         }
       }
 
@@ -1040,6 +1177,11 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
       // If a parada/marker info is currently selected, left click deselects it without adding a new parada!
       if (this.hasSelectedElementOnMap || this.currentInfoWindow) {
         this.unselectMapElement();
+        return;
+      }
+
+      // In view mode, clicking on the map is read-only (does not add stops)
+      if (this.itineraryMode !== 'edit') {
         return;
       }
 
@@ -1225,11 +1367,16 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
         this.map.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
       }
     }
+    this.updateWaypointVisibilityByZoom();
   }
 
   focusStopOnMap(index: number): void {
     const end = this.enderecos[index];
     if (end && end.lat && end.lng && this.map) {
+      this.showParadasMarkers = true;
+      if (this.mapMarkers[index]) {
+        this.mapMarkers[index].setVisible(true);
+      }
       this.map.panTo({ lat: Number(end.lat), lng: Number(end.lng) });
       this.map.setZoom(16);
       if (this.mapMarkers[index]) {
@@ -1238,7 +1385,228 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
     }
   }
 
+  // --- Live Vehicle Telemetry & SVG Bus Markers ---
+
+  startTelemetryPolling(): void {
+    this.stopTelemetryPolling();
+    this.loadTrackedVehicles();
+    this.telemetryInterval = setInterval(() => {
+      if (this.activeStep === 'edit_itinerary') {
+        this.loadTrackedVehicles();
+      }
+    }, 10000);
+  }
+
+  stopTelemetryPolling(): void {
+    if (this.telemetryInterval) {
+      clearInterval(this.telemetryInterval);
+      this.telemetryInterval = null;
+    }
+  }
+
+  cleanupVehicleMarkers(): void {
+    for (const m of this.vehicleMarkers) {
+      m.setMap(null);
+    }
+    this.vehicleMarkers = [];
+  }
+
+  loadTrackedVehicles(): void {
+    if (!this.selectedLinha) return;
+
+    // Query active telemetria without restricting linhaId so all live vehicles from operator are returned
+    this.telemetriaService.getVeiculosAtivos().subscribe({
+      next: (telemetriaList) => {
+        let vehiclesWithGps: TelemetriaVeiculo[] = [];
+
+        if (telemetriaList && telemetriaList.length > 0) {
+          const selCodigo = (this.selectedLinha?.codigo || '').trim().toLowerCase();
+          const selCleanNum = selCodigo.replace(/\D/g, '');
+          const selId = this.selectedLinha?.id;
+
+          vehiclesWithGps = telemetriaList.filter((t) => {
+            // Must have real GPS coordinates
+            if (!t.latitude && !t.longitude) return false;
+            if (Math.abs(t.latitude) < 0.0001 && Math.abs(t.longitude) < 0.0001) return false;
+
+            // Match with current line by ID or line code
+            const tCodigo = (t.linhaCodigo || '').trim().toLowerCase();
+            const tCleanNum = tCodigo.replace(/\D/g, '');
+
+            const matchLine =
+              (t.linhaId && selId && Number(t.linhaId) === Number(selId)) ||
+              (t.linhaId && selCleanNum && Number(t.linhaId) === Number(selCleanNum)) ||
+              (tCodigo && selCodigo && (tCodigo === selCodigo || selCodigo.includes(tCodigo) || tCodigo.includes(selCodigo))) ||
+              (tCleanNum && selCleanNum && tCleanNum === selCleanNum);
+
+            return matchLine;
+          });
+        }
+
+        // Strictly real telemetria only - never generate fake driver positions
+        this.trackedVehicles = vehiclesWithGps;
+        if (this.isMapInitialized && this.map) {
+          this.renderVehicleMarkers();
+        }
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('[RotasComponent] Erro ao carregar telemetria:', err);
+      },
+    });
+  }
+
+  focusVehicleOnMap(v: TelemetriaVeiculo): void {
+    if (!this.map || !v.latitude || !v.longitude) return;
+    const pos = { lat: Number(v.latitude), lng: Number(v.longitude) };
+    this.map.panTo(pos);
+    this.map.setZoom(16);
+
+    const marker = this.vehicleMarkers.find((m: any) => {
+      const p = m.getPosition();
+      return p && Math.abs(p.lat() - Number(v.latitude)) < 0.0001 && Math.abs(p.lng() - Number(v.longitude)) < 0.0001;
+    });
+
+    if (marker) {
+      google.maps.event.trigger(marker, 'click');
+    }
+  }
+
+  private getBusMarkerIcon(sentido?: string): any {
+    const isVolta = sentido === 'VOLTA';
+    const pinColor = isVolta ? '#7c3aed' : '#2563eb';
+    const darkPinColor = isVolta ? '#5b21b6' : '#1d4ed8';
+
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 54" width="46" height="54">
+        <defs>
+          <filter id="busShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.38" />
+          </filter>
+        </defs>
+        <!-- Marker Pin Body -->
+        <path d="M23 2 C12 2 3 11 3 22 C3 34 23 52 23 52 C23 52 43 34 43 22 C43 11 34 2 23 2 Z"
+              fill="${pinColor}" stroke="#ffffff" stroke-width="2.5" filter="url(#busShadow)" />
+        <!-- Inner Badge -->
+        <circle cx="23" cy="21" r="14" fill="${darkPinColor}" />
+        <!-- Crisp Bus Silhouette -->
+        <g fill="#ffffff">
+          <rect x="15" y="12" width="16" height="15" rx="2.5" ry="2.5" />
+          <rect x="16.5" y="15" width="13" height="5" rx="1" ry="1" fill="${darkPinColor}" />
+          <rect x="18" y="13" width="10" height="1.2" rx="0.5" fill="#fbbf24" />
+          <circle cx="17.8" cy="22.5" r="1.2" fill="#fef08a" />
+          <circle cx="28.2" cy="22.5" r="1.2" fill="#fef08a" />
+          <rect x="20.5" y="22.8" width="5" height="0.8" rx="0.4" fill="${darkPinColor}" />
+          <rect x="16" y="27" width="2.5" height="1.8" rx="0.6" fill="#334155" />
+          <rect x="27.5" y="27" width="2.5" height="1.8" rx="0.6" fill="#334155" />
+          <rect x="13.8" y="16.5" width="1" height="2" rx="0.5" fill="#ffffff" />
+          <rect x="31.2" y="16.5" width="1" height="2" rx="0.5" fill="#ffffff" />
+        </g>
+      </svg>
+    `;
+
+    return {
+      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+      scaledSize: new google.maps.Size(42, 50),
+      anchor: new google.maps.Point(21, 50),
+    };
+  }
+
+  renderVehicleMarkers(): void {
+    if (!this.map || typeof google === 'undefined') return;
+
+    this.cleanupVehicleMarkers();
+
+    this.trackedVehicles.forEach((v) => {
+      if (!v.latitude || !v.longitude || (Math.abs(v.latitude) < 0.0001 && Math.abs(v.longitude) < 0.0001)) {
+        return;
+      }
+
+      const pos = { lat: Number(v.latitude), lng: Number(v.longitude) };
+      const marker = new google.maps.Marker({
+        position: pos,
+        map: this.map,
+        title: `Ônibus ${v.placa || ''} - ${v.motoristaNome || 'Motorista'}`,
+        icon: this.getBusMarkerIcon(v.sentido),
+        zIndex: 999,
+      });
+
+      const isVolta = v.sentido === 'VOLTA';
+      const badgeBg = isVolta ? '#f3e8ff' : '#dbeafe';
+      const badgeColor = isVolta ? '#6b21a8' : '#1e40af';
+      const statusParada = v.statusParadaAtual ? `<div><strong>🚏 Próxima Parada:</strong> ${v.statusParadaAtual}</div>` : '';
+      const formattedVel = (v.velocidade && v.velocidade > 0) ? `${Math.round(v.velocidade)} km/h` : 'Parado';
+
+      const infoContent = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; color: #0f172a; padding: 6px 4px; min-width: 210px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: #1e293b; font-size: 14px;">
+              🚍 ${v.placa || 'Veículo'}
+            </span>
+            <span style="background: ${badgeBg}; color: ${badgeColor}; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 9999px;">
+              Destino: ${this.getDestinoLabel(v.sentido)}
+            </span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px; color: #334155;">
+            <div><strong>👤 Motorista:</strong> ${v.motoristaNome || 'Não informado'}</div>
+            <div><strong>⚡ Velocidade:</strong> ${formattedVel}</div>
+            ${v.linhaCodigo ? `<div><strong>🔢 Linha:</strong> ${v.linhaCodigo}</div>` : ''}
+            ${statusParada}
+            ${v.ultimaAtualizacao ? `<div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">🕒 Atualizado: ${v.ultimaAtualizacao}</div>` : ''}
+          </div>
+        </div>
+      `;
+
+      const infoWindow = new google.maps.InfoWindow({
+        content: infoContent,
+      });
+
+      marker.addListener('mouseover', () => {
+        this.ngZone.run(() => {
+          if (this.currentInfoWindow && this.currentInfoWindow !== infoWindow) {
+            this.currentInfoWindow.close();
+          }
+          this.currentInfoWindow = infoWindow;
+          this.hasSelectedElementOnMap = true;
+          infoWindow.open(this.map, marker);
+          this.cdr.detectChanges();
+        });
+      });
+
+      marker.addListener('click', () => {
+        this.ngZone.run(() => {
+          if (this.currentInfoWindow && this.currentInfoWindow !== infoWindow) {
+            this.currentInfoWindow.close();
+          }
+          this.currentInfoWindow = infoWindow;
+          this.hasSelectedElementOnMap = true;
+          infoWindow.open(this.map, marker);
+          this.cdr.detectChanges();
+        });
+      });
+
+      this.vehicleMarkers.push(marker);
+    });
+  }
+
+  isStopMatch(endereco: Endereco, index: number): boolean {
+    if (!this.searchQuery || !this.searchQuery.trim()) return false;
+    const q = this.searchQuery.trim().toLowerCase();
+    const nome = (endereco.nome || '').toLowerCase();
+    const addr = (endereco.endereco || '').toLowerCase();
+    const num = String(index + 1);
+    return nome.includes(q) || addr.includes(q) || num === q;
+  }
+
+  selectAndFocusItineraryStop(item: { endereco: Endereco; index: number }): void {
+    this.focusStopOnMap(item.index);
+    this.showParadasDropdown = false;
+  }
+
   cleanupMap(): void {
+    this.stopTelemetryPolling();
+    this.cleanupVehicleMarkers();
+
     for (const m of this.mapMarkers) {
       m.setMap(null);
     }
@@ -1273,6 +1641,13 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   // --- Paradas Manipulation & Search ---
 
   async addCustomEndereco(): Promise<void> {
+    if (this.itineraryMode !== 'edit') {
+      if (this.filteredItineraryStops.length > 0) {
+        this.selectAndFocusItineraryStop(this.filteredItineraryStops[0]);
+      }
+      return;
+    }
+
     const raw = this.searchQuery.trim() || 'Nova Parada';
     let nome = raw;
     let endereco = raw;
@@ -1445,6 +1820,24 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   }
 
   filterParadas(): void {
+    if (this.itineraryMode === 'view') {
+      this.showParadasDropdown = true;
+      const q = this.searchQuery.trim().toLowerCase();
+      if (!q) {
+        this.filteredItineraryStops = this.enderecos.map((endereco, index) => ({ endereco, index }));
+      } else {
+        this.filteredItineraryStops = this.enderecos
+          .map((endereco, index) => ({ endereco, index }))
+          .filter((item) => {
+            const nome = (item.endereco.nome || '').toLowerCase();
+            const addr = (item.endereco.endereco || '').toLowerCase();
+            const pos = String(item.index + 1);
+            return nome.includes(q) || addr.includes(q) || pos === q;
+          });
+      }
+      return;
+    }
+
     this.showParadasDropdown = true;
     const q = this.searchQuery.trim();
     if (!q) {
@@ -1540,6 +1933,12 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   }
 
   openParadasDropdown(): void {
+    if (this.itineraryMode === 'view') {
+      this.filterParadas();
+      this.showParadasDropdown = true;
+      return;
+    }
+
     if (this.todasAsParadas.length === 0) {
       this.linhaService.getParadas(3550308).subscribe((paradas) => {
         this.todasAsParadas = paradas || [];

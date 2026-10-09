@@ -172,6 +172,250 @@ $amber: #f59e0b;
     }
   }
 
+  // Vehicles Section & Search Bar
+  .vehicles-section {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 2rem;
+
+    .section-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+
+      .section-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+
+        .section-title {
+          font-size: 1.35rem;
+          font-weight: 700;
+          color: #1e293b;
+          margin: 0;
+        }
+
+        .section-count-pill {
+          padding: 0.2rem 0.6rem;
+          background: rgba($primary-blue, 0.12);
+          color: #0284c7;
+          border-radius: 9999px;
+          font-size: 0.78rem;
+          font-weight: 700;
+        }
+      }
+
+      .section-search-box {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        position: relative;
+
+        .btn-search-toggle {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 2.35rem;
+          height: 2.35rem;
+          background: $white;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 0.625rem;
+          color: #475569;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+          &:hover {
+            color: $primary-blue;
+            border-color: $primary-blue;
+            background: #f0f9ff;
+            transform: scale(1.05);
+          }
+
+          &.active {
+            background: $primary-blue;
+            color: $white;
+            border-color: $primary-blue;
+            box-shadow: 0 2px 8px rgba(0, 180, 216, 0.3);
+          }
+
+          .search-icon {
+            width: 1.15rem;
+            height: 1.15rem;
+          }
+        }
+
+        .search-input-group {
+          position: relative;
+          display: flex;
+          align-items: center;
+          animation: expandSearch 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+          .search-input {
+            width: 320px;
+            max-width: 80vw;
+            padding: 0.55rem 2.25rem 0.55rem 0.85rem;
+            background: $white;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 0.625rem;
+            font-size: 0.85rem;
+            color: #1e293b;
+            outline: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+
+            &:focus {
+              border-color: $primary-blue;
+              box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.15);
+            }
+
+            &::placeholder {
+              color: #94a3b8;
+              font-size: 0.8rem;
+            }
+          }
+
+          .btn-clear-search {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 50%;
+            border: none;
+            background: #e2e8f0;
+            color: #64748b;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            &:hover {
+              background: #cbd5e1;
+              color: #1e293b;
+            }
+          }
+        }
+      }
+    }
+
+    .section-filter-tags {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+      padding: 0.5rem 0.85rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.625rem;
+      animation: fadeInDown 0.2s ease-out;
+
+      .tag-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-right: 0.25rem;
+      }
+
+      .filter-tag-pill {
+        padding: 0.25rem 0.65rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: 1px solid #cbd5e1;
+        background: $white;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        &:hover {
+          border-color: #0284c7;
+          color: #0284c7;
+          background: #f0f9ff;
+        }
+
+        &.active {
+          background: #0284c7;
+          color: $white;
+          border-color: #0284c7;
+          box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+        }
+      }
+    }
+
+    .search-empty-results {
+      padding: 3rem 2rem;
+      text-align: center;
+      background: $white;
+      border-radius: 1rem;
+      border: 1.5px dashed #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+
+      .empty-search-icon {
+        font-size: 2.25rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .empty-search-text {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 1rem;
+      }
+
+      .btn-reset-search {
+        padding: 0.5rem 1.25rem;
+        border-radius: 0.5rem;
+        background: #f1f5f9;
+        color: #0284c7;
+        font-weight: 600;
+        font-size: 0.85rem;
+        border: 1px solid #cbd5e1;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: #0284c7;
+          color: $white;
+          border-color: #0284c7;
+        }
+      }
+    }
+  }
+
+  @keyframes expandSearch {
+    from {
+      opacity: 0;
+      transform: scaleX(0.8);
+      transform-origin: right center;
+    }
+    to {
+      opacity: 1;
+      transform: scaleX(1);
+      transform-origin: right center;
+    }
+  }
+
+  @keyframes fadeInDown {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   // Vehicles Grid
   .vehicle-grid {
     display: grid;

@@ -50,13 +50,120 @@
         </button>
       </div>
 
-      <!-- Vehicles Grid -->
-      <div class="vehicle-grid" *ngIf="!isLoading && sortedVeiculos.length > 0">
-        <div
-          class="vehicle-card"
-          *ngFor="let veiculo of sortedVeiculos"
-          (click)="openEditModal(veiculo)"
-        >
+      <!-- Vehicles Section -->
+      <div class="vehicles-section" *ngIf="!isLoading && veiculos.length > 0">
+        <div class="section-header-row">
+          <div class="section-title-wrap">
+            <h2 class="section-title">Frota Operacional</h2>
+            <span class="section-count-pill">{{ filteredVeiculos.length }}</span>
+          </div>
+
+          <div class="section-search-box" [class.is-open]="isSearchOpen">
+            <!-- Search Trigger Button -->
+            <button 
+              type="button" 
+              class="btn-search-toggle" 
+              [class.active]="isSearchOpen"
+              (click)="toggleSearch()"
+              [title]="isSearchOpen ? 'Fechar busca' : 'Buscar veículos por placa'"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+
+            <!-- Search Input Field (animated expanding) -->
+            <div class="search-input-group" *ngIf="isSearchOpen">
+              <input
+                id="search-veiculos-input"
+                type="text"
+                class="search-input"
+                placeholder="Buscar por placa (ex: ABC-1234), modelo ou linha..."
+                [(ngModel)]="searchQuery"
+              />
+              <button
+                type="button"
+                class="btn-clear-search"
+                *ngIf="searchQuery || selectedStatusFilter"
+                (click)="clearSearch()"
+                title="Limpar busca"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Filter Tags -->
+        <div class="section-filter-tags" *ngIf="isSearchOpen">
+          <span class="tag-label">Filtros rápidos:</span>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === ''"
+            (click)="setStatusFilter('')"
+          >
+            Todos ({{ veiculos.length }})
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === 'EM_OPERACAO'"
+            (click)="setStatusFilter('EM_OPERACAO')"
+          >
+            🟢 Em Operação
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === 'AGUARDANDO_MOTORISTA'"
+            (click)="setStatusFilter('AGUARDANDO_MOTORISTA')"
+          >
+            ⚠️ Aguardando Motorista
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === 'RESERVA'"
+            (click)="setStatusFilter('RESERVA')"
+          >
+            🅿️ Reserva / Garagem
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === 'MANUTENCAO'"
+            (click)="setStatusFilter('MANUTENCAO')"
+          >
+            🔧 Manutenção
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === 'INATIVO'"
+            (click)="setStatusFilter('INATIVO')"
+          >
+            ⚪ Inativo
+          </button>
+        </div>
+
+        <!-- Empty search results state -->
+        <div class="search-empty-results" *ngIf="filteredVeiculos.length === 0">
+          <span class="empty-search-icon">🔍</span>
+          <p class="empty-search-text">Nenhum veículo encontrado para "{{ searchQuery }}".</p>
+          <button type="button" class="btn-reset-search" (click)="clearSearch()">
+            Limpar busca e ver todos
+          </button>
+        </div>
+
+        <!-- Vehicles Grid -->
+        <div class="vehicle-grid" *ngIf="filteredVeiculos.length > 0">
+          <div
+            class="vehicle-card"
+            *ngFor="let veiculo of filteredVeiculos"
+            (click)="openEditModal(veiculo)"
+          >
           <div class="card-header">
             <div class="vehicle-profile">
               <div class="vehicle-icon-badge">
@@ -124,6 +231,7 @@
       </div>
     </div>
   </div>
+</div>
 
   <!-- Modal Adicionar Veículo -->
   <div class="modal-overlay" *ngIf="showAddModal" (click)="closeAddModal()">

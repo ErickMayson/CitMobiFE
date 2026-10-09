@@ -49,13 +49,128 @@
         </button>
       </div>
 
-      <!-- Motoristas Grid -->
-      <div class="motorista-grid" *ngIf="!isLoading && sortedMotoristas.length > 0">
-        <div
-          class="motorista-card"
-          *ngFor="let motorista of sortedMotoristas"
-          (click)="openEditModal(motorista)"
-        >
+      <!-- Motoristas Section -->
+      <div class="motoristas-section" *ngIf="!isLoading && motoristas.length > 0">
+        <div class="section-header-row">
+          <div class="section-title-wrap">
+            <h2 class="section-title">Quadro de Motoristas</h2>
+            <span class="section-count-pill">{{ filteredMotoristas.length }}</span>
+          </div>
+
+          <div class="section-search-box" [class.is-open]="isSearchOpen">
+            <!-- Search Trigger Button -->
+            <button 
+              type="button" 
+              class="btn-search-toggle" 
+              [class.active]="isSearchOpen"
+              (click)="toggleSearch()"
+              [title]="isSearchOpen ? 'Fechar busca' : 'Buscar motoristas'"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+
+            <!-- Search Input Field (animated expanding) -->
+            <div class="search-input-group" *ngIf="isSearchOpen">
+              <input
+                id="search-motoristas-input"
+                type="text"
+                class="search-input"
+                placeholder="Buscar por nome (ex: Ana), CPF ou CNH..."
+                [(ngModel)]="searchQuery"
+              />
+              <button
+                type="button"
+                class="btn-clear-search"
+                *ngIf="searchQuery || selectedStatusFilter"
+                (click)="clearSearch()"
+                title="Limpar busca"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Filter Tags -->
+        <div class="section-filter-tags" *ngIf="isSearchOpen">
+          <span class="tag-label">Filtros rápidos:</span>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === ''"
+            (click)="setStatusFilter('')"
+          >
+            Todos ({{ motoristas.length }})
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === 'ATIVO'"
+            (click)="setStatusFilter('ATIVO')"
+          >
+            🟢 Ativo
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === 'EM ATENDIMENTO'"
+            (click)="setStatusFilter('EM ATENDIMENTO')"
+          >
+            🚌 Em Atendimento
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === 'AGUARDANDO'"
+            (click)="setStatusFilter('AGUARDANDO')"
+          >
+            ⏳ Aguardando
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === 'PAUSA'"
+            (click)="setStatusFilter('PAUSA')"
+          >
+            ☕ Pausa
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === 'FORA DE TURNO'"
+            (click)="setStatusFilter('FORA DE TURNO')"
+          >
+            ⚪ Fora de Turno
+          </button>
+          <button
+            type="button"
+            class="filter-tag-pill"
+            [class.active]="selectedStatusFilter === 'EXPIRING_CNH'"
+            (click)="setStatusFilter('EXPIRING_CNH')"
+          >
+            ⚠️ CNH Vencida/Vencendo
+          </button>
+        </div>
+
+        <!-- Empty search results state -->
+        <div class="search-empty-results" *ngIf="filteredMotoristas.length === 0">
+          <span class="empty-search-icon">🔍</span>
+          <p class="empty-search-text">Nenhum motorista encontrado para "{{ searchQuery }}".</p>
+          <button type="button" class="btn-reset-search" (click)="clearSearch()">
+            Limpar busca e ver todos
+          </button>
+        </div>
+
+        <!-- Motoristas Grid -->
+        <div class="motorista-grid" *ngIf="filteredMotoristas.length > 0">
+          <div
+            class="motorista-card"
+            *ngFor="let motorista of filteredMotoristas"
+            (click)="openEditModal(motorista)"
+          >
           <div class="card-header">
             <div class="driver-profile">
               <div class="driver-avatar">{{ getInitials(motorista.nome) }}</div>
@@ -174,6 +289,7 @@
         </div>
       </div>
     </div>
+  </div>
   </div>
 
   <!-- Modal Adicionar Motorista -->

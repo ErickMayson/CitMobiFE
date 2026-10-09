@@ -90,6 +90,11 @@ export class MotoristaComponent implements OnInit {
   isSaving: boolean = false;
   isTransferring: boolean = false;
 
+  // Dynamic Search & Filter State
+  searchQuery: string = '';
+  isSearchOpen: boolean = false;
+  selectedStatusFilter: string = '';
+
   newMotorista = {
     nome: '',
     cpf: '',
@@ -229,6 +234,8 @@ export class MotoristaComponent implements OnInit {
     this.route.queryParams.subscribe((params) => {
       const targetSearch = params['search'] || params['nome'] || params['cpf'];
       if (targetSearch && this.motoristas.length > 0) {
+        this.searchQuery = targetSearch;
+        this.isSearchOpen = true;
         const normTarget = targetSearch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
         const found = this.motoristas.find((m) => {
           const normName = (m.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -241,6 +248,36 @@ export class MotoristaComponent implements OnInit {
         }
       }
     });
+  }
+
+  toggleSearch(): void {
+    this.isSearchOpen = !this.isSearchOpen;
+    if (this.isSearchOpen) {
+      setTimeout(() => {
+        const input = document.getElementById('search-motoristas-input') as HTMLInputElement;
+        if (input) input.focus();
+      }, 50);
+    }
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.selectedStatusFilter = '';
+  }
+
+  setStatusFilter(status: string): void {
+    this.selectedStatusFilter = this.selectedStatusFilter === status ? '' : status;
+  }
+
+  normalizeSearchText(text: string): string {
+    if (!text) return '';
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[.\-_/]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   loadMotoristas(forceRefresh: boolean = false): void {
@@ -267,6 +304,45 @@ export class MotoristaComponent implements OnInit {
       const indexA = this.statusOrder.indexOf(a.status);
       const indexB = this.statusOrder.indexOf(b.status);
       return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
+    });
+  }
+
+  get filteredMotoristas(): Motorista[] {
+    if (!this.motoristas) return [];
+    let result = this.sortedMotoristas;
+
+    if (this.selectedStatusFilter) {
+      result = result.filter((m) => {
+        if (this.selectedStatusFilter === 'EXPIRING_CNH') {
+          return this.isCnhExpired(m.cnhValidade) || this.isCnhExpiringSoon(m.cnhValidade);
+        }
+        return m.status === this.selectedStatusFilter;
+      });
+    }
+
+    const q = this.normalizeSearchText(this.searchQuery);
+    if (!q) return result;
+
+    const terms = q.split(' ').filter(Boolean);
+    const cleanDigits = this.searchQuery.replace(/\D/g, '');
+
+    return result.filter((m) => {
+      const name = m.nome || '';
+      const cpf = m.cpf || '';
+      const cnh = m.cnhNumero || '';
+      const telefone = m.telefone || '';
+      const status = m.status || '';
+      const operador = m.operadorNome || '';
+      const schedulesInfo = (m.horarios || []).map((h) => `${h.veiculoPlaca || ''} ${h.veiculoModelo || ''} ${h.rotaNome || ''}`).join(' ');
+
+      const searchableBlob = this.normalizeSearchText(
+        `${name} ${cpf} ${cnh} ${telefone} ${status} ${operador} ${schedulesInfo}`
+      );
+
+      const matchesTerms = terms.every((term) => searchableBlob.includes(term));
+      const matchesCpfDigits = cleanDigits.length > 0 && cpf.replace(/\D/g, '').includes(cleanDigits);
+
+      return matchesTerms || matchesCpfDigits;
     });
   }
 

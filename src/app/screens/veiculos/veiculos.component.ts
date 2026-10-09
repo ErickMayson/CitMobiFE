@@ -50,6 +50,11 @@ export class VeiculosComponent implements OnInit {
   isSaving: boolean = false;
   errorMessage: string = '';
 
+  // Dynamic Search & Filter State
+  searchQuery: string = '';
+  isSearchOpen: boolean = false;
+  selectedStatusFilter: string = '';
+
   veiculos: Veiculo[] = [];
 
   showAddModal = false;
@@ -312,6 +317,8 @@ export class VeiculosComponent implements OnInit {
     this.route.queryParams.subscribe((params) => {
       const targetPlate = params['plate'] || params['placa'] || params['search'];
       if (targetPlate && this.veiculos.length > 0) {
+        this.searchQuery = targetPlate;
+        this.isSearchOpen = true;
         const cleanTarget = targetPlate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
         const found = this.veiculos.find(
           (v) => v.plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === cleanTarget
@@ -320,6 +327,86 @@ export class VeiculosComponent implements OnInit {
           setTimeout(() => this.openEditModal(found), 150);
         }
       }
+    });
+  }
+
+  toggleSearch(): void {
+    this.isSearchOpen = !this.isSearchOpen;
+    if (this.isSearchOpen) {
+      setTimeout(() => {
+        const input = document.getElementById('search-veiculos-input') as HTMLInputElement;
+        if (input) input.focus();
+      }, 50);
+    }
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.selectedStatusFilter = '';
+  }
+
+  setStatusFilter(status: string): void {
+    this.selectedStatusFilter = this.selectedStatusFilter === status ? '' : status;
+  }
+
+  normalizeSearchText(text: string): string {
+    if (!text) return '';
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[.\-_/]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  get filteredVeiculos(): Veiculo[] {
+    if (!this.veiculos) return [];
+    let result = this.sortedVeiculos;
+
+    if (this.selectedStatusFilter) {
+      result = result.filter((v) => {
+        if (this.selectedStatusFilter === 'EM_OPERACAO') {
+          return v.status === 'ATIVO' && (v.routes?.length || 0) > 0 && (v.drivers?.length || 0) > 0;
+        }
+        if (this.selectedStatusFilter === 'AGUARDANDO_MOTORISTA') {
+          return v.status === 'ATIVO' && (v.routes?.length || 0) > 0 && (v.drivers?.length || 0) === 0;
+        }
+        if (this.selectedStatusFilter === 'RESERVA') {
+          return v.status === 'ATIVO' && (v.routes?.length || 0) === 0;
+        }
+        return v.status === this.selectedStatusFilter;
+      });
+    }
+
+    const q = this.normalizeSearchText(this.searchQuery);
+    if (!q) return result;
+
+    const terms = q.split(' ').filter(Boolean);
+    const cleanSearchPlate = this.searchQuery.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+
+    return result.filter((v) => {
+      const plate = v.plate || '';
+      const cleanPlate = plate.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+      const model = v.model || '';
+      const type = v.type || '';
+      const garage = v.garage || '';
+      const id = String(v.id || '');
+      const statusLabel = this.getVehicleStatusLabel(v);
+      const drivers = (v.drivers || []).map((d) => d.name).join(' ');
+      const routes = (v.routes || []).map((r) => r.routeName).join(' ');
+
+      // Primary check: Direct plate match (e.g. partial plate digits or letters like "ABC", "1234")
+      if (cleanSearchPlate && cleanPlate.includes(cleanSearchPlate)) {
+        return true;
+      }
+
+      // Multi-term search across plate, model, type, garage, lines, drivers, etc.
+      const searchableBlob = this.normalizeSearchText(
+        `${plate} ${cleanPlate} ${model} ${type} ${garage} ${id} ${statusLabel} ${drivers} ${routes}`
+      );
+
+      return terms.every((term) => searchableBlob.includes(term));
     });
   }
 

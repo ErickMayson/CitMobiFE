@@ -301,9 +301,19 @@ export class LinhaService {
         (t) => t.placa.replace(/\D/g, '') === v.plate.replace(/\D/g, '') || t.veiculoId === Number(v.id)
       );
 
-      let sentido: 'IDA' | 'VOLTA' | 'GARAGEM' | 'INATIVO' = 'IDA';
+      const matchedRoute = (v.routes || []).find((r) => {
+        const routeName = (r.routeName || '').toLowerCase();
+        return (
+          routeName.includes(cleanCode) ||
+          routeName.includes(rawCode)
+        );
+      });
+
+      let sentido: 'IDA' | 'VOLTA' | 'GARAGEM' | 'INATIVO' = matchedRoute?.sentido || 'IDA';
       if (v.status === 'INATIVO') {
         sentido = 'INATIVO';
+      } else if (matchedRoute?.sentido) {
+        sentido = matchedRoute.sentido;
       } else if (liveTel?.sentido) {
         sentido = liveTel.sentido;
       }

@@ -403,14 +403,14 @@
   <div
     class="modal-overlay"
     *ngIf="showEditModal && selectedMotorista"
-    (click)="closeEditModal()"
+    (click)="isSaving ? null : closeEditModal()"
   >
     <div class="modal modal-large" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title-group">
           <h2>Editar Motorista - {{ selectedMotorista.nome }}</h2>
         </div>
-        <button class="btn-close" (click)="closeEditModal()">×</button>
+        <button class="btn-close" (click)="closeEditModal()" [disabled]="isSaving">×</button>
       </div>
 
       <div class="modal-body">
@@ -595,11 +595,19 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn-secondary" (click)="closeEditModal()">
+        <button class="btn-secondary" (click)="closeEditModal()" [disabled]="isSaving">
           Cancelar
         </button>
-        <button class="btn-primary" (click)="handleSaveEdit()">
-          Salvar Alterações
+        <button
+          class="btn-primary"
+          [class.btn-saved]="saveSuccess"
+          [disabled]="isSaving"
+          (click)="handleSaveEdit()"
+        >
+          <span class="btn-spinner" *ngIf="isSaving"></span>
+          <span *ngIf="isSaving">Salvando Alterações...</span>
+          <span *ngIf="!isSaving && saveSuccess">✓ Alterações Salvas!</span>
+          <span *ngIf="!isSaving && !saveSuccess">Salvar Alterações</span>
         </button>
       </div>
     </div>

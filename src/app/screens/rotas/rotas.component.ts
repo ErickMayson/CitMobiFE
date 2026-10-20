@@ -13,6 +13,8 @@ import { GoogleMapsService, RouteCalculationResult } from '../../services/google
 import { ComponentCanDeactivate } from '../../guards/pending-changes.guard';
 import { TelemetriaService } from '../../services/telemetria.service';
 import { TelemetriaVeiculo } from '../../models/telemetria.model';
+import { VeiculoService } from '../../services/veiculo.service';
+import { Veiculo } from '../../models/veiculo.model';
 
 declare const google: any;
 
@@ -116,6 +118,7 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
 
   // Tracked Vehicles Telemetry State
   trackedVehicles: TelemetriaVeiculo[] = [];
+  showLiveVehiclesDropdown: boolean = false;
   private vehicleMarkers: any[] = [];
   private telemetryInterval: any = null;
 
@@ -158,6 +161,7 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
     private loginService: LoginService,
     private linhaService: LinhaService,
     private telemetriaService: TelemetriaService,
+    private veiculoService: VeiculoService,
     private router: Router,
     private route: ActivatedRoute,
     private googleMapsService: GoogleMapsService,
@@ -259,6 +263,183 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   showIdaFleetDetails: boolean = false;
   showVoltaFleetDetails: boolean = false;
 
+  // Allocate Vehicle to Itinerary Modal State
+  showAllocateVehicleModal: boolean = false;
+  allocateSentido: 'IDA' | 'VOLTA' = 'IDA';
+  availableVehiclesToAllocate: Veiculo[] = [];
+  filteredVehiclesToAllocate: Veiculo[] = [];
+  allocateSearchQuery: string = '';
+  selectedVehicleToAllocate: Veiculo | null = null;
+  isLoadingAllocateVehicles: boolean = false;
+  isAllocatingVehicle: boolean = false;
+  allocateSuccessMessage: string = '';
+  allocateErrorMessage: string = '';
+
+  openAllocateVehicleModal(sentido: 'IDA' | 'VOLTA', event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    this.allocateSentido = sentido;
+    this.selectedVehicleToAllocate = null;
+    this.allocateSearchQuery = '';
+    this.allocateErrorMessage = '';
+    this.allocateSuccessMessage = '';
+    this.isLoadingAllocateVehicles = true;
+    this.showAllocateVehicleModal = true;
+
+    this.veiculoService.getVeiculos(true).subscribe({
+      next: (veiculos) => {
+        this.isLoadingAllocateVehicles = false;
+
+        // Collect plates of all vehicles currently allocated to ANY line in the fleet
+        const allocatedPlates = new Set<string>();
+        [...this.linhasAtivas, ...this.linhasInativas].forEach((linha) => {
+          (linha.assignedVehicles || []).forEach((av) => {
+            if (av.plate) {
+              allocatedPlates.add(av.plate.replace(/\D/g, '').toUpperCase());
+            }
+          });
+        });
+
+        // A vehicle is "free and ready" if:
+        // 1. Status is 'ATIVO' (not in maintenance, inactive, etc.)
+        // 2. Has at least one assigned driver
+        // 3. Has NO routes currently configured (routes list is empty)
+        // 4. Plate is not tracked in any line's assigned vehicles
+        this.availableVehiclesToAllocate = (veiculos || []).filter((v) => {
+          if (v.status !== 'ATIVO') return false;
+          if (!v.drivers || v.drivers.length === 0) return false;
+
+          // Exclude if vehicle has any routes configured
+          const hasRoutes = Array.isArray(v.routes) && v.routes.some(
+            (r) => r.routeName && r.routeName.trim().length > 0
+          );
+          if (hasRoutes) return false;
+
+          // Exclude if already allocated in any line
+          const cleanPlate = (v.plate || '').replace(/\D/g, '').toUpperCase();
+          if (allocatedPlates.has(cleanPlate)) return false;
+
+          return true;
+        });
+
+        this.filterAllocateVehicles();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.isLoadingAllocateVehicles = false;
+        this.availableVehiclesToAllocate = [];
+        this.filteredVehiclesToAllocate = [];
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  closeAllocateVehicleModal(): void {
+    if (this.isAllocatingVehicle) return;
+    this.showAllocateVehicleModal = false;
+    this.selectedVehicleToAllocate = null;
+    this.allocateSearchQuery = '';
+    this.allocateErrorMessage = '';
+    this.allocateSuccessMessage = '';
+  }
+
+  filterAllocateVehicles(): void {
+    const q = (this.allocateSearchQuery || '').trim().toLowerCase();
+    if (!q) {
+      this.filteredVehiclesToAllocate = [...this.availableVehiclesToAllocate];
+      return;
+    }
+    this.filteredVehiclesToAllocate = this.availableVehiclesToAllocate.filter((v) => {
+      const matchPlate = (v.plate || '').toLowerCase().includes(q);
+      const matchModel = (v.model || '').toLowerCase().includes(q);
+      const matchType = (v.type || '').toLowerCase().includes(q);
+      const matchDriver = (v.drivers || []).some((d) => (d.name || '').toLowerCase().includes(q));
+      return matchPlate || matchModel || matchType || matchDriver;
+    });
+  }
+
+  selectVehicleToAllocate(veiculo: Veiculo): void {
+    if (this.selectedVehicleToAllocate?.plate === veiculo.plate) {
+      this.selectedVehicleToAllocate = null;
+    } else {
+      this.selectedVehicleToAllocate = veiculo;
+    }
+  }
+
+  getDriverInfoForVehicle(v: Veiculo): { name: string; shift?: string } {
+    if (!v.drivers || v.drivers.length === 0) {
+      return { name: 'Sem motorista' };
+    }
+    const d = v.drivers[0];
+    const shift = d.startTime && d.endTime ? `${d.startTime} - ${d.endTime}` : undefined;
+    return { name: d.name, shift };
+  }
+
+  confirmAllocateVehicle(): void {
+    if (!this.selectedVehicleToAllocate || !this.selectedLinha) return;
+
+    this.isAllocatingVehicle = true;
+    this.allocateErrorMessage = '';
+    this.allocateSuccessMessage = '';
+
+    const cleanCode = (this.selectedLinha.codigo || '').toLowerCase();
+    const routeTitle = `Linha ${this.selectedLinha.codigo} - ${this.selectedLinha.atendimento || '10'} (${this.selectedLinha.partida} ⇄ ${this.selectedLinha.chegada})`;
+
+    if (!this.selectedVehicleToAllocate.routes) {
+      this.selectedVehicleToAllocate.routes = [];
+    }
+
+    const existingIdx = this.selectedVehicleToAllocate.routes.findIndex((r) => {
+      const rn = (r.routeName || '').toLowerCase();
+      return rn.includes(cleanCode);
+    });
+
+    if (existingIdx >= 0) {
+      this.selectedVehicleToAllocate.routes[existingIdx] = {
+        ...this.selectedVehicleToAllocate.routes[existingIdx],
+        sentido: this.allocateSentido,
+      };
+    } else {
+      this.selectedVehicleToAllocate.routes.push({
+        routeName: routeTitle,
+        startTime: '06:00',
+        endTime: '22:00',
+        intervals: [{ startTime: '06:00', endTime: '22:00' }],
+        days: ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB', 'DOM'],
+        sentido: this.allocateSentido,
+      });
+    }
+
+    this.veiculoService.updateVeiculo(this.selectedVehicleToAllocate).subscribe({
+      next: () => {
+        this.isAllocatingVehicle = false;
+        const plate = this.selectedVehicleToAllocate?.plate;
+        this.allocateSuccessMessage = `Veículo ${plate} alocado com sucesso!`;
+
+        if (this.allocateSentido === 'IDA') {
+          this.showIdaFleetDetails = true;
+        } else {
+          this.showVoltaFleetDetails = true;
+        }
+
+        this.loadLinhas(true);
+        this.cdr.detectChanges();
+
+        setTimeout(() => {
+          this.closeAllocateVehicleModal();
+          this.cdr.detectChanges();
+        }, 1000);
+      },
+      error: () => {
+        this.isAllocatingVehicle = false;
+        this.allocateErrorMessage = 'Falha ao alocar veículo no servidor. Tente novamente.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
   toggleGeneralFleet(): void {
     this.showGeneralFleetDetails = !this.showGeneralFleetDetails;
   }
@@ -336,6 +517,14 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
         if (data) {
           this.linhasAtivas = data.filter((l) => l.status === 'ativa');
           this.linhasInativas = data.filter((l) => l.status === 'inativa');
+          if (this.selectedLinha) {
+            const updated = [...this.linhasAtivas, ...this.linhasInativas].find(
+              (l) => l.id === this.selectedLinha?.id || (l.codigo === this.selectedLinha?.codigo && l.atendimento === this.selectedLinha?.atendimento)
+            );
+            if (updated) {
+              this.selectedLinha = updated;
+            }
+          }
         }
         this.isLoadingLinhas = false;
         this.cdr.detectChanges();
@@ -700,6 +889,7 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
   }
 
   exitItineraryView(): void {
+    this.showLiveVehiclesDropdown = false;
     this.stopTelemetryPolling();
     this.cleanupVehicleMarkers();
     this.cleanupMap();
@@ -1469,6 +1659,25 @@ export class RotasComponent implements OnInit, OnDestroy, ComponentCanDeactivate
 
     if (marker) {
       google.maps.event.trigger(marker, 'click');
+    }
+  }
+
+  toggleLiveVehiclesDropdown(event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    this.showLiveVehiclesDropdown = !this.showLiveVehiclesDropdown;
+  }
+
+  selectAndFocusLiveVehicle(tv: TelemetriaVeiculo, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    this.focusVehicleOnMap(tv);
+    this.showLiveVehiclesDropdown = false;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (this.showLiveVehiclesDropdown && target && !target.closest('.live-vehicles-dropdown-container')) {
+      this.showLiveVehiclesDropdown = false;
     }
   }
 

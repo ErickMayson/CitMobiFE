@@ -48,6 +48,7 @@ export class VeiculosComponent implements OnInit {
   private driversLoaded: boolean = false;
   private routesLoaded: boolean = false;
   isSaving: boolean = false;
+  saveSuccess: boolean = false;
   errorMessage: string = '';
 
   // Dynamic Search & Filter State
@@ -134,6 +135,10 @@ export class VeiculosComponent implements OnInit {
   ngOnInit(): void {
     this.loginService.currentUser.subscribe((user) => {
       this.currentUser = user;
+    });
+
+    this.route.queryParams.subscribe(() => {
+      this.checkQueryParamsForSelection();
     });
 
     this.loadVeiculos();
@@ -315,20 +320,26 @@ export class VeiculosComponent implements OnInit {
   }
 
   checkQueryParamsForSelection(): void {
-    this.route.queryParams.subscribe((params) => {
-      const targetPlate = params['plate'] || params['placa'] || params['search'];
-      if (targetPlate && this.veiculos.length > 0) {
-        this.searchQuery = targetPlate;
-        this.isSearchOpen = true;
-        const cleanTarget = targetPlate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-        const found = this.veiculos.find(
-          (v) => v.plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === cleanTarget
-        );
-        if (found) {
-          setTimeout(() => this.openEditModal(found), 150);
-        }
+    if (this.showEditModal) {
+      return;
+    }
+    const params = this.route.snapshot.queryParams;
+    const targetPlate = params['plate'] || params['placa'] || params['search'];
+    if (targetPlate && this.veiculos.length > 0) {
+      this.searchQuery = targetPlate;
+      this.isSearchOpen = true;
+      const cleanTarget = targetPlate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      const found = this.veiculos.find(
+        (v) => v.plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === cleanTarget
+      );
+      if (found && !this.showEditModal) {
+        setTimeout(() => {
+          if (!this.showEditModal) {
+            this.openEditModal(found);
+          }
+        }, 150);
       }
-    });
+    }
   }
 
   toggleSearch(): void {
@@ -411,8 +422,10 @@ export class VeiculosComponent implements OnInit {
     });
   }
 
-  loadVeiculos(forceRefresh: boolean = false): void {
-    this.isLoading = true;
+  loadVeiculos(forceRefresh: boolean = false, silentRefresh: boolean = false): void {
+    if (!silentRefresh) {
+      this.isLoading = true;
+    }
     this.veiculoService.getVeiculos(forceRefresh).subscribe({
       next: (data) => {
         let list = (data || []) as Veiculo[];
@@ -423,10 +436,27 @@ export class VeiculosComponent implements OnInit {
         this.veiculos = list;
         this.sortVeiculos();
         this.isLoading = false;
+        if (this.showEditModal && this.selectedVeiculo) {
+          const targetPlate = this.selectedVeiculo.plate;
+          const targetId = this.selectedVeiculo.id;
+          const cleanTarget = targetPlate ? targetPlate.replace(/[^A-Za-z0-9]/g, '').toUpperCase() : '';
+          const updated = this.veiculos.find(
+            (v) => (cleanTarget && v.plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === cleanTarget) ||
+                   (targetId && v.id === targetId)
+          );
+          if (updated) {
+            this.selectedVeiculo = JSON.parse(JSON.stringify(updated));
+            if (this.selectedVeiculo && this.selectedVeiculo.routes) {
+              this.selectedVeiculo.routes = this.consolidateVehicleRoutes(this.selectedVeiculo.routes);
+            }
+          }
+        }
+        this.isSaving = false;
         this.checkQueryParamsForSelection();
       },
       error: (err) => {
         this.isLoading = false;
+        this.isSaving = false;
         if (err.status === 401 || err.status === 403) {
           this.loginService.logout();
           this.router.navigate(['/login']);
@@ -603,12 +633,16 @@ export class VeiculosComponent implements OnInit {
     }
     this.showEditModal = true;
     this.selectedDay = this.getCurrentDayCode();
+    this.saveSuccess = false;
+    this.isSaving = false;
     this.ensureRoutesLoaded();
   }
 
   closeEditModal(): void {
+    if (this.isSaving) return;
     this.showEditModal = false;
     this.selectedVeiculo = null;
+    this.saveSuccess = false;
   }
 
   goToLinha(linhaNameOrCode?: string, event?: Event): void {
@@ -674,14 +708,18 @@ export class VeiculosComponent implements OnInit {
   handleSaveEdit(): void {
     if (this.selectedVeiculo) {
       this.isSaving = true;
+      this.saveSuccess = false;
       this.veiculoService.updateVeiculo(this.selectedVeiculo).subscribe({
         next: () => {
-          this.isSaving = false;
-          this.loadVeiculos(true);
-          this.closeEditModal();
+          this.saveSuccess = true;
+          setTimeout(() => {
+            this.saveSuccess = false;
+          }, 2500);
+          this.loadVeiculos(true, true);
         },
         error: (err) => {
           this.isSaving = false;
+          this.saveSuccess = false;
           if (err.status === 401 || err.status === 403) {
             this.loginService.logout();
             this.router.navigate(['/login']);

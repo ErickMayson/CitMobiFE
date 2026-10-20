@@ -18,6 +18,7 @@ export interface Linha {
   endTime?: string;
   days: string[];
   intervals?: RouteInterval[];
+  sentido?: 'IDA' | 'VOLTA';
 }
 
 export interface Veiculo {

@@ -466,28 +466,57 @@
             <span class="metric-chip">
               🚏 <strong>{{ enderecos.length }}</strong> paradas
             </span>
-            <span class="metric-chip chunk-chip" *ngIf="routeMetrics.chunksCount > 1" title="Trajeto contínuo calculado em múltiplos segmentos">
-              🔗 {{ routeMetrics.chunksCount }} trechos unidos
-            </span>
-            <span class="metric-chip vehicle-chip clickable-chip" *ngIf="trackedVehicles.length > 0" (click)="focusVehicleOnMap(trackedVehicles[0])" title="Clique para focar no primeiro veículo rastreado">
+            <span class="metric-chip vehicle-chip clickable-chip" *ngIf="trackedVehicles.length > 0" (click)="toggleLiveVehiclesDropdown($event)" title="Clique para ver veículos rastreados">
               🚍 <strong>{{ trackedVehicles.length }}</strong> {{ trackedVehicles.length === 1 ? 'veículo rastreado' : 'veículos rastreados' }}
             </span>
           </div>
 
-          <!-- Live Tracked Drivers Row (e.g. Renato Dias) -->
-          <div class="tracked-drivers-row" *ngIf="trackedVehicles.length > 0">
-            <span class="drivers-row-label">Em tempo real:</span>
+          <!-- Live Tracked Vehicles Dropdown -->
+          <div class="live-vehicles-dropdown-container" *ngIf="trackedVehicles.length > 0">
             <button 
               type="button" 
-              class="driver-focus-pill" 
-              *ngFor="let tv of trackedVehicles" 
-              (click)="focusVehicleOnMap(tv)"
-              title="Centralizar mapa em {{ tv.motoristaNome || tv.placa }}"
+              class="btn-live-dropdown-toggle"
+              [class.open]="showLiveVehiclesDropdown"
+              (click)="toggleLiveVehiclesDropdown($event)"
+              title="Ver veículos rastreados em tempo real"
             >
               <span class="pulse-dot"></span>
-              <span>🚍 {{ tv.motoristaNome || tv.placa }} ({{ tv.placa }})</span>
-              <span class="locate-icon">📍 Focar</span>
+              <span class="dropdown-label">Em tempo real:</span>
+              <span class="dropdown-count"><strong>{{ trackedVehicles.length }}</strong> {{ trackedVehicles.length === 1 ? 'veículo' : 'veículos' }}</span>
+              <span class="dropdown-arrow">▼</span>
             </button>
+
+            <!-- Dropdown Menu -->
+            <div class="live-vehicles-dropdown-menu" *ngIf="showLiveVehiclesDropdown">
+              <div class="dropdown-header">
+                <span>🚍 Veículos em Trânsito</span>
+                <span class="header-count-pill">{{ trackedVehicles.length }}</span>
+              </div>
+              <div class="dropdown-list">
+                <button
+                  type="button"
+                  class="dropdown-vehicle-item"
+                  *ngFor="let tv of trackedVehicles"
+                  (click)="selectAndFocusLiveVehicle(tv, $event)"
+                  title="Focar no mapa"
+                >
+                  <div class="vehicle-item-left">
+                    <span class="pulse-dot"></span>
+                    <div class="vehicle-item-text">
+                      <div class="vehicle-item-title">
+                        <span class="driver-name">{{ tv.motoristaNome || 'Motorista' }}</span>
+                        <span class="plate-badge">{{ tv.placa }}</span>
+                      </div>
+                      <div class="vehicle-item-meta">
+                        <span class="speed-indicator" *ngIf="tv.velocidade !== undefined">⚡ {{ tv.velocidade }} km/h</span>
+                        <span class="direction-tag" *ngIf="tv.sentido">{{ tv.sentido }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span class="item-focus-action">📍 Focar</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="route-metrics-bar calculating" *ngIf="isCalculatingRoute">
@@ -1042,9 +1071,14 @@
 
               <!-- Ver Mais: Veículos no Itinerário IDA -->
               <div class="itinerary-fleet-toggle">
-                <button class="btn-sub-ver-mais" (click)="toggleIdaFleet()">
-                  <span>{{ showIdaFleetDetails ? '▼ Ocultar veículos nesse itinerário' : '▶ Ver veículos nesse itinerário (' + getVehiclesBySentido(selectedLinha, 'IDA').length + ')' }}</span>
-                </button>
+                <div class="fleet-toggle-row">
+                  <button type="button" class="btn-sub-ver-mais" (click)="toggleIdaFleet()">
+                    <span>{{ showIdaFleetDetails ? '▼ Ocultar veículos nesse itinerário' : '▶ Ver veículos nesse itinerário (' + getVehiclesBySentido(selectedLinha, 'IDA').length + ')' }}</span>
+                  </button>
+                  <button type="button" class="btn-alocar-veiculo" (click)="openAllocateVehicleModal('IDA', $event)" title="Alocar veículo para o itinerário de IDA">
+                    + Alocar Veículo
+                  </button>
+                </div>
                 <div class="sub-fleet-list" *ngIf="showIdaFleetDetails">
                   <div *ngIf="getVehiclesBySentido(selectedLinha, 'IDA').length > 0" class="sub-fleet-items">
                     <div class="sub-fleet-card" *ngFor="let v of getVehiclesBySentido(selectedLinha, 'IDA')">
@@ -1100,9 +1134,14 @@
 
               <!-- Ver Mais: Veículos no Itinerário VOLTA -->
               <div class="itinerary-fleet-toggle">
-                <button class="btn-sub-ver-mais" (click)="toggleVoltaFleet()">
-                  <span>{{ showVoltaFleetDetails ? '▼ Ocultar veículos nesse itinerário' : '▶ Ver veículos nesse itinerário (' + getVehiclesBySentido(selectedLinha, 'VOLTA').length + ')' }}</span>
-                </button>
+                <div class="fleet-toggle-row">
+                  <button type="button" class="btn-sub-ver-mais" (click)="toggleVoltaFleet()">
+                    <span>{{ showVoltaFleetDetails ? '▼ Ocultar veículos nesse itinerário' : '▶ Ver veículos nesse itinerário (' + getVehiclesBySentido(selectedLinha, 'VOLTA').length + ')' }}</span>
+                  </button>
+                  <button type="button" class="btn-alocar-veiculo" (click)="openAllocateVehicleModal('VOLTA', $event)" title="Alocar veículo para o itinerário de VOLTA">
+                    + Alocar Veículo
+                  </button>
+                </div>
                 <div class="sub-fleet-list" *ngIf="showVoltaFleetDetails">
                   <div *ngIf="getVehiclesBySentido(selectedLinha, 'VOLTA').length > 0" class="sub-fleet-items">
                     <div class="sub-fleet-card" *ngFor="let v of getVehiclesBySentido(selectedLinha, 'VOLTA')">
@@ -1311,6 +1350,131 @@
         </button>
         <button class="btn-dialog primary" (click)="saveFromWarning()">
           Salvar Alterações
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Allocate Vehicle Modal -->
+  <div class="modal-backdrop allocate-vehicle-backdrop" *ngIf="showAllocateVehicleModal" (click)="closeAllocateVehicleModal()">
+    <div class="dialog-card allocate-dialog" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <div class="header-title-group">
+          <span class="dialog-header-icon allocate-icon">🚌</span>
+          <div>
+            <h2>Alocar Veículo</h2>
+            <p class="dialog-header-sub">
+              Sentido {{ allocateSentido }}: <strong>{{ allocateSentido === 'IDA' ? (selectedLinha?.chegada || 'Destino') : (selectedLinha?.partida || 'Origem') }}</strong>
+            </p>
+          </div>
+        </div>
+        <button class="btn-close-dlg" [disabled]="isAllocatingVehicle" (click)="closeAllocateVehicleModal()" title="Fechar">✕</button>
+      </div>
+
+      <div class="dialog-body allocate-dialog-body">
+        <p class="dialog-hint">
+          Selecione um veículo livre (reserva na garagem) com motorista escalado para alocar na linha 
+          <strong>{{ selectedLinha?.codigo }}-{{ selectedLinha?.atendimento || '10' }}</strong> (Sentido {{ allocateSentido }}).
+        </p>
+
+        <!-- Search input -->
+        <div class="allocate-search-box">
+          <input 
+            type="text" 
+            class="allocate-search-input" 
+            placeholder="Buscar por placa, modelo ou motorista..."
+            [(ngModel)]="allocateSearchQuery"
+            (ngModelChange)="filterAllocateVehicles()"
+          />
+          <button 
+            type="button" 
+            class="btn-clear-alloc-search" 
+            *ngIf="allocateSearchQuery" 
+            (click)="allocateSearchQuery = ''; filterAllocateVehicles()"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- Loading state -->
+        <div class="allocate-loading-state" *ngIf="isLoadingAllocateVehicles">
+          <div class="spinner"></div>
+          <p>Carregando veículos disponíveis...</p>
+        </div>
+
+        <!-- Available vehicles list -->
+        <div class="allocate-vehicles-list" *ngIf="!isLoadingAllocateVehicles && filteredVehiclesToAllocate.length > 0">
+          <div 
+            class="allocate-vehicle-card" 
+            *ngFor="let v of filteredVehiclesToAllocate"
+            [class.selected]="selectedVehicleToAllocate?.plate === v.plate"
+            (click)="selectVehicleToAllocate(v)"
+          >
+            <div class="card-radio-col">
+              <input 
+                type="radio" 
+                name="selectedVehicle" 
+                [checked]="selectedVehicleToAllocate?.plate === v.plate"
+                (change)="selectVehicleToAllocate(v)"
+              />
+            </div>
+            <div class="card-main-col">
+              <div class="vehicle-primary-row">
+                <span class="v-plate">🚍 <strong>{{ v.plate }}</strong></span>
+                <span class="v-model">{{ v.model }}</span>
+                <span class="v-type-badge">{{ v.type || 'Padrão' }}</span>
+                <span class="v-capacity">{{ v.capacity || 80 }} lug.</span>
+              </div>
+              <div class="vehicle-driver-row">
+                <span class="driver-icon">👤</span>
+                <span class="driver-name">
+                  <strong>{{ getDriverInfoForVehicle(v).name }}</strong>
+                </span>
+                <span class="driver-shift-badge" *ngIf="getDriverInfoForVehicle(v).shift">
+                  Turno: {{ getDriverInfoForVehicle(v).shift }}
+                </span>
+                <span class="ready-badge">✓ Pronto</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div class="allocate-empty-state" *ngIf="!isLoadingAllocateVehicles && filteredVehiclesToAllocate.length === 0">
+          <span class="empty-icon">🚌</span>
+          <p class="empty-title">Nenhum veículo pronto e disponível encontrado.</p>
+          <p class="empty-subtitle">
+            Todos os veículos ativos com motoristas já estão alocados a linhas na operação ou não correspondem à busca.
+          </p>
+        </div>
+
+        <!-- Alerts -->
+        <div class="allocate-error-banner" *ngIf="allocateErrorMessage">
+          ⚠️ {{ allocateErrorMessage }}
+        </div>
+        <div class="allocate-success-banner" *ngIf="allocateSuccessMessage">
+          ✅ {{ allocateSuccessMessage }}
+        </div>
+      </div>
+
+      <div class="dialog-footer">
+        <button 
+          type="button" 
+          class="btn-dialog secondary" 
+          [disabled]="isAllocatingVehicle" 
+          (click)="closeAllocateVehicleModal()"
+        >
+          Cancelar
+        </button>
+        <button 
+          type="button" 
+          class="btn-dialog primary btn-confirm-allocate" 
+          [disabled]="!selectedVehicleToAllocate || isAllocatingVehicle"
+          (click)="confirmAllocateVehicle()"
+        >
+          <span class="saving-spinner" *ngIf="isAllocatingVehicle"></span>
+          <span *ngIf="isAllocatingVehicle">Alocando...</span>
+          <span *ngIf="!isAllocatingVehicle">Alocar Veículo</span>
         </button>
       </div>
     </div>

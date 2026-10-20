@@ -88,6 +88,7 @@ export class MotoristaComponent implements OnInit {
   horarioErrorMessage: string = '';
   transferErrorMessage: string = '';
   isSaving: boolean = false;
+  saveSuccess: boolean = false;
   isTransferring: boolean = false;
 
   // Dynamic Search & Filter State
@@ -160,6 +161,11 @@ export class MotoristaComponent implements OnInit {
     this.loginService.currentUser.subscribe((user) => {
       this.currentUser = user;
     });
+
+    this.route.queryParams.subscribe(() => {
+      this.checkQueryParamsForSelection();
+    });
+
     this.loadMotoristas();
     this.loadOperadores();
     this.ensureVeiculosAndLinhasLoaded();
@@ -231,23 +237,29 @@ export class MotoristaComponent implements OnInit {
   }
 
   checkQueryParamsForSelection(): void {
-    this.route.queryParams.subscribe((params) => {
-      const targetSearch = params['search'] || params['nome'] || params['cpf'];
-      if (targetSearch && this.motoristas.length > 0) {
-        this.searchQuery = targetSearch;
-        this.isSearchOpen = true;
-        const normTarget = targetSearch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        const found = this.motoristas.find((m) => {
-          const normName = (m.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          const normCpf = (m.cpf || '').replace(/\D/g, '');
-          const targetDigits = targetSearch.replace(/\D/g, '');
-          return (normName && normName.includes(normTarget)) || (targetDigits && normCpf.includes(targetDigits));
-        });
-        if (found) {
-          setTimeout(() => this.openEditModal(found), 150);
-        }
+    if (this.showEditModal) {
+      return;
+    }
+    const params = this.route.snapshot.queryParams;
+    const targetSearch = params['search'] || params['nome'] || params['cpf'];
+    if (targetSearch && this.motoristas.length > 0) {
+      this.searchQuery = targetSearch;
+      this.isSearchOpen = true;
+      const normTarget = targetSearch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      const found = this.motoristas.find((m) => {
+        const normName = (m.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const normCpf = (m.cpf || '').replace(/\D/g, '');
+        const targetDigits = targetSearch.replace(/\D/g, '');
+        return (normName && normName.includes(normTarget)) || (targetDigits && normCpf.includes(targetDigits));
+      });
+      if (found && !this.showEditModal) {
+        setTimeout(() => {
+          if (!this.showEditModal) {
+            this.openEditModal(found);
+          }
+        }, 150);
       }
-    });
+    }
   }
 
   toggleSearch(): void {
@@ -280,17 +292,33 @@ export class MotoristaComponent implements OnInit {
       .trim();
   }
 
-  loadMotoristas(forceRefresh: boolean = false): void {
-    this.isLoading = true;
+  loadMotoristas(forceRefresh: boolean = false, silentRefresh: boolean = false): void {
+    if (!silentRefresh) {
+      this.isLoading = true;
+    }
     this.motoristaService.getMotoristas(forceRefresh).subscribe({
       next: (data) => {
         this.motoristas = data || [];
         this.sortMotoristas();
         this.isLoading = false;
+        if (this.showEditModal && this.selectedMotorista) {
+          const targetId = this.selectedMotorista.id;
+          const targetCpf = this.selectedMotorista.cpf ? this.selectedMotorista.cpf.replace(/\D/g, '') : '';
+          const updated = this.motoristas.find(
+            (m) => (targetId && m.id === targetId) ||
+                   (targetCpf && m.cpf && m.cpf.replace(/\D/g, '') === targetCpf)
+          );
+          if (updated) {
+            this.selectedMotorista = JSON.parse(JSON.stringify(updated));
+            this.refreshTelemetry();
+          }
+        }
+        this.isSaving = false;
         this.checkQueryParamsForSelection();
       },
       error: (err) => {
         this.isLoading = false;
+        this.isSaving = false;
         if (err.status === 401 || err.status === 403) {
           this.loginService.logout();
           this.router.navigate(['/login']);
@@ -489,13 +517,17 @@ export class MotoristaComponent implements OnInit {
     this.selectedMotorista = JSON.parse(JSON.stringify(motorista));
     this.showEditModal = true;
     this.selectedDay = this.getCurrentDayCode();
+    this.saveSuccess = false;
+    this.isSaving = false;
     this.ensureVeiculosAndLinhasLoaded();
     this.refreshTelemetry();
   }
 
   closeEditModal(): void {
+    if (this.isSaving) return;
     this.showEditModal = false;
     this.selectedMotorista = null;
+    this.saveSuccess = false;
   }
 
   goToVeiculo(plate?: string, event?: Event): void {
@@ -515,12 +547,19 @@ export class MotoristaComponent implements OnInit {
         return;
       }
 
+      this.isSaving = true;
+      this.saveSuccess = false;
       this.motoristaService.updateMotorista(this.selectedMotorista).subscribe({
         next: () => {
-          this.loadMotoristas(true);
-          this.closeEditModal();
+          this.saveSuccess = true;
+          setTimeout(() => {
+            this.saveSuccess = false;
+          }, 2500);
+          this.loadMotoristas(true, true);
         },
         error: (err) => {
+          this.isSaving = false;
+          this.saveSuccess = false;
           if (err.status === 401 || err.status === 403) {
             this.loginService.logout();
             this.router.navigate(['/login']);

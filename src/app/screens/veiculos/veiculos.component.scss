@@ -877,15 +877,19 @@ $amber: #f59e0b;
       }
 
       &:disabled {
-        opacity: 0.7;
+        opacity: 0.65;
         cursor: not-allowed;
+        background: #64748b !important;
+        border-color: #64748b !important;
+        box-shadow: none !important;
+        transform: none !important;
       }
 
-      &.btn-save-animated:disabled {
-        cursor: wait;
-        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-        animation: savePulse 1.2s ease-in-out infinite;
-        box-shadow: 0 0 15px rgba(2, 132, 199, 0.45);
+      &.btn-saved {
+        background: #10b981 !important;
+        border-color: #10b981 !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
       }
 
       .btn-spinner {

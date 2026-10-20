@@ -104,7 +104,7 @@
             [class.active]="selectedTagAtivas === 'ida'"
             (click)="setTagAtivas('ida')"
           >
-            💛 Com Ida
+            Com Ida
           </button>
           <button
             type="button"
@@ -112,7 +112,7 @@
             [class.active]="selectedTagAtivas === 'volta'"
             (click)="setTagAtivas('volta')"
           >
-            💛 Com Volta
+            Com Volta
           </button>
           <button
             type="button"
@@ -170,7 +170,7 @@
                 (click)="$event.stopPropagation(); editExistingItinerary(linha, 'IDA')"
                 title="Visualizar itinerário de Ida"
               >
-                💛 Itinerário de IDA ({{ linha.rotas.ida.enderecos.length || 0 }} paradas)
+                Itinerário de IDA ({{ linha.rotas.ida.enderecos.length || 0 }} paradas)
               </span>
               <span 
                 class="route-tag" 
@@ -178,7 +178,7 @@
                 (click)="$event.stopPropagation(); editExistingItinerary(linha, 'VOLTA')"
                 title="Visualizar itinerário de Volta"
               >
-                💛 Itinerário de VOLTA ({{ linha.rotas.volta.enderecos.length || 0 }} paradas)
+                Itinerário de VOLTA ({{ linha.rotas.volta.enderecos.length || 0 }} paradas)
               </span>
               <span class="no-tags-message" *ngIf="!linha.rotas.ida && !linha.rotas.volta">
                 Nenhum itinerário cadastrado
@@ -288,7 +288,7 @@
             [class.active]="selectedTagInativas === 'ida'"
             (click)="setTagInativas('ida')"
           >
-            💛 Com Ida
+            Com Ida
           </button>
           <button
             type="button"
@@ -296,7 +296,7 @@
             [class.active]="selectedTagInativas === 'volta'"
             (click)="setTagInativas('volta')"
           >
-            💛 Com Volta
+            Com Volta
           </button>
           <button
             type="button"
@@ -344,14 +344,14 @@
                 *ngIf="linha.rotas.ida"
                 (click)="$event.stopPropagation(); editExistingItinerary(linha, 'IDA')"
               >
-                💛 Itinerário de IDA ({{ linha.rotas.ida.enderecos.length || 0 }} paradas)
+                Itinerário de IDA ({{ linha.rotas.ida.enderecos.length || 0 }} paradas)
               </span>
               <span 
                 class="route-tag" 
                 *ngIf="linha.rotas.volta"
                 (click)="$event.stopPropagation(); editExistingItinerary(linha, 'VOLTA')"
               >
-                💛 Itinerário de VOLTA ({{ linha.rotas.volta.enderecos.length || 0 }} paradas)
+                Itinerário de VOLTA ({{ linha.rotas.volta.enderecos.length || 0 }} paradas)
               </span>
               <span class="no-tags-message" *ngIf="!linha.rotas.ida && !linha.rotas.volta">
                 Nenhum itinerário cadastrado

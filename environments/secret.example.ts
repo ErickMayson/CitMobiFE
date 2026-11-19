@@ -1,5 +1,5 @@
-// Exemplo de configuração de segredos locais.
-// Copie este arquivo para `environments/secret.ts` e insira sua chave da API.
+// Exemplo de configuração de segredos locais e ambiente.
+// Em build local ou CI, pode ser preenchido ou fornecido via variável GOOGLE_MAPS_API_KEY.
 export const secrets = {
-  googleMapsApiKey: '', // Cole sua chave da API do Google Cloud aqui
+  googleMapsApiKey: (typeof process !== 'undefined' && process.env ? process.env['GOOGLE_MAPS_API_KEY'] : '') || '',
 };

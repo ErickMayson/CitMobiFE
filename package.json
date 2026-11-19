@@ -3,13 +3,16 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "node dist/ang/server/server.mjs",
+    "start:dev": "ng serve",
+    "dev": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
+    "serve:ssr": "node dist/ang/server/server.mjs",
     "serve:ssr:ang": "node dist/ang/server/server.mjs",
     "postinstall": "node -e \"const fs = require('fs'); if (!fs.existsSync('environments/secret.ts')) fs.copyFileSync('environments/secret.example.ts', 'environments/secret.ts');\""
   },

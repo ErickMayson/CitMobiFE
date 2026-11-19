@@ -1,7 +1,10 @@
 import { secrets } from './secret';
 
+const rawApiUrl = 'https://citmobi2.onrender.com'.replace(/\/+$/, '');
+const resolvedApiUrl = rawApiUrl.endsWith('/citmobi') ? rawApiUrl : `${rawApiUrl}/citmobi`;
+
 export const environment = {
-  production: false,
-  apiUrl: 'http://localhost:8080/citmobi',
+  production: true,
+  apiUrl: resolvedApiUrl,
   googleMapsApiKey: secrets?.googleMapsApiKey || '',
 };
